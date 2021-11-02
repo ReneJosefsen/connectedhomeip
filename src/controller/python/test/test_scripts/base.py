@@ -375,7 +375,8 @@ class BaseTestHelper:
                     # The changing thread will change the value after 3 seconds. If we're waiting more than 10, assume something
                     # is really wrong and bail out here with some information.
                     if not handler.cv.wait(10.0):
-                        self.logger.error(f"Failed to receive subscription update")
+                        self.logger.error(
+                            f"Failed to receive subscription update")
                         subsciptionOk = False
                         break
 
