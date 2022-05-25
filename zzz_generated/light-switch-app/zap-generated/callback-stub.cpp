@@ -83,6 +83,9 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case ZCL_OTA_REQUESTOR_CLUSTER_ID:
         emberAfOtaSoftwareUpdateRequestorClusterInitCallback(endpoint);
         break;
+    case ZCL_OCCUPANCY_SENSING_CLUSTER_ID:
+        emberAfOccupancySensingClusterInitCallback(endpoint);
+        break;
     case ZCL_ON_OFF_CLUSTER_ID:
         emberAfOnOffClusterInitCallback(endpoint);
         break;
@@ -202,6 +205,11 @@ void __attribute__((weak)) emberAfOtaSoftwareUpdateProviderClusterInitCallback(E
     (void) endpoint;
 }
 void __attribute__((weak)) emberAfOtaSoftwareUpdateRequestorClusterInitCallback(EndpointId endpoint)
+{
+    // To prevent warning
+    (void) endpoint;
+}
+void __attribute__((weak)) emberAfOccupancySensingClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;

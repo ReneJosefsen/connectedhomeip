@@ -30,46 +30,11 @@
 namespace chip {
 namespace Controller {
 
-class DLL_EXPORT ColorControlCluster : public ClusterBase
-{
-public:
-    ColorControlCluster() : ClusterBase(app::Clusters::ColorControl::Id) {}
-    ~ColorControlCluster() {}
-};
-
-class DLL_EXPORT IdentifyCluster : public ClusterBase
-{
-public:
-    IdentifyCluster() : ClusterBase(app::Clusters::Identify::Id) {}
-    ~IdentifyCluster() {}
-};
-
 class DLL_EXPORT OtaSoftwareUpdateProviderCluster : public ClusterBase
 {
 public:
     OtaSoftwareUpdateProviderCluster() : ClusterBase(app::Clusters::OtaSoftwareUpdateProvider::Id) {}
     ~OtaSoftwareUpdateProviderCluster() {}
-};
-
-class DLL_EXPORT OccupancySensingCluster : public ClusterBase
-{
-public:
-    OccupancySensingCluster() : ClusterBase(app::Clusters::OccupancySensing::Id) {}
-    ~OccupancySensingCluster() {}
-};
-
-class DLL_EXPORT OnOffCluster : public ClusterBase
-{
-public:
-    OnOffCluster() : ClusterBase(app::Clusters::OnOff::Id) {}
-    ~OnOffCluster() {}
-};
-
-class DLL_EXPORT ScenesCluster : public ClusterBase
-{
-public:
-    ScenesCluster() : ClusterBase(app::Clusters::Scenes::Id) {}
-    ~ScenesCluster() {}
 };
 
 } // namespace Controller
