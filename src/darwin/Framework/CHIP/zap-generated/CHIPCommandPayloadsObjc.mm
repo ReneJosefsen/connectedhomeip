@@ -32,26 +32,6 @@ NS_ASSUME_NONNULL_BEGIN
     return self;
 }
 @end
-@implementation CHIPIdentifyClusterIdentifyQueryResponseParams
-- (instancetype)init
-{
-    if (self = [super init]) {
-
-        _timeout = @(0);
-        _timedInvokeTimeoutMs = nil;
-    }
-    return self;
-}
-@end
-@implementation CHIPIdentifyClusterIdentifyQueryParams
-- (instancetype)init
-{
-    if (self = [super init]) {
-        _timedInvokeTimeoutMs = nil;
-    }
-    return self;
-}
-@end
 @implementation CHIPIdentifyClusterTriggerEffectParams
 - (instancetype)init
 {
@@ -1684,6 +1664,19 @@ NS_ASSUME_NONNULL_BEGIN
     return self;
 }
 @end
+@implementation CHIPGeneralDiagnosticsClusterTestEventTriggerParams
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _enableKey = [NSData data];
+
+        _eventTrigger = @(0);
+        _timedInvokeTimeoutMs = nil;
+    }
+    return self;
+}
+@end
 @implementation CHIPSoftwareDiagnosticsClusterResetWatermarksParams
 - (instancetype)init
 {
@@ -1840,7 +1833,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _ipkValue = [NSData data];
 
-        _caseAdminNode = @(0);
+        _caseAdminSubject = @(0);
 
         _adminVendorId = @(0);
         _timedInvokeTimeoutMs = nil;
@@ -1904,17 +1897,6 @@ NS_ASSUME_NONNULL_BEGIN
     if (self = [super init]) {
 
         _rootCertificate = [NSData data];
-        _timedInvokeTimeoutMs = nil;
-    }
-    return self;
-}
-@end
-@implementation CHIPOperationalCredentialsClusterRemoveTrustedRootCertificateParams
-- (instancetype)init
-{
-    if (self = [super init]) {
-
-        _trustedRootIdentifier = [NSData data];
         _timedInvokeTimeoutMs = nil;
     }
     return self;
@@ -2799,27 +2781,6 @@ NS_ASSUME_NONNULL_BEGIN
     return self;
 }
 @end
-@implementation CHIPThermostatClusterGetRelayStatusLogResponseParams
-- (instancetype)init
-{
-    if (self = [super init]) {
-
-        _timeOfDay = @(0);
-
-        _relayStatus = @(0);
-
-        _localTemperature = @(0);
-
-        _humidityInPercentage = @(0);
-
-        _setpoint = @(0);
-
-        _unreadEntries = @(0);
-        _timedInvokeTimeoutMs = nil;
-    }
-    return self;
-}
-@end
 @implementation CHIPThermostatClusterGetWeeklyScheduleParams
 - (instancetype)init
 {
@@ -2834,15 +2795,6 @@ NS_ASSUME_NONNULL_BEGIN
 }
 @end
 @implementation CHIPThermostatClusterClearWeeklyScheduleParams
-- (instancetype)init
-{
-    if (self = [super init]) {
-        _timedInvokeTimeoutMs = nil;
-    }
-    return self;
-}
-@end
-@implementation CHIPThermostatClusterGetRelayStatusLogParams
 - (instancetype)init
 {
     if (self = [super init]) {

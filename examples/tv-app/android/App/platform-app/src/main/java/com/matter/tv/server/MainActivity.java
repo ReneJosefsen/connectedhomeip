@@ -7,33 +7,25 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.matter.tv.server.fragments.ContentAppFragment;
 import com.matter.tv.server.fragments.QrCodeFragment;
 import com.matter.tv.server.fragments.TerminalFragment;
-import com.matter.tv.server.receivers.ContentAppDiscoveryService;
+import com.matter.tv.server.service.MatterServant;
 import java.util.LinkedHashMap;
 
 public class MainActivity extends AppCompatActivity {
 
   private LinkedHashMap<String, String> packages = new LinkedHashMap<>();
 
-  @Override
-  protected void onRestart() {
-    super.onRestart();
-    packages.clear();
-    ContentAppDiscoveryService.getReceiverInstance()
-        .initializeMatterApps(this.getApplicationContext());
-  }
-
   private BottomNavigationView.OnNavigationItemSelectedListener navListener =
       item -> {
         Fragment selectedFragment = null;
         switch (item.getItemId()) {
           case R.id.content_app:
-            selectedFragment = new ContentAppFragment();
+            selectedFragment = ContentAppFragment.newInstance();
             break;
           case R.id.qr_code:
-            selectedFragment = new QrCodeFragment();
+            selectedFragment = QrCodeFragment.newInstance();
             break;
           case R.id.terminal:
-            selectedFragment = new TerminalFragment();
+            selectedFragment = TerminalFragment.newInstance();
             break;
         }
 
@@ -48,6 +40,10 @@ public class MainActivity extends AppCompatActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
+
+    // MainActivity is needed to launch dialog prompt
+    // in UserPrompter
+    MatterServant.get().setActivity(this);
 
     BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
     bottomNavigationView.setOnItemSelectedListener(navListener);

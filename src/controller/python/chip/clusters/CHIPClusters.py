@@ -2830,6 +2830,14 @@ class ChipClusters:
             "clusterName": "GeneralDiagnostics",
             "clusterId": 0x00000033,
             "commands": {
+            0x00000000: {
+                    "commandId": 0x00000000,
+                    "commandName": "TestEventTrigger",
+                    "args": {
+                        "enableKey": "bytes",
+                        "eventTrigger": "int",
+                    },
+                },
             },
             "attributes": {
                 0x00000000: {
@@ -2878,6 +2886,12 @@ class ChipClusters:
                     "attributeName": "ActiveNetworkFaults",
                     "attributeId": 0x00000007,
                     "type": "int",
+                    "reportable": True,
+                },
+                0x00000008: {
+                    "attributeName": "TestEventTriggersEnabled",
+                    "attributeId": 0x00000008,
+                    "type": "bool",
                     "reportable": True,
                 },
                 0x0000FFF8: {
@@ -3106,12 +3120,6 @@ class ChipClusters:
                     "commandName": "Identify",
                     "args": {
                         "identifyTime": "int",
-                    },
-                },
-            0x00000001: {
-                    "commandId": 0x00000001,
-                    "commandName": "IdentifyQuery",
-                    "args": {
                     },
                 },
             0x00000040: {
@@ -4358,7 +4366,7 @@ class ChipClusters:
                         "NOCValue": "bytes",
                         "ICACValue": "bytes",
                         "IPKValue": "bytes",
-                        "caseAdminNode": "int",
+                        "caseAdminSubject": "int",
                         "adminVendorId": "int",
                     },
                 },
@@ -4395,13 +4403,6 @@ class ChipClusters:
                     "commandName": "RemoveFabric",
                     "args": {
                         "fabricIndex": "int",
-                    },
-                },
-            0x0000000C: {
-                    "commandId": 0x0000000C,
-                    "commandName": "RemoveTrustedRootCertificate",
-                    "args": {
-                        "trustedRootIdentifier": "bytes",
                     },
                 },
             0x00000009: {
@@ -6210,12 +6211,6 @@ class ChipClusters:
             0x00000003: {
                     "commandId": 0x00000003,
                     "commandName": "ClearWeeklySchedule",
-                    "args": {
-                    },
-                },
-            0x00000004: {
-                    "commandId": 0x00000004,
-                    "commandName": "GetRelayStatusLog",
                     "args": {
                     },
                 },

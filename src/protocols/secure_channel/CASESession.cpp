@@ -1463,9 +1463,10 @@ CHIP_ERROR CASESession::SetEffectiveTime()
 
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(
-            SecureChannel,
-            "The device does not support GetClock_RealTimeMS() API. This will eventually result in CASE session setup failures.");
+        ChipLogError(SecureChannel,
+                     "The device does not support GetClock_RealTimeMS() API. This will eventually result in CASE session setup "
+                     "failures. API error: %" CHIP_ERROR_FORMAT,
+                     err.Format());
         // TODO: Remove use of hardcoded time during CASE setup
         return GetHardcodedTime();
     }
@@ -1641,6 +1642,15 @@ CHIP_ERROR CASESession::OnMessageReceived(ExchangeContext * ec, const PayloadHea
     CHIP_ERROR err                            = ValidateReceivedMessage(ec, payloadHeader, msg);
     Protocols::SecureChannel::MsgType msgType = static_cast<Protocols::SecureChannel::MsgType>(payloadHeader.GetMessageType());
     SuccessOrExit(err);
+
+#if CHIP_CONFIG_SLOW_CRYPTO
+    if (msgType == Protocols::SecureChannel::MsgType::CASE_Sigma1 || msgType == Protocols::SecureChannel::MsgType::CASE_Sigma2 ||
+        msgType == Protocols::SecureChannel::MsgType::CASE_Sigma2Resume ||
+        msgType == Protocols::SecureChannel::MsgType::CASE_Sigma3)
+    {
+        SuccessOrExit(mExchangeCtxt->FlushAcks());
+    }
+#endif // CHIP_CONFIG_SLOW_CRYPTO
 
     // By default, CHIP_ERROR_INVALID_MESSAGE_TYPE is returned if in the current state
     // a message handler is not defined for the received message type.
