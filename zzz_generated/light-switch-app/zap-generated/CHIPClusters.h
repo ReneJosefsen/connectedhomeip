@@ -51,13 +51,6 @@ public:
     ~OtaSoftwareUpdateProviderCluster() {}
 };
 
-class DLL_EXPORT OccupancySensingCluster : public ClusterBase
-{
-public:
-    OccupancySensingCluster() : ClusterBase(app::Clusters::OccupancySensing::Id) {}
-    ~OccupancySensingCluster() {}
-};
-
 class DLL_EXPORT OnOffCluster : public ClusterBase
 {
 public:
