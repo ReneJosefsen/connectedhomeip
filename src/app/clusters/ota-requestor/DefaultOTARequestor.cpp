@@ -289,6 +289,9 @@ void DefaultOTARequestor::OnApplyUpdateResponse(void * context, const ApplyUpdat
         requestorCore->mOtaRequestorDriver->UpdateDiscontinued();
         requestorCore->RecordNewUpdateState(OTAUpdateStateEnum::kIdle, OTAChangeReasonEnum::kSuccess);
         break;
+    case OTAApplyUpdateAction::kUnknownEnumValue:
+        OnApplyUpdateFailure(context, CHIP_ERROR_INVALID_ARGUMENT);
+        break;
     }
 }
 
@@ -363,23 +366,13 @@ void DefaultOTARequestor::ConnectToProvider(OnConnectedAction onConnectedAction)
         return;
     }
 
-    FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
-
-    if (fabricInfo == nullptr)
-    {
-        ChipLogError(SoftwareUpdate, "Cannot find fabric");
-        RecordErrorUpdateState(CHIP_ERROR_INCORRECT_STATE);
-        return;
-    }
-
     // Set the action to take once connection is successfully established
     mOnConnectedAction = onConnectedAction;
 
     ChipLogDetail(SoftwareUpdate, "Establishing session to provider node ID 0x" ChipLogFormatX64 " on fabric index %d",
                   ChipLogValueX64(mProviderLocation.Value().providerNodeID), mProviderLocation.Value().fabricIndex);
 
-    mCASESessionManager->FindOrEstablishSession(fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID),
-                                                &mOnConnectedCallback, &mOnConnectionFailureCallback);
+    mCASESessionManager->FindOrEstablishSession(GetProviderScopedId(), &mOnConnectedCallback, &mOnConnectionFailureCallback);
 }
 
 void DefaultOTARequestor::DisconnectFromProvider()
@@ -393,17 +386,9 @@ void DefaultOTARequestor::DisconnectFromProvider()
         return;
     }
 
-    FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
-    if (fabricInfo == nullptr)
-    {
-        ChipLogError(SoftwareUpdate, "Cannot find fabric");
-        RecordErrorUpdateState(CHIP_ERROR_INCORRECT_STATE);
-        return;
-    }
-
-    PeerId peerID = fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID);
-    mCASESessionManager->FindExistingSession(peerID)->Disconnect();
-    mCASESessionManager->ReleaseSession(peerID);
+    auto providerNodeId = GetProviderScopedId();
+    mCASESessionManager->FindExistingSession(providerNodeId)->Disconnect();
+    mCASESessionManager->ReleaseSession(providerNodeId);
 }
 
 // Requestor is directed to cancel image update in progress. All the Requestor state is
@@ -489,7 +474,7 @@ void DefaultOTARequestor::OnConnected(void * context, OperationalDeviceProxy * d
 }
 
 // Called whenever FindOrEstablishSession fails
-void DefaultOTARequestor::OnConnectionFailure(void * context, PeerId peerId, CHIP_ERROR error)
+void DefaultOTARequestor::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {
     DefaultOTARequestor * requestorCore = static_cast<DefaultOTARequestor *>(context);
     VerifyOrDie(requestorCore != nullptr);
@@ -522,14 +507,34 @@ void DefaultOTARequestor::TriggerImmediateQueryInternal()
     ConnectToProvider(kQueryImage);
 }
 
-OTARequestorInterface::OTATriggerResult DefaultOTARequestor::TriggerImmediateQuery()
+CHIP_ERROR DefaultOTARequestor::TriggerImmediateQuery(FabricIndex fabricIndex)
 {
     ProviderLocationType providerLocation;
-    bool listExhausted = false;
-    if (mOtaRequestorDriver->GetNextProviderLocation(providerLocation, listExhausted) != true)
+    bool providerFound = false;
+
+    if (fabricIndex == kUndefinedFabricIndex)
     {
-        ChipLogError(SoftwareUpdate, "No OTA Providers available");
-        return kNoProviderKnown;
+        bool listExhausted = false;
+        providerFound      = mOtaRequestorDriver->GetNextProviderLocation(providerLocation, listExhausted);
+    }
+    else
+    {
+        for (auto providerIter = mDefaultOtaProviderList.Begin(); providerIter.Next();)
+        {
+            providerLocation = providerIter.GetValue();
+
+            if (providerLocation.GetFabricIndex() == fabricIndex)
+            {
+                providerFound = true;
+                break;
+            }
+        }
+    }
+
+    if (!providerFound)
+    {
+        ChipLogError(SoftwareUpdate, "No OTA Providers available for immediate query");
+        return CHIP_ERROR_NOT_FOUND;
     }
 
     SetCurrentProviderLocation(providerLocation);
@@ -537,7 +542,10 @@ OTARequestorInterface::OTATriggerResult DefaultOTARequestor::TriggerImmediateQue
     // Go through the driver as it has additional logic to execute
     mOtaRequestorDriver->SendQueryImage();
 
-    return kTriggerSuccessful;
+    ChipLogProgress(SoftwareUpdate, "Triggered immediate OTA query for fabric: 0x%x",
+                    static_cast<unsigned>(providerLocation.GetFabricIndex()));
+
+    return CHIP_NO_ERROR;
 }
 
 void DefaultOTARequestor::DownloadUpdate()
@@ -565,7 +573,7 @@ void DefaultOTARequestor::NotifyUpdateApplied()
 {
     // Log the VersionApplied event
     uint16_t productId;
-    if (DeviceLayer::ConfigurationMgr().GetProductId(productId) != CHIP_NO_ERROR)
+    if (DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(productId) != CHIP_NO_ERROR)
     {
         ChipLogError(SoftwareUpdate, "Cannot get Product ID");
         RecordErrorUpdateState(CHIP_ERROR_INCORRECT_STATE);
@@ -615,12 +623,14 @@ void DefaultOTARequestor::OnDownloadStateChanged(OTADownloader::State state, OTA
     {
     case OTADownloader::State::kComplete:
         mOtaRequestorDriver->UpdateDownloaded();
+        mBdxMessenger.Reset();
         break;
     case OTADownloader::State::kIdle:
         if (reason != OTAChangeReasonEnum::kSuccess)
         {
             RecordErrorUpdateState(CHIP_ERROR_CONNECTION_ABORTED, reason);
         }
+        mBdxMessenger.Reset();
         break;
     default:
         break;
@@ -703,7 +713,7 @@ CHIP_ERROR DefaultOTARequestor::GenerateUpdateToken()
         VerifyOrReturnError(mServer != nullptr, CHIP_ERROR_INCORRECT_STATE);
         VerifyOrReturnError(mProviderLocation.HasValue(), CHIP_ERROR_INCORRECT_STATE);
 
-        FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
+        const FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
         VerifyOrReturnError(fabricInfo != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
         static_assert(sizeof(NodeId) == sizeof(uint64_t), "Unexpected NodeId size");
@@ -722,10 +732,10 @@ CHIP_ERROR DefaultOTARequestor::SendQueryImageRequest(OperationalDeviceProxy & d
     QueryImage::Type args;
 
     uint16_t vendorId;
-    ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetVendorId(vendorId));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetVendorId(vendorId));
     args.vendorId = static_cast<VendorId>(vendorId);
 
-    ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetProductId(args.productId));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(args.productId));
 
     ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetSoftwareVersion(args.softwareVersion));
 
@@ -750,8 +760,8 @@ CHIP_ERROR DefaultOTARequestor::SendQueryImageRequest(OperationalDeviceProxy & d
         args.location.SetValue(CharSpan("XX", strlen("XX")));
     }
 
-    Controller::OtaSoftwareUpdateProviderCluster cluster;
-    cluster.Associate(&deviceProxy, mProviderLocation.Value().endpoint);
+    Controller::OtaSoftwareUpdateProviderCluster cluster(*deviceProxy.GetExchangeManager(), deviceProxy.GetSecureSession().Value(),
+                                                         mProviderLocation.Value().endpoint);
 
     return cluster.InvokeCommand(args, this, OnQueryImageResponse, OnQueryImageFailure);
 }
@@ -800,15 +810,25 @@ CHIP_ERROR DefaultOTARequestor::StartDownload(OperationalDeviceProxy & devicePro
     Optional<SessionHandle> session = deviceProxy.GetSecureSession();
     VerifyOrReturnError(session.HasValue(), CHIP_ERROR_INCORRECT_STATE);
 
-    mExchangeCtx = exchangeMgr->NewContext(session.Value(), &mBdxMessenger);
-    VerifyOrReturnError(mExchangeCtx != nullptr, CHIP_ERROR_NO_MEMORY);
+    chip::Messaging::ExchangeContext * exchangeCtx = exchangeMgr->NewContext(session.Value(), &mBdxMessenger);
+    VerifyOrReturnError(exchangeCtx != nullptr, CHIP_ERROR_NO_MEMORY);
 
-    mBdxMessenger.Init(mBdxDownloader, mExchangeCtx);
+    mBdxMessenger.Init(mBdxDownloader, exchangeCtx);
     mBdxDownloader->SetMessageDelegate(&mBdxMessenger);
     mBdxDownloader->SetStateDelegate(this);
 
-    ReturnErrorOnFailure(mBdxDownloader->SetBDXParams(initOptions, kDownloadTimeoutSec));
-    return mBdxDownloader->BeginPrepareDownload();
+    CHIP_ERROR err = mBdxDownloader->SetBDXParams(initOptions, kDownloadTimeoutSec);
+    if (err == CHIP_NO_ERROR)
+    {
+        err = mBdxDownloader->BeginPrepareDownload();
+    }
+
+    if (err != CHIP_NO_ERROR)
+    {
+        mBdxMessenger.Reset();
+    }
+
+    return err;
 }
 
 CHIP_ERROR DefaultOTARequestor::SendApplyUpdateRequest(OperationalDeviceProxy & deviceProxy)
@@ -820,8 +840,8 @@ CHIP_ERROR DefaultOTARequestor::SendApplyUpdateRequest(OperationalDeviceProxy & 
     args.updateToken = mUpdateToken;
     args.newVersion  = mTargetVersion;
 
-    Controller::OtaSoftwareUpdateProviderCluster cluster;
-    cluster.Associate(&deviceProxy, mProviderLocation.Value().endpoint);
+    Controller::OtaSoftwareUpdateProviderCluster cluster(*deviceProxy.GetExchangeManager(), deviceProxy.GetSecureSession().Value(),
+                                                         mProviderLocation.Value().endpoint);
 
     return cluster.InvokeCommand(args, this, OnApplyUpdateResponse, OnApplyUpdateFailure);
 }
@@ -835,8 +855,8 @@ CHIP_ERROR DefaultOTARequestor::SendNotifyUpdateAppliedRequest(OperationalDevice
     args.updateToken     = mUpdateToken;
     args.softwareVersion = mCurrentVersion;
 
-    Controller::OtaSoftwareUpdateProviderCluster cluster;
-    cluster.Associate(&deviceProxy, mProviderLocation.Value().endpoint);
+    Controller::OtaSoftwareUpdateProviderCluster cluster(*deviceProxy.GetExchangeManager(), deviceProxy.GetSecureSession().Value(),
+                                                         mProviderLocation.Value().endpoint);
 
     // There is no response for a notify so consider this OTA complete. Clear the provider location and reset any states to indicate
     // so.

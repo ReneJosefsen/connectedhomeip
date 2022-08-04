@@ -39,11 +39,14 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <messaging/ExchangeContext.h>
+#include <messaging/ExchangeHolder.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
 #include <system/SystemPacketBuffer.h>
+
+// https://github.com/CHIP-Specifications/connectedhomeip-spec/blob/61a9d19e6af12fdfb0872bcff26d19de6c680a1a/src/Ch02_Architecture.adoc#1122-subscribe-interaction-limits
+constexpr uint16_t kSubscriptionMaxIntervalPublisherLimit = 3600; // 3600 seconds
 
 namespace chip {
 namespace app {
@@ -167,20 +170,22 @@ public:
     void GetReportingIntervals(uint16_t & aMinInterval, uint16_t & aMaxInterval) const
     {
         aMinInterval = mMinIntervalFloorSeconds;
-        aMaxInterval = mMaxIntervalCeilingSeconds;
+        aMaxInterval = mMaxInterval;
     }
 
     /*
      * Set the reporting intervals for the subscription. This SHALL only be called
-     * from the OnSubscriptionRequested callback above.
+     * from the OnSubscriptionRequested callback above. The restriction is as below
+     * MinIntervalFloor ≤ MaxInterval ≤ MAX(SUBSCRIPTION_MAX_INTERVAL_PUBLISHER_LIMIT, MaxIntervalCeiling)
+     * Where SUBSCRIPTION_MAX_INTERVAL_PUBLISHER_LIMIT is set to 60m in the spec.
      */
-    CHIP_ERROR SetReportingIntervals(uint16_t aMinInterval, uint16_t aMaxInterval)
+    CHIP_ERROR SetReportingIntervals(uint16_t aMaxInterval)
     {
         VerifyOrReturnError(IsIdle(), CHIP_ERROR_INCORRECT_STATE);
-        VerifyOrReturnError(aMinInterval <= aMaxInterval, CHIP_ERROR_INVALID_ARGUMENT);
-
-        mMinIntervalFloorSeconds   = aMinInterval;
-        mMaxIntervalCeilingSeconds = aMaxInterval;
+        VerifyOrReturnError(mMinIntervalFloorSeconds <= aMaxInterval, CHIP_ERROR_INVALID_ARGUMENT);
+        VerifyOrReturnError(aMaxInterval <= std::max(kSubscriptionMaxIntervalPublisherLimit, mMaxInterval),
+                            CHIP_ERROR_INVALID_ARGUMENT);
+        mMaxInterval = aMaxInterval;
         return CHIP_NO_ERROR;
     }
 
@@ -310,7 +315,7 @@ private:
     Transport::SecureSession * GetSession() const;
     SubjectDescriptor GetSubjectDescriptor() const { return GetSession()->GetSubjectDescriptor(); }
 
-    auto GetSubscriptionStartGeneration() const { return mSubscriptionStartGeneration; }
+    auto GetTransactionStartGeneration() const { return mTransactionStartGeneration; }
 
     void UnblockUrgentEventDelivery()
     {
@@ -349,20 +354,8 @@ private:
         AwaitingDestruction,    ///< The object has completed its work and is awaiting destruction by the application.
     };
 
-    /*
-     * This forcibly closes the exchange context if a valid one is pointed to. Such a situation does
-     * not arise during normal message processing flows that all normally call Close() above.
-     *
-     * This will eventually call Close() to drive the process of eventually releasing this object (unless called from the
-     * destructor).
-     *
-     * This is only called by a very narrow set of external objects as needed.
-     */
-    void Abort(bool aCalledFromDestructor = false);
-
     /**
-     * Called internally to signal the completion of all work on this object, gracefully close the
-     * exchange and finally, signal to a registerd callback that it's
+     * Called internally to signal the completion of all work on this objecta and signal to a registered callback that it's
      * safe to release this object.
      */
     void Close();
@@ -426,11 +419,11 @@ private:
 
     // When we don't have enough resources for a new subscription, the oldest subscription might be evicted by interaction model
     // engine, the "oldest" subscription is the subscription with the smallest generation.
-    uint64_t mSubscriptionStartGeneration = 0;
+    uint64_t mTransactionStartGeneration = 0;
 
-    SubscriptionId mSubscriptionId      = 0;
-    uint16_t mMinIntervalFloorSeconds   = 0;
-    uint16_t mMaxIntervalCeilingSeconds = 0;
+    SubscriptionId mSubscriptionId    = 0;
+    uint16_t mMinIntervalFloorSeconds = 0;
+    uint16_t mMaxInterval             = 0;
 
     EventNumber mEventMin = 0;
 
@@ -440,7 +433,7 @@ private:
     // TODO: We should shutdown the transaction when the session expires.
     SessionHolder mSessionHandle;
 
-    Messaging::ExchangeContext * mpExchangeCtx = nullptr;
+    Messaging::ExchangeHolder mExchangeCtx;
 
     ObjectList<AttributePathParams> * mpAttributePathList   = nullptr;
     ObjectList<EventPathParams> * mpEventPathList           = nullptr;

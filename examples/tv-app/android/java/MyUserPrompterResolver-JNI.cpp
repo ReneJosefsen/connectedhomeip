@@ -26,29 +26,37 @@
 using namespace chip;
 
 #define JNI_METHOD(RETURN, METHOD_NAME)                                                                                            \
-    extern "C" JNIEXPORT RETURN JNICALL Java_com_tcl_chip_tvapp_UserPrompterResolver_##METHOD_NAME
+    extern "C" JNIEXPORT RETURN JNICALL Java_com_matter_tv_server_tvapp_UserPrompterResolver_##METHOD_NAME
 
 JNI_METHOD(void, OnPinCodeEntered)(JNIEnv *, jobject, jint jPinCode)
 {
+#if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     uint32_t pinCode = (uint32_t) jPinCode;
     ChipLogProgress(Zcl, "OnPinCodeEntered %d", pinCode);
     GetCommissionerDiscoveryController()->CommissionWithPincode(pinCode);
+#endif
 }
 
 JNI_METHOD(void, OnPinCodeDeclined)(JNIEnv *, jobject)
 {
+#if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     ChipLogProgress(Zcl, "OnPinCodeDeclined");
     GetCommissionerDiscoveryController()->Cancel();
+#endif
 }
 
 JNI_METHOD(void, OnPromptAccepted)(JNIEnv *, jobject)
 {
+#if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     ChipLogProgress(Zcl, "OnPromptAccepted");
     GetCommissionerDiscoveryController()->Ok();
+#endif
 }
 
 JNI_METHOD(void, OnPromptDeclined)(JNIEnv *, jobject)
 {
+#if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     ChipLogProgress(Zcl, "OnPromptDeclined");
     GetCommissionerDiscoveryController()->Cancel();
+#endif
 }

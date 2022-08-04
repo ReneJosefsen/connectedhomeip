@@ -19,8 +19,9 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        Text("Hello Objective-C from Swift! " + String(CastingServerBridge().add(5, secondNum: 6)))
-            .padding()
+        NavigationView {
+            CommissionerDiscoveryView()
+        }
     }
 }
 

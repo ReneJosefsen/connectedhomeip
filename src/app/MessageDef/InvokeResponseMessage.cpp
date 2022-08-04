@@ -21,7 +21,7 @@
 #include "InvokeResponseMessage.h"
 #include "MessageDefHelper.h"
 
-#include <app/AppBuildConfig.h>
+#include <app/AppConfig.h>
 
 namespace chip {
 namespace app {
@@ -82,7 +82,7 @@ CHIP_ERROR InvokeResponseMessage::Parser::CheckSchemaValidity() const
     }
 
     PRETTY_PRINT("},");
-    PRETTY_PRINT("");
+    PRETTY_PRINT_BLANK_LINE();
 
     if (CHIP_END_OF_TLV == err)
     {

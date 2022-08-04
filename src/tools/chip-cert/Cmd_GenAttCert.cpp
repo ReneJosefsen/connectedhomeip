@@ -173,7 +173,7 @@ const char * const gCmdOptionHelp =
     "           ext-authority-info-access        - Certificate will include optional Authority Information Access extension.\n"
     "           ext-subject-alt-name             - Certificate will include optional Subject Alternative Name extension.\n"
     "\n"
-#endif
+#endif // CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
     ;
 
 OptionSet gCmdOptions =
@@ -211,7 +211,7 @@ const char * gOutCertFileName = nullptr;
 const char * gOutKeyFileName  = nullptr;
 uint32_t gValidDays           = kCertValidDays_Undefined;
 struct tm gValidFrom;
-AttCertStructConfig gCertConfig;
+CertStructConfig gCertConfig;
 
 bool HandleOption(const char * progName, OptionSet * optSet, int id, const char * name, const char * arg)
 {
@@ -400,7 +400,7 @@ bool HandleOption(const char * progName, OptionSet * optSet, int id, const char 
             return false;
         }
         break;
-#endif
+#endif // CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
     default:
         PrintArgError("%s: Unhandled option: %s\n", progName, name);
         return false;
@@ -533,7 +533,7 @@ bool Cmd_GenAttCert(int argc, char * argv[])
 
     if (gInKeyFileName != nullptr)
     {
-        res = ReadKey(gInKeyFileName, newKey.get());
+        res = ReadKey(gInKeyFileName, newKey);
         VerifyTrueOrExit(res);
     }
     else
@@ -564,7 +564,7 @@ bool Cmd_GenAttCert(int argc, char * argv[])
         res = ReadCert(gCACertFileName, caCert.get());
         VerifyTrueOrExit(res);
 
-        res = ReadKey(gCAKeyFileName, caKey.get(), gCertConfig.IsErrorTestCaseEnabled());
+        res = ReadKey(gCAKeyFileName, caKey, gCertConfig.IsErrorTestCaseEnabled());
         VerifyTrueOrExit(res);
 
         res = MakeAttCert(gAttCertType, gSubjectCN, gSubjectVID, gSubjectPID, gEncodeVIDandPIDasCN, caCert.get(), caKey.get(),
@@ -577,7 +577,7 @@ bool Cmd_GenAttCert(int argc, char * argv[])
 
     if (gOutKeyFileName != nullptr)
     {
-        res = WritePrivateKey(gOutKeyFileName, newKey.get(), kKeyFormat_X509_PEM);
+        res = WriteKey(gOutKeyFileName, newKey.get(), kKeyFormat_X509_PEM);
         VerifyTrueOrExit(res);
     }
 

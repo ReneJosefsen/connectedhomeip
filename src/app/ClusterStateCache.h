@@ -576,6 +576,11 @@ private:
         mCallback.OnSubscriptionEstablished(aSubscriptionId);
     }
 
+    CHIP_ERROR OnResubscriptionNeeded(ReadClient * apReadClient, CHIP_ERROR aTerminationCause) override
+    {
+        return mCallback.OnResubscriptionNeeded(apReadClient, aTerminationCause);
+    }
+
     void OnDeallocatePaths(chip::app::ReadPrepareParams && aReadPrepareParams) override
     {
         mCallback.OnDeallocatePaths(std::move(aReadPrepareParams));

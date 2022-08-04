@@ -17,11 +17,13 @@
 
 #include <platform_stdlib.h>
 
+#include "BindingHandler.h"
 #include "CHIPDeviceManager.h"
 #include "DeviceCallbacks.h"
 #include "Globals.h"
 #include "LEDWidget.h"
 #include "chip_porting.h"
+#include <DeviceInfoProviderImpl.h>
 #include <lwip_netconf.h>
 
 #include <app/clusters/identify-server/identify-server.h>
@@ -40,7 +42,11 @@
 #include <support/CHIPMem.h>
 
 #if CONFIG_ENABLE_PW_RPC
-#include "Rpc.h"
+#include <Rpc.h>
+#endif
+
+#if CONFIG_ENABLE_CHIP_SHELL
+#include <shell/launch_shell.h>
 #endif
 
 using namespace ::chip;
@@ -89,6 +95,7 @@ Identify gIdentify1 = {
 #endif
 
 static DeviceCallbacks EchoCallbacks;
+chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 
 static void InitServer(intptr_t context)
 {
@@ -96,6 +103,8 @@ static void InitServer(intptr_t context)
     static chip::CommonCaseDeviceServerInitParams initParams;
     initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
+    gExampleDeviceInfoProvider.SetStorageDelegate(&Server::GetInstance().GetPersistentStorage());
+    chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 
     // Initialize device attestation config
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
@@ -106,6 +115,8 @@ static void InitServer(intptr_t context)
         // QR code will be used with CHIP Tool
         PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
     }
+
+    InitBindingHandler();
 }
 
 extern "C" void ChipTest(void)
@@ -134,6 +145,10 @@ extern "C" void ChipTest(void)
     chip::DeviceLayer::PlatformMgr().ScheduleWork(InitServer, 0);
 
     statusLED1.Init(STATUS_LED_GPIO_NUM);
+
+#if CONFIG_ENABLE_CHIP_SHELL
+    chip::LaunchShell();
+#endif
 }
 
 bool lowPowerClusterSleep()

@@ -56,6 +56,17 @@ void MatterPostAttributeChangeCallback(const app::ConcreteAttributePath & attrib
             return;
         }
         break;
+    case Identify::Id:
+        if (attributePath.mAttributeId == Identify::Attributes::IdentifyTime::Id)
+        {
+            uint16_t identifyTime;
+            if (EMBER_ZCL_STATUS_SUCCESS == Identify::Attributes::IdentifyTime::Get(attributePath.mEndpointId, &identifyTime))
+            {
+                ChipLogProgress(Zcl, "IdentifyTime %u", identifyTime);
+                return;
+            }
+        }
+        break;
     default:
         printf("Unhandled cluster ID: 0x%04lx\n", attributePath.mClusterId);
         return;
@@ -94,15 +105,17 @@ bool emberAfPluginDoorLockGetCredential(chip::EndpointId endpointId, uint16_t cr
     return LockMgr().GetCredential(endpointId, credentialIndex, credentialType, credential);
 }
 
-bool emberAfPluginDoorLockSetCredential(chip::EndpointId endpointId, uint16_t credentialIndex, DlCredentialStatus credentialStatus,
+bool emberAfPluginDoorLockSetCredential(chip::EndpointId endpointId, uint16_t credentialIndex, chip::FabricIndex creator,
+                                        chip::FabricIndex modifier, DlCredentialStatus credentialStatus,
                                         DlCredentialType credentialType, const chip::ByteSpan & credentialData)
 {
-    return LockMgr().SetCredential(endpointId, credentialIndex, credentialStatus, credentialType, credentialData);
+    return LockMgr().SetCredential(endpointId, credentialIndex, creator, modifier, credentialStatus, credentialType,
+                                   credentialData);
 }
 
 bool emberAfPluginDoorLockGetUser(chip::EndpointId endpointId, uint16_t userIndex, EmberAfPluginDoorLockUserInfo & user)
 {
-    return LockMgr().GetUser(userIndex, user);
+    return LockMgr().GetUser(endpointId, userIndex, user);
 }
 
 bool emberAfPluginDoorLockSetUser(chip::EndpointId endpointId, uint16_t userIndex, chip::FabricIndex creator,
@@ -111,8 +124,8 @@ bool emberAfPluginDoorLockSetUser(chip::EndpointId endpointId, uint16_t userInde
                                   const DlCredential * credentials, size_t totalCredentials)
 {
 
-    return LockMgr().SetUser(userIndex, creator, modifier, userName, uniqueId, userStatus, usertype, credentialRule, credentials,
-                             totalCredentials);
+    return LockMgr().SetUser(endpointId, userIndex, creator, modifier, userName, uniqueId, userStatus, usertype, credentialRule,
+                             credentials, totalCredentials);
 }
 
 // TODO: These functions will be supported by door-lock-server in the future. These are set to return failure until implemented.

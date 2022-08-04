@@ -10,8 +10,8 @@ import android.util.Log;
 import android.widget.EditText;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.NotificationCompat;
-import com.tcl.chip.tvapp.UserPrompter;
-import com.tcl.chip.tvapp.UserPrompterResolver;
+import com.matter.tv.server.tvapp.UserPrompter;
+import com.matter.tv.server.tvapp.UserPrompterResolver;
 
 public class MatterCommissioningPrompter extends UserPrompterResolver implements UserPrompter {
 
@@ -112,14 +112,7 @@ public class MatterCommissioningPrompter extends UserPrompterResolver implements
   }
 
   public void promptCommissioningFailed(String commissioneeName, String error) {
-    Log.d(
-        TAG,
-        "Received prompt for failure vendor id:"
-            + vendorId
-            + " productId:"
-            + productId
-            + ". Commissionee: "
-            + commissioneeName);
+    Log.d(TAG, "Received prompt for failure Commissionee: " + commissioneeName);
     NotificationCompat.Builder builder =
         new NotificationCompat.Builder(activity, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_baseline_clear_24)

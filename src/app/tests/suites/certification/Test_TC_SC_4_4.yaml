@@ -15,6 +15,9 @@
 
 name: 3.4.4. [TC-SC-4.4] Operational Discovery - Controller [DUT - Controller]
 
+PICS:
+    - PICS_MCORE_ROLE_CONTROLLER
+
 config:
     nodeId: 0x12344321
     cluster: "Basic"
@@ -23,52 +26,87 @@ config:
 tests:
     - label: "TH is instructed to start advertising a service using DNS-SD"
       verification: |
-
+          verification step to be updated.
       disabled: true
 
     - label: "Scan for DNS-SD advertising"
+      PICS:
+          MCORE.COM.WIFI && MCORE.COM.ETH && MCORE.COM.THR &&
+          MCORE.SC.SII_OP_DISCOVERY_KEY && MCORE.SC.SAI_OP_DISCOVERY_KEY &&
+          MCORE.SC.T_KEY
       verification: |
-          avahi-browse -rt _matter._tcp
-          +   eth0 IPv6 C6C15E13BDC03C7B-0000000000000001             _matter._tcp         local
-          =   eth0 IPv6 C6C15E13BDC03C7B-0000000000000001             _matter._tcp         local
-             hostname = [E45F010EBE440000.local]
-             address = [fe80::e65f:1ff:fe0e:be44]
+          ubuntu@ubuntu:~$ avahi-browse _matter._tcp -r
+
+          Verify on the TH Log:
+
+          + veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+          +   eth0 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+          = veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+             hostname = [E45F0149AE290000.local]
+             address = [fe80::28e0:95ff:fed9:3085]
              port = [5540]
-             txt = ["T=1" "CRA=300" "CRI=5000"]
+             txt = ["T=1" "SAI=300" "SII=5000"]
+          =   eth0 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+             hostname = [E45F0149AE290000.local]
+             address = [fe80::e65f:1ff:fe49:ae29]
+             port = [5540]
+             txt = ["T=1" "SAI=300" "SII=5000"]
       disabled: true
 
     - label: "DUT is instructed to advertise its service"
+      PICS: MCORE.SC.ADV
       verification: |
-
+          verification step to be updated.
       disabled: true
 
     - label: "Scan for DNS-SD advertising"
+      PICS:
+          MCORE.COM.WIFI && MCORE.COM.ETH && MCORE.COM.THR &&
+          MCORE.SC.SII_OP_DISCOVERY_KEY && MCORE.SC.SAI_OP_DISCOVERY_KEY &&
+          MCORE.SC.T_KEY && MCORE.SC.ADV
       verification: |
-          avahi-browse -rt _matter._tcp
-          +   eth0 IPv6 C6C15E13BDC03C7B-0000000000000001             _matter._tcp         local
-          =   eth0 IPv6 C6C15E13BDC03C7B-0000000000000001             _matter._tcp         local
-             hostname = [E45F010EBE440000.local]
-             address = [fe80::e65f:1ff:fe0e:be44]
+          avahi-browse _matter._tcp -r
+
+          Verify on the TH Log:
+
+          + veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+          +   eth0 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+          = veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+             hostname = [E45F0149AE290000.local]
+             address = [fe80::28e0:95ff:fed9:3085]
              port = [5540]
-             txt = ["T=1" "CRA=300" "CRI=5000"]
-      disabled: true
-
-    - label: "DUT is instructed to query the TH for its servicesm"
-      verification: |
-
-      disabled: true
-
-    - label: "DUT is instructed to query the TH for its services again"
-      verification: |
-
-      disabled: true
-
-    - label: "Change its IP address by any means"
-      verification: |
-
+             txt = ["T=1" "SAI=300" "SII=5000"]
+          =   eth0 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+             hostname = [E45F0149AE290000.local]
+             address = [fe80::e65f:1ff:fe49:ae29]
+             port = [5540]
+             txt = ["T=1" "SAI=300" "SII=5000"]
       disabled: true
 
     - label: "DUT is instructed to query the TH for its services"
       verification: |
+          verification step to be updated.
+      disabled: true
 
+    - label: "Change its IP address by any means"
+      verification: |
+          1. Take two routers connected to the same ISP as input.
+          2. Execute step 1 to step 5 using Router1 Configuration.
+          3. Once step 1 to step 5 are executed in Router1 switch TH and DUT to Router2.
+          4. Execute step 1 to step 5 using Router2 Configuration.
+          5. Check the IP so that the Routers(Router1 and Router2) will have different IPs to Raspi.
+      disabled: true
+
+    - label: "DUT is instructed to query the TH for its services"
+      verification: |
+          ubuntu@ubuntu:~$ avahi-browse _matter._tcp -r
+
+          Verify on the TH Log:
+
+          + veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+          = veth721e1d9 IPv6 433B62F8F07F4327-0000000000000001             _matter._tcp         local
+             hostname = [E45F0149AE290000.local]
+             address = [fe80::28e0:95ff:fed9:3085]
+             port = [5540]
+             txt = ["T=1" "SAI=300" "SII=5000"]
       disabled: true

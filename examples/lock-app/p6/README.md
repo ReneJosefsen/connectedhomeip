@@ -13,6 +13,7 @@ An example showing the use of Matter on the Infineon CY8CKIT-062S2-43012 board.
         -   [Commissioning over BLE](#commissioning-over-ble)
             -   [Notes](#notes)
         -   [Cluster control](#cluster-control)
+    -   [OTA Software Update](#ota-software-update)
 
 <hr>
 
@@ -49,7 +50,8 @@ will then join the network.
 
 *   Build the example application:
 
-          $ ./scripts/examples/gn_p6_example.sh examples/lock-app/p6 out/lock_app_p6
+          $ source scripts/activate.sh
+          $ scripts/build/build_examples.py --no-log-timestamps --target 'infineon-p6-lock' build
 
 -   To delete generated executable, libraries and object files use:
 
@@ -67,7 +69,7 @@ will then join the network.
 -   On the command line:
 
           $ cd ~/connectedhomeip
-          $ python3 out/lock_app_p6/chip-p6-lock-example.flash.py
+          $ python3 out/infineon-p6-lock/chip-p6-lock-example.flash.py
 
 <a name="Commissioning and cluster control"></a>
 
@@ -134,3 +136,9 @@ commands. These power cycle the BlueTooth hardware and disable BR/EDR mode.
     Press `USER_BTN1` on the board to toggle between lock and unlock states. The
     Lock/Unlock status of door can be observed with 'LED9' on the board. This
     LED is configured with `LOCK_STATE_LED` in `include/AppConfig.h`.
+
+## OTA Software Update
+
+For the description of Software Update process with infineon P6 example
+applications see
+[Infineon P6 OTA Software Update](../../../docs/guides/infineon_p6_software_update.md)

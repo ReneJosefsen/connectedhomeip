@@ -28,6 +28,7 @@
 #include <nlunit-test.h>
 
 #include <lib/support/Span.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 
 using namespace chip;
@@ -88,8 +89,8 @@ void TestMaximumValues(nlTestSuite * inSuite, void * inContext)
     inPayload.commissioningFlow     = CommissioningFlow::kCustom;
     inPayload.rendezvousInformation = RendezvousInformationFlags(
         RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork);
-    inPayload.discriminator = static_cast<uint16_t>((1 << kPayloadDiscriminatorFieldLengthInBits) - 1);
-    inPayload.setUpPINCode  = static_cast<uint32_t>((1 << kSetupPINCodeFieldLengthInBits) - 1);
+    inPayload.discriminator.SetLongValue(static_cast<uint16_t>((1 << kPayloadDiscriminatorFieldLengthInBits) - 1));
+    inPayload.setUpPINCode = static_cast<uint32_t>((1 << kSetupPINCodeFieldLengthInBits) - 1);
 
     NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload, /* allowInvalidPayload */ true));
 }
@@ -308,12 +309,7 @@ void TestSetupPayloadVerify(nlTestSuite * inSuite, void * inContext)
     test_payload.rendezvousInformation = invalid;
     NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
 
-    // test invalid discriminator
-    test_payload               = payload;
-    test_payload.discriminator = 1 << kPayloadDiscriminatorFieldLengthInBits;
-    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
-
-    // test invalid stetup PIN
+    // test invalid setup PIN
     test_payload              = payload;
     test_payload.setUpPINCode = 1 << kSetupPINCodeFieldLengthInBits;
     NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
@@ -357,9 +353,9 @@ void TestPayloadInEquality(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
 
-    SetupPayload unequalPayload  = GetDefaultPayload();
-    unequalPayload.discriminator = 28;
-    unequalPayload.setUpPINCode  = 121233;
+    SetupPayload unequalPayload = GetDefaultPayload();
+    unequalPayload.discriminator.SetLongValue(28);
+    unequalPayload.setUpPINCode = 121233;
 
     NL_TEST_ASSERT(inSuite, !(payload == unequalPayload));
 }
@@ -434,11 +430,6 @@ const nlTest sTests[] =
 };
 // clang-format on
 
-struct TestContext
-{
-    nlTestSuite * mSuite;
-};
-
 } // namespace
 
 /**
@@ -455,17 +446,11 @@ int TestQuickResponseCode()
         nullptr
     };
     // clang-format on
-    TestContext context;
-
-    context.mSuite = &theSuite;
 
     // Generate machine-readable, comma-separated value (CSV) output.
     nl_test_set_output_style(OUTPUT_CSV);
 
-    // Run test suit against one context
-    nlTestRunner(&theSuite, &context);
-
-    return nlTestRunnerStats(&theSuite);
+    return chip::ExecuteTestsWithoutContext(&theSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestQuickResponseCode);

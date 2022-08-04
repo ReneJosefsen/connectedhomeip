@@ -179,6 +179,7 @@ efr32_executable("chef_app") {
   defines = []
 
   sources = [
+    "${examples_plat_dir}/BaseApplication.cpp",
     "${examples_plat_dir}/LEDWidget.cpp",
     "${examples_plat_dir}/efr32_utils.cpp",
     "${examples_plat_dir}/heap_4_silabs.c",
@@ -334,6 +335,11 @@ efr32_executable("chef_app") {
       "-Wl,--defsym",
       "-Wl,SILABS_WIFI=1",
     ]
+  }
+
+  # Attestation Credentials
+  if (chip_build_platform_attestation_credentials_provider) {
+    deps += [ "${examples_plat_dir}:efr32-attestation-credentials" ]
   }
 
   output_dir = root_out_dir

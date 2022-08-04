@@ -27,6 +27,7 @@
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TestGroupData.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
@@ -305,15 +306,6 @@ void TestWriteInteraction::TestWriteHandler(nlTestSuite * apSuite, void * apCont
             }
             else
             {
-                //
-                // In a normal execution flow, the exchange manager would have closed out the exchange after the
-                // message dispatch call path had unwound. In this test however, we've manually allocated the exchange
-                // ourselves (as opposed to the exchange manager), so we need to take ownership of closing out the exchange.
-                //
-                // Note that this doesn't happen in the success case above, since that results in a call to send a message through
-                // the exchange context, which results in the exchange manager correctly closing it.
-                //
-                exchange->Close();
                 NL_TEST_ASSERT(apSuite, status == Status::UnsupportedAccess);
             }
 
@@ -593,7 +585,7 @@ int Test_Setup(void * inContext)
 
     uint8_t buf[sizeof(chip::CompressedFabricId)];
     chip::MutableByteSpan span(buf);
-    VerifyOrReturnError(CHIP_NO_ERROR == ctx.GetBobFabric()->GetCompressedId(span), FAILURE);
+    VerifyOrReturnError(CHIP_NO_ERROR == ctx.GetBobFabric()->GetCompressedFabricIdBytes(span), FAILURE);
     VerifyOrReturnError(CHIP_NO_ERROR == chip::GroupTesting::InitData(&gGroupsProvider, ctx.GetBobFabricIndex(), span), FAILURE);
 
     return SUCCESS;
@@ -631,9 +623,7 @@ nlTestSuite sSuite =
 
 int TestWriteInteraction()
 {
-    TestContext gContext;
-    nlTestRunner(&sSuite, &gContext);
-    return (nlTestRunnerStats(&sSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestWriteInteraction)

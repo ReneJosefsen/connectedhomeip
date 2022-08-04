@@ -98,6 +98,8 @@ if [ "$#" == "0" ]; then
             For minimum consumption, disable openthread cli and qr code
         --wifi <wf200 | rs911x>
             build wifi example variant for given exansion board
+        --additional_data_advertising
+            enable Addition data advertissing and rotating device ID
     "
 elif [ "$#" -lt "2" ]; then
     echo "Invalid number of arguments
@@ -135,6 +137,30 @@ else
                 ;;
             --sed)
                 optArgs+="enable_sleepy_device=true chip_openthread_ftd=false "
+                shift
+                ;;
+            --chip_enable_wifi_ipv4)
+                optArgs+="chip_enable_wifi_ipv4=true "
+                shift
+                ;;
+            --rs91x_setSecurityType)
+                if [ -z "$2" ]; then
+                    echo "--rs911x_setSecurityType requires WPA_WPA2 or WPA3_ONLY"
+                    exit 1
+                fi
+                if [ "$2" = "WPA_WPA2" ]; then
+                    optArgs+="wifi_enable_security_wpa3=false "
+                elif [ "$2" = "WPA3_ONLY" ]; then
+                    optArgs+="wifi_enable_security_wpa3=true "
+                else
+                    echo "Set security usage: --rs911x_setSecurityType WPA_WPA2|WPA3_ONLY"
+                    exit 1
+                fi
+                shift
+                shift
+                ;;
+            --additional_data_advertising)
+                optArgs+="chip_enable_additional_data_advertising=true chip_enable_rotating_device_id=true "
                 shift
                 ;;
             *)

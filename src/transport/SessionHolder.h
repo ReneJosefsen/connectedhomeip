@@ -28,30 +28,35 @@ namespace chip {
  *    released when the underlying session is released. One must verify it is available before use. The object can be
  *    created using SessionHandle.Grab()
  */
-class SessionHolder : public SessionDelegate, public IntrusiveListNodeBase
+class SessionHolder : public IntrusiveListNodeBase<>
 {
 public:
     SessionHolder() {}
-    ~SessionHolder() override;
+    SessionHolder(const SessionHandle & handle) { Grab(handle); }
+    virtual ~SessionHolder();
 
     SessionHolder(const SessionHolder &);
     SessionHolder(SessionHolder && that);
     SessionHolder & operator=(const SessionHolder &);
     SessionHolder & operator=(SessionHolder && that);
 
-    // Implement SessionDelegate
-    void OnSessionReleased() override { Release(); }
+    virtual void SessionReleased() { Release(); }
+    virtual void ShiftToSession(const SessionHandle & session)
+    {
+        Release();
+        Grab(session);
+    }
 
     bool Contains(const SessionHandle & session) const
     {
         return mSession.HasValue() && &mSession.Value().Get() == &session.mSession.Get();
     }
 
-    bool GrabPairing(const SessionHandle & session); // Should be only used inside CASE/PASE pairing.
+    bool GrabPairingSession(const SessionHandle & session); // Should be only used inside CASE/PASE pairing.
     bool Grab(const SessionHandle & session);
     void Release();
 
-    operator bool() const { return mSession.HasValue(); }
+    explicit operator bool() const { return mSession.HasValue(); }
     Optional<SessionHandle> Get() const
     {
         //
@@ -69,7 +74,10 @@ public:
     // There is not delegate, nothing to do here
     virtual void DispatchSessionEvent(SessionDelegate::Event event) {}
 
-private:
+protected:
+    // Helper for use by the Grab methods.
+    void GrabUnchecked(const SessionHandle & session);
+
     Optional<ReferenceCountedHandle<Transport::Session>> mSession;
 };
 
@@ -78,15 +86,22 @@ class SessionHolderWithDelegate : public SessionHolder
 {
 public:
     SessionHolderWithDelegate(SessionDelegate & delegate) : mDelegate(delegate) {}
-    SessionHolderWithDelegate(const SessionHandle & handle, SessionDelegate & delegate) : mDelegate(delegate) { Grab(handle); }
+    SessionHolderWithDelegate(const SessionHandle & handle, SessionDelegate & delegate) : SessionHolder(handle), mDelegate(delegate)
+    {}
     operator bool() const { return SessionHolder::operator bool(); }
 
-    void OnSessionReleased() override
+    void SessionReleased() override
     {
         Release();
 
         // Note, the session is already cleared during mDelegate.OnSessionReleased
         mDelegate.OnSessionReleased();
+    }
+
+    void ShiftToSession(const SessionHandle & session) override
+    {
+        if (mDelegate.GetNewSessionHandlingPolicy() == SessionDelegate::NewSessionHandlingPolicy::kShiftToNewSession)
+            SessionHolder::ShiftToSession(session);
     }
 
     void DispatchSessionEvent(SessionDelegate::Event event) override { (mDelegate.*event)(); }

@@ -28,8 +28,7 @@ CHIP_ERROR ModelCommand::RunCommand()
 
     if (IsGroupId(mDestinationId))
     {
-        FabricIndex fabricIndex;
-        ReturnErrorOnFailure(CurrentCommissioner().GetFabricIndex(&fabricIndex));
+        FabricIndex fabricIndex = CurrentCommissioner().GetFabricIndex();
         ChipLogProgress(chipTool, "Sending command to group 0x%x", GroupIdFromNodeId(mDestinationId));
 
         return SendGroupCommand(GroupIdFromNodeId(mDestinationId), fabricIndex);
@@ -56,7 +55,7 @@ void ModelCommand::OnDeviceConnectedFn(void * context, chip::OperationalDevicePr
     VerifyOrReturn(CHIP_NO_ERROR == err, command->SetCommandExitStatus(err));
 }
 
-void ModelCommand::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR err)
+void ModelCommand::OnDeviceConnectionFailureFn(void * context, const chip::ScopedNodeId & peerId, CHIP_ERROR err)
 {
     LogErrorOnFailure(err);
 
@@ -67,7 +66,8 @@ void ModelCommand::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CH
 
 void ModelCommand::Shutdown()
 {
-    ResetArguments();
     mOnDeviceConnectedCallback.Cancel();
     mOnDeviceConnectionFailureCallback.Cancel();
+
+    CHIPCommand::Shutdown();
 }

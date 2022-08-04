@@ -98,6 +98,7 @@ public:
     {
         // We don't shut down InteractionModelReports here; we leave it for
         // Cleanup to handle.
+        mError = CHIP_NO_ERROR;
         ModelCommand::Shutdown();
     }
 
@@ -143,15 +144,14 @@ protected:
 
     void OnDone(chip::app::ReadClient * aReadClient) override
     {
+        InteractionModelReports::CleanupReadClient(aReadClient);
+
         if (!mSubscriptionEstablished)
         {
-            InteractionModelReports::CleanupReadClient(aReadClient);
             SetCommandExitStatus(mError);
         }
-
         // else we must be getting here from Cleanup(), which means we have
-        // already done our exit status thing, and have done the ReadClient
-        // cleanup.
+        // already done our exit status thing.
     }
 
     void Shutdown() override
@@ -160,7 +160,10 @@ protected:
         ReportCommand::Shutdown();
     }
 
-    bool DeferInteractiveCleanup() override { return mSubscriptionEstablished; }
+    // For subscriptions we always defer interactive cleanup.  Either our
+    // ReadClients will terminate themselves (in which case they will be removed
+    // from our list anyway), or they should hang around until shutdown.
+    bool DeferInteractiveCleanup() override { return true; }
 
 private:
     bool mSubscriptionEstablished = false;
@@ -350,11 +353,7 @@ public:
     {
         AddArgument("cluster-id", 0, UINT32_MAX, &mClusterIds);
         AddArgument("event-id", 0, UINT32_MAX, &mEventIds);
-        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
-        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("fabric-filtered", 0, 1, &mFabricFiltered);
-        AddArgument("event-min", 0, UINT64_MAX, &mEventNumber);
-        AddArgument("keepSubscriptions", 0, 1, &mKeepSubscriptions);
+        AddCommonArguments();
         SubscribeCommand::AddArguments();
     }
 
@@ -362,11 +361,7 @@ public:
         SubscribeCommand("subscribe-event-by-id", credsIssuerConfig), mClusterIds(1, clusterId)
     {
         AddArgument("event-id", 0, UINT32_MAX, &mEventIds);
-        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
-        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("fabric-filtered", 0, 1, &mFabricFiltered);
-        AddArgument("event-min", 0, UINT64_MAX, &mEventNumber);
-        AddArgument("keepSubscriptions", 0, 1, &mKeepSubscriptions);
+        AddCommonArguments();
         SubscribeCommand::AddArguments();
     }
 
@@ -376,6 +371,12 @@ public:
         mClusterIds(1, clusterId), mEventIds(1, eventId)
     {
         AddArgument("event-name", eventName, "Event name.");
+        AddCommonArguments();
+        SubscribeCommand::AddArguments();
+    }
+
+    void AddCommonArguments()
+    {
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval,
                     "The requested minimum interval between reports. Sets MinIntervalFloor in the Subscribe Request.");
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval,
@@ -384,7 +385,14 @@ public:
         AddArgument("event-min", 0, UINT64_MAX, &mEventNumber);
         AddArgument("keepSubscriptions", 0, 1, &mKeepSubscriptions,
                     "false - Terminate existing subscriptions from initiator.\n  true - Leave existing subscriptions in place.");
-        SubscribeCommand::AddArguments();
+        AddArgument(
+            "is-urgent", 0, 1, &mIsUrgents,
+            "Sets isUrgent in the Subscribe Request.\n"
+            "  The queueing of any urgent event SHALL force an immediate generation of reports containing all events queued "
+            "leading up to (and including) the urgent event in question.\n"
+            "  This argument takes a comma separated list of true/false values.\n"
+            "  If the number of paths exceeds the number of entries provided to is-urgent, then isUrgent will be false for the "
+            "extra paths.");
     }
 
     ~SubscribeEvent() {}
@@ -392,11 +400,104 @@ public:
     CHIP_ERROR SendCommand(chip::DeviceProxy * device, std::vector<chip::EndpointId> endpointIds) override
     {
         return SubscribeCommand::SubscribeEvent(device, endpointIds, mClusterIds, mEventIds, mMinInterval, mMaxInterval,
-                                                mFabricFiltered, mEventNumber, mKeepSubscriptions);
+                                                mFabricFiltered, mEventNumber, mKeepSubscriptions, mIsUrgents);
     }
 
 private:
     std::vector<chip::ClusterId> mClusterIds;
+    std::vector<chip::EventId> mEventIds;
+
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    chip::Optional<bool> mFabricFiltered;
+    chip::Optional<chip::EventNumber> mEventNumber;
+    chip::Optional<bool> mKeepSubscriptions;
+    chip::Optional<std::vector<bool>> mIsUrgents;
+};
+
+class ReadAll : public ReadCommand
+{
+public:
+    ReadAll(CredentialIssuerCommands * credsIssuerConfig) : ReadCommand("read-all", credsIssuerConfig)
+    {
+        AddArgument("cluster-ids", 0, UINT32_MAX, &mClusterIds,
+                    "Comma-separated list of cluster ids to read from (e.g. \"6\" or \"8,0x201\").\n  Allowed to be 0xFFFFFFFF to "
+                    "indicate a wildcard cluster.");
+        AddArgument("attribute-ids", 0, UINT32_MAX, &mAttributeIds,
+                    "Comma-separated list of attribute ids to read (e.g. \"0\" or \"1,0xFFFC,0xFFFD\").\n  Allowed to be "
+                    "0xFFFFFFFF to indicate a wildcard attribute.");
+        AddArgument("event-ids", 0, UINT32_MAX, &mEventIds,
+                    "Comma-separated list of event ids to read (e.g. \"0\" or \"1,2,3\").\n  Allowed to be "
+                    "0xFFFFFFFF to indicate a wildcard event.");
+        AddArgument("fabric-filtered", 0, 1, &mFabricFiltered,
+                    "Boolean indicating whether to do a fabric-filtered read. Defaults to true.");
+        AddArgument("data-versions", 0, UINT32_MAX, &mDataVersions,
+                    "Comma-separated list of data versions for the clusters being read.");
+        AddArgument("event-min", 0, UINT64_MAX, &mEventNumber);
+        ReadCommand::AddArguments();
+    }
+
+    ~ReadAll() {}
+
+    void OnDone(chip::app::ReadClient * aReadClient) override
+    {
+        InteractionModelReports::CleanupReadClient(aReadClient);
+        SetCommandExitStatus(mError);
+    }
+
+    CHIP_ERROR SendCommand(chip::DeviceProxy * device, std::vector<chip::EndpointId> endpointIds) override
+    {
+        return ReadCommand::ReadAll(device, endpointIds, mClusterIds, mAttributeIds, mEventIds, mFabricFiltered, mDataVersions,
+                                    mEventNumber);
+    }
+
+private:
+    std::vector<chip::ClusterId> mClusterIds;
+    std::vector<chip::AttributeId> mAttributeIds;
+    std::vector<chip::EventId> mEventIds;
+
+    chip::Optional<bool> mFabricFiltered;
+    chip::Optional<std::vector<chip::DataVersion>> mDataVersions;
+    chip::Optional<chip::EventNumber> mEventNumber;
+};
+
+class SubscribeAll : public SubscribeCommand
+{
+public:
+    SubscribeAll(CredentialIssuerCommands * credsIssuerConfig) : SubscribeCommand("subscribe-all", credsIssuerConfig)
+    {
+        AddArgument("cluster-ids", 0, UINT32_MAX, &mClusterIds,
+                    "Comma-separated list of cluster ids to read from (e.g. \"6\" or \"8,0x201\").\n  Allowed to be 0xFFFFFFFF to "
+                    "indicate a wildcard cluster.");
+        AddArgument("attribute-ids", 0, UINT32_MAX, &mAttributeIds,
+                    "Comma-separated list of attribute ids to read (e.g. \"0\" or \"1,0xFFFC,0xFFFD\").\n  Allowed to be "
+                    "0xFFFFFFFF to indicate a wildcard attribute.");
+        AddArgument("event-ids", 0, UINT32_MAX, &mEventIds,
+                    "Comma-separated list of event ids to read (e.g. \"0\" or \"1,2,3\").\n  Allowed to be "
+                    "0xFFFFFFFF to indicate a wildcard event.");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval,
+                    "The requested minimum interval between reports. Sets MinIntervalFloor in the Subscribe Request.");
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval,
+                    "The requested maximum interval between reports. Sets MaxIntervalCeiling in the Subscribe Request.");
+        AddArgument("fabric-filtered", 0, 1, &mFabricFiltered,
+                    "Boolean indicating whether to do a fabric-filtered read. Defaults to true.");
+        AddArgument("event-min", 0, UINT64_MAX, &mEventNumber);
+        AddArgument("keepSubscriptions", 0, 1, &mKeepSubscriptions,
+                    "false - Terminate existing subscriptions from initiator.\n  true - Leave existing subscriptions in place.");
+        SubscribeCommand::AddArguments();
+    }
+
+    ~SubscribeAll() {}
+
+    CHIP_ERROR SendCommand(chip::DeviceProxy * device, std::vector<chip::EndpointId> endpointIds) override
+    {
+        return SubscribeCommand::SubscribeAll(device, endpointIds, mClusterIds, mAttributeIds, mEventIds, mMinInterval,
+                                              mMaxInterval, mFabricFiltered, mEventNumber, mKeepSubscriptions);
+    }
+
+private:
+    std::vector<chip::ClusterId> mClusterIds;
+    std::vector<chip::AttributeId> mAttributeIds;
     std::vector<chip::EventId> mEventIds;
 
     uint16_t mMinInterval;

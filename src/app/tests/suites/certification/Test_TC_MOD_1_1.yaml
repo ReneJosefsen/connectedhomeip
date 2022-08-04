@@ -34,23 +34,68 @@ tests:
       response:
           value: 1
           constraints:
-              type: uint16
+              type: int16u
 
     - label: "TH reads the FeatureMap attribute from the DUT"
+      PICS: MOD.S.F00
       command: "readAttribute"
       attribute: "FeatureMap"
       response:
           value: 1
           constraints:
-              type: map8
+              type: bitmap32
 
-    #if condition needed #Issue 10988
+    - label: "TH reads the FeatureMap attribute from the DUT"
+      PICS: " !MOD.S.F00 "
+      command: "readAttribute"
+      attribute: "FeatureMap"
+      response:
+          value: 0
+          constraints:
+              type: bitmap32
+
     - label: "TH reads the AttributeList attribute from the DUT"
-      PICS: PICS_SKIP_SAMPLE_APP
       command: "readAttribute"
       attribute: "AttributeList"
       response:
-          value: [0, 1, 2, 3, 65528, 65529, 65531, 65532, 65533]
+          constraints:
+              type: list
+              contains: [0, 1, 2, 3, 65528, 65529, 65531, 65532, 65533]
+
+    - label:
+          "TH reads the optional attribute(StartUpMode) in AttributeList from
+          the DUT"
+      PICS: MOD.S.A0004
+      command: "readAttribute"
+      attribute: "AttributeList"
+      response:
+          constraints:
+              type: list
+              contains: [4]
+
+    - label:
+          "TH reads the optional attribute(OnMode) in AttributeList from the DUT"
+      PICS: MOD.S.A0005
+      command: "readAttribute"
+      attribute: "AttributeList"
+      response:
+          constraints:
+              type: list
+              contains: [5]
+
+    - label: "Read the global attribute: AcceptedCommandList"
+      command: "readAttribute"
+      attribute: "AcceptedCommandList"
+      response:
+          constraints:
+              type: list
+              contains: [0]
+
+    - label: "Read the global attribute: GeneratedCommandList"
+      command: "readAttribute"
+      attribute: "GeneratedCommandList"
+      response:
+          value: []
           constraints:
               type: list
 
@@ -69,17 +114,3 @@ tests:
                 value: "Please enter 'y' for success"
               - name: "expectedValue"
                 value: "y"
-
-    - label: "Read the global attribute: AcceptedCommandList"
-      command: "readAttribute"
-      attribute: "AcceptedCommandList"
-      response:
-          constraints:
-              type: list
-
-    - label: "Read the global attribute: GeneratedCommandList"
-      command: "readAttribute"
-      attribute: "GeneratedCommandList"
-      response:
-          constraints:
-              type: list
