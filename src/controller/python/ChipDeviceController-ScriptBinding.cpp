@@ -193,6 +193,7 @@ void pychip_Stack_SetLogFunct(LogMessageFunct logFunct);
 
 ChipError::StorageType pychip_GetConnectedDeviceByNodeId(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeId,
                                                          DeviceAvailableFunc callback);
+ChipError::StorageType pychip_FreeOperationalDeviceProxy(chip::OperationalDeviceProxy * deviceProxy);
 ChipError::StorageType pychip_GetDeviceBeingCommissioned(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeId,
                                                          CommissioneeDeviceProxy ** proxy);
 ChipError::StorageType pychip_ExpireSessions(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeId);
@@ -377,8 +378,6 @@ ChipError::StorageType pychip_DeviceController_ConnectIP(chip::Controller::Devic
     addr.SetTransportType(chip::Transport::Type::kUdp).SetIPAddress(peerAddr);
     params.SetPeerAddress(addr).SetDiscriminator(0);
 
-    devCtrl->ReleaseOperationalDevice(nodeid);
-
     return devCtrl->PairDevice(nodeid, params, sCommissioningParameters).AsInteger();
 }
 
@@ -454,28 +453,19 @@ ChipError::StorageType pychip_DeviceController_SetWiFiCredentials(const char * s
 
 ChipError::StorageType pychip_DeviceController_CloseSession(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeid)
 {
-#if 0
     //
     // Since we permit multiple controllers per fabric and each is associated with a unique fabric index, closing a session
     // requires us to do so across all controllers on the same logical fabric.
     //
-    // TODO: Enable this and remove the call below to DisconnectDevice once #19259 is completed. This is because
-    //       OperationalDeviceProxy instances that are currently active will remain un-affected by this call and still
-    //       provide a valid SessionHandle in the OnDeviceConnected call later when we call DeviceController::GetConnectedDevice.
-    //       However, it provides a SessionHandle that is incapable of actually vending exchanges since it is in a defunct state.
-    //
-    //       For now, calling DisconnectDevice will at least just correctly de-activate a currently active OperationalDeviceProxy
-    //       instance and ensure that subsequent attempts to acquire one will correctly re-establish CASE on the fabric associated
-    //       with the provided devCtrl.
-    //
-    auto err = devCtrl->SessionMgr()->ForEachCollidingSession(ScopedNodeId(nodeid, devCtrl->GetFabricIndex()), [](auto *session) {
-        session->MarkAsDefunct();
-    });
+    devCtrl->SessionMgr()->ForEachMatchingSessionOnLogicalFabric(ScopedNodeId(nodeid, devCtrl->GetFabricIndex()),
+                                                                 [](auto * session) {
+                                                                     if (session->IsActiveSession())
+                                                                     {
+                                                                         session->MarkAsDefunct();
+                                                                     }
+                                                                 });
 
-    ReturnErrorOnFailure(err.AsInteger());
-#else
-    return devCtrl->DisconnectDevice(nodeid).AsInteger();
-#endif
+    return CHIP_NO_ERROR.AsInteger();
 }
 
 ChipError::StorageType pychip_DeviceController_EstablishPASESessionIP(chip::Controller::DeviceCommissioner * devCtrl,
@@ -668,16 +658,18 @@ const char * pychip_Stack_StatusReportToString(uint32_t profileId, uint16_t stat
 }
 
 namespace {
+
 struct GetDeviceCallbacks
 {
     GetDeviceCallbacks(DeviceAvailableFunc callback) :
         mOnSuccess(OnDeviceConnectedFn, this), mOnFailure(OnConnectionFailureFn, this), mCallback(callback)
     {}
 
-    static void OnDeviceConnectedFn(void * context, OperationalDeviceProxy * device)
+    static void OnDeviceConnectedFn(void * context, Messaging::ExchangeManager & exchangeMgr, SessionHandle & sessionHandle)
     {
-        auto * self = static_cast<GetDeviceCallbacks *>(context);
-        self->mCallback(device, CHIP_NO_ERROR.AsInteger());
+        auto * self                   = static_cast<GetDeviceCallbacks *>(context);
+        auto * operationalDeviceProxy = new OperationalDeviceProxy(&exchangeMgr, sessionHandle);
+        self->mCallback(operationalDeviceProxy, CHIP_NO_ERROR.AsInteger());
         delete self;
     }
 
@@ -702,6 +694,15 @@ ChipError::StorageType pychip_GetConnectedDeviceByNodeId(chip::Controller::Devic
     return devCtrl->GetConnectedDevice(nodeId, &callbacks->mOnSuccess, &callbacks->mOnFailure).AsInteger();
 }
 
+ChipError::StorageType pychip_FreeOperationalDeviceProxy(chip::OperationalDeviceProxy * deviceProxy)
+{
+    if (deviceProxy != nullptr)
+    {
+        delete deviceProxy;
+    }
+    return CHIP_NO_ERROR.AsInteger();
+}
+
 ChipError::StorageType pychip_GetDeviceBeingCommissioned(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeId,
                                                          CommissioneeDeviceProxy ** proxy)
 {
@@ -712,7 +713,6 @@ ChipError::StorageType pychip_GetDeviceBeingCommissioned(chip::Controller::Devic
 ChipError::StorageType pychip_ExpireSessions(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeId)
 {
     VerifyOrReturnError((devCtrl != nullptr) && (devCtrl->SessionMgr() != nullptr), CHIP_ERROR_INVALID_ARGUMENT.AsInteger());
-    (void) devCtrl->ReleaseOperationalDevice(nodeId);
 
     //
     // Since we permit multiple controllers on the same fabric each associated with a different fabric index, expiring a session

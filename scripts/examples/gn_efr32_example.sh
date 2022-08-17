@@ -34,6 +34,7 @@ set -x
 env
 USE_WIFI=false
 
+SILABS_THREAD_TARGET=\""../silabs:ot-efr32-cert"\"
 USAGE="./scripts/examples/gn_efr32_example.sh <AppRootFolder> <outputFolder> <efr32_board_name> [<Build options>]"
 
 if [ "$#" == "0" ]; then
@@ -92,6 +93,8 @@ if [ "$#" == "0" ]; then
             Use to build the example with pigweed RPC
         OTA_periodic_query_timeout
             Periodic query timeout variable for OTA in seconds
+        rs91x_wpa3_only
+            Support for WPA3 only mode on RS91x
         Presets
         --sed
             enable sleepy end device, set thread mtd
@@ -100,6 +103,8 @@ if [ "$#" == "0" ]; then
             build wifi example variant for given exansion board
         --additional_data_advertising
             enable Addition data advertissing and rotating device ID
+        --use_ot_lib
+            use the silabs openthread library
     "
 elif [ "$#" -lt "2" ]; then
     echo "Invalid number of arguments
@@ -143,24 +148,12 @@ else
                 optArgs+="chip_enable_wifi_ipv4=true "
                 shift
                 ;;
-            --rs91x_setSecurityType)
-                if [ -z "$2" ]; then
-                    echo "--rs911x_setSecurityType requires WPA_WPA2 or WPA3_ONLY"
-                    exit 1
-                fi
-                if [ "$2" = "WPA_WPA2" ]; then
-                    optArgs+="wifi_enable_security_wpa3=false "
-                elif [ "$2" = "WPA3_ONLY" ]; then
-                    optArgs+="wifi_enable_security_wpa3=true "
-                else
-                    echo "Set security usage: --rs911x_setSecurityType WPA_WPA2|WPA3_ONLY"
-                    exit 1
-                fi
-                shift
-                shift
-                ;;
             --additional_data_advertising)
                 optArgs+="chip_enable_additional_data_advertising=true chip_enable_rotating_device_id=true "
+                shift
+                ;;
+            --use_ot_lib)
+                optArgs+="use_silabs_thread_lib=true chip_openthread_target=$SILABS_THREAD_TARGET openthread_external_platform=\"""\" "
                 shift
                 ;;
             *)

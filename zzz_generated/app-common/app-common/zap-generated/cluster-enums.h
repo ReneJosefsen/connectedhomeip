@@ -268,7 +268,7 @@ enum class Privilege : uint8_t
 };
 } // namespace AccessControl
 
-namespace BridgedActions {
+namespace Actions {
 
 // Enum for ActionErrorEnum
 enum class ActionErrorEnum : uint8_t
@@ -326,7 +326,7 @@ enum class CommandBits : uint16_t
     kDisableAction               = 0x400,
     kDisableActionWithDuration   = 0x800,
 };
-} // namespace BridgedActions
+} // namespace Actions
 
 namespace Basic {
 } // namespace Basic
@@ -918,9 +918,9 @@ enum class CommissioningWindowStatus : uint8_t
 // Enum for StatusCode
 enum class StatusCode : uint8_t
 {
-    kBusy               = 0x01,
-    kPAKEParameterError = 0x02,
-    kWindowNotOpen      = 0x03,
+    kBusy               = 0x02,
+    kPAKEParameterError = 0x03,
+    kWindowNotOpen      = 0x04,
     kUnknownEnumValue   = 0,
 };
 #else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM

@@ -27,6 +27,7 @@
 #include <OTAConfig.h>
 #endif
 #include <app/clusters/identify-server/identify-server.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <inet/EndPointStateOpenThread.h>
@@ -46,8 +47,6 @@ using namespace ::chip::Shell;
 
 static chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 static void InitApp(intptr_t args);
-static void EventHandler(const ChipDeviceEvent * event, intptr_t arg);
-static void HandleThreadStateChangeEvent(const ChipDeviceEvent * event);
 static void LightManagerCallback(LightingManager::Actor_t actor, LightingManager::Action_t action, uint8_t value);
 
 static wiced_led_config_t chip_lighting_led_config = {
@@ -147,11 +146,13 @@ void InitApp(intptr_t args)
 {
     ConfigurationMgr().LogDeviceConfig();
 
-    PlatformMgrImpl().AddEventHandler(EventHandler, 0);
-
+    // Print QR Code URL
+    PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
     /* Start CHIP datamodel server */
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    gExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
+    chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
     chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
     nativeParams.lockCb                = [] { ThreadStackMgr().LockThreadStack(); };
     nativeParams.unlockCb              = [] { ThreadStackMgr().UnlockThreadStack(); };
@@ -160,8 +161,6 @@ void InitApp(intptr_t args)
     chip::Server::GetInstance().Init(initParams);
 
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-    gExampleDeviceInfoProvider.SetStorageDelegate(&chip::Server::GetInstance().GetPersistentStorage());
-    chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 
     LightMgr().Init();
     LightMgr().SetCallbacks(LightManagerCallback, nullptr);
@@ -171,20 +170,6 @@ void InitApp(intptr_t args)
     OTAConfig::Init();
 #endif
 }
-
-void EventHandler(const ChipDeviceEvent * event, intptr_t arg)
-{
-    switch (event->Type)
-    {
-    case DeviceEventType::kThreadStateChange:
-        HandleThreadStateChangeEvent(event);
-        break;
-    default:
-        break;
-    }
-}
-
-void HandleThreadStateChangeEvent(const ChipDeviceEvent * event) {}
 
 void LightManagerCallback(LightingManager::Actor_t actor, LightingManager::Action_t action, uint8_t level)
 {
