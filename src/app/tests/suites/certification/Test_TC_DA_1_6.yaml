@@ -26,15 +26,14 @@ config:
 tests:
     - label: "Note"
       verification: |
-          Chip-tool command used below are an example to verify the  DUT as client test cases. For certification test, we expect DUT should have a capability or way to run the equivalent command.
+          Chip-tool command used below are an example to verify the DUT as commissioner test cases. For certification test, we expect DUT should have a capability or way to run the equivalent command.
       disabled: true
 
-    - label:
-          "Pre-Conditions 1. Device Attestation is completed 2. PAI, DAC
-          certificates are obtained and validated against externally obtained
-          PAA certificate 3. Operations happen within the Fail-Safe Context"
+    - label: "Pre-Conditions"
       verification: |
-          verification step to be updated.
+          1. Device Attestation is completed
+          2. PAI, DAC certificates are obtained and validated against externally obtained PAA certificate
+          3. Operations happen within the Fail-Safe Context
       disabled: true
 
     - label: "DUT completes the attestation procedure"
@@ -314,7 +313,7 @@ tests:
           "TH1 generates Invalid NOCSR Information and sends the CSRResponse
           Command. Refer Steps 6.1 to 6.8"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label: "Factory Reset DUT so that it is commissionable again"
@@ -333,22 +332,22 @@ tests:
           "Repeat Step1 to Step 4 multiple times. For each time in Step 3 TH1
           generates the following error:"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label: "CSRNonce is OCTET string of length > 32"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label:
           "CSRNonce value does not match the value CSR Nonce field in the
           corresponding CSRRequest Command"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label: "NOCSRElement size is greater than RESP_MAX"
       verification: |
-          verification step to be updated.
+
       disabled: true

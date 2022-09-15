@@ -24,45 +24,39 @@ config:
     endpoint: 0
 
 tests:
-    - label: "Commission DUT to TH (can be skipped if done in a preceding test)"
+    - label: "Note"
       verification: |
-
+          NOTE: https://github.com/project-chip/connectedhomeip/tree/master/examples/all-clusters-app/linux#readme
+          Events to be executed as following
+          1. Compile app using below command in connectedhomeip folder
+          a. ./scripts/run_in_build_env.sh ./scripts/build/build_examples.py --target linux-arm64-all-clusters-no-ble-asan-clang build
+          b. ./scripts/run_in_build_env.sh ./scripts/build/build_examples.py --target linux-arm64-all-clusters-no-ble-asan-libfuzzer-clang build
+          2. Build respective app (all-clusters-app)
+          3. Commission DUT to TH
+          4. Open 2nd terminal of DUT and provide the below command to obtain PID of DUT
+          ps  -aef|grep all-clusters-app
+          5. Follow the Verification step below to generate the event in 2nd terminal of DUT
       disabled: true
 
     - label: "Commission DUT to TH (can be skipped if done in a preceding test)"
       verification: |
-          NOTE:
-          To Run the event test case we need to build event commands on DUT[All-cluster-ap] terminal.Below I mention the commands for how to build for linux arm64 it depends on the DUT what we use.I provided the link for build events.
-
-          https://github.com/project-chip/connectedhomeip/tree/master/examples/all-clusters-app/linux#trigger-switch-events
-
-
-
-
-          Here I provide cmmds for build on linux arm64
-
-          1. ./scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target linux-arm64-all-clusters-no-ble-asan-clang build
-
-          2../scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target linux-arm64-all-clusters-no-ble-asan-libfuzzer-clang build
-
-          3.  ./out/linux-arm64-all-clusters-no-ble-asan-libfuzzer-clang/chip-all-clusters-app-fuzzing
-
-          4. ./out/linux-arm64-all-clusters-no-ble-asan-libfuzzer-clang/chip-all-clusters-app-fuzzing $(INPUT_FILE)
+          Commission DUT to TH
       disabled: true
 
     - label: "Set up subscription to SwitchLatched event"
       PICS: SWTCH.S.F00
       verification: |
-          In Raspi platform to change the switch  position use the below command, Pls use equivalent command on the respective DUT.After provisioning ,open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"SwitchLatched","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+
+          echo "{"Name":"SwitchLatched","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
             Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
            2. switch subscribe-event switch-latched 1 100 1 1
 
-          Verify inTH Log:
+          Verify inTH(chip-tool) Log:
 
           [1659527630.476706][4774:4779] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0000
           [1659527630.476742][4774:4779] CHIP:TOO:   Event number: 4
@@ -76,10 +70,10 @@ tests:
     - label: "Operator sets switch to first position"
       PICS: SWTCH.S.F00
       verification: |
-          In Raspi platform to change the switch to first position use the below command, Pls use equivalent command on the respective DUT.After provisioning ,open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
 
-          echo "{"Name":"SwitchLatched","NewPosition":0}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"SwitchLatched","NewPosition":0}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659599702.921797][7312:7312] CHIP:IN: SecureSession[0xaaaacdb77710]: MarkAsDefunct Type:2 LSID:24961
           [1659599703.232994][7312:7321] CHIP:-: Received payload: "{"Name":"SwitchLatched","NewPosition":0}"
@@ -102,9 +96,9 @@ tests:
     - label: "Operator sets switch to second position"
       PICS: SWTCH.S.F00
       verification: |
-          In Raspi platform to change the switch to second position use the below sample command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"SwitchLatched","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"SwitchLatched","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659600080.279936][7312:7321] CHIP:-: Received payload: "{"Name":"SwitchLatched","NewPosition":1}"
           [1659600080.280318][7312:7312] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to 1755409c
@@ -125,15 +119,14 @@ tests:
       disabled: true
 
     - label:
-          "If NumberOfPositions>2 (see 2c of TC-SWTCH-2.1) : - Operator sets
+          "If NumberOfPositions>2 (see 2a of TC-SWTCH-2.1) : - Operator sets
           switch to next position - Read CurrentPosition attribute"
-      PICS: SWTCH.S.F00
       verification: |
           Raspi device doesn"t support more than 2 position ,so this step is not verifiable by using raspi device
 
-          In Raspi platform to change the switch to third position use the below sample command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"SwitchLatched","NewPosition":2}" > /tmp/chip_all_clusters_fifo<PID>  (PID of DUT)
+          echo "{"Name":"SwitchLatched","NewPosition":2}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659600438.058928][7312:7321] CHIP:-: Received payload: "{"Name":"SwitchLatched","NewPosition":2}"
           [1659600438.059436][7312:7312] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to 1755409d
@@ -145,7 +138,8 @@ tests:
 
           ./chip-tool switch read current-position 1 1
 
-          Verify inTH Log:
+          Verify current position value inTH(chip-tool) Log:
+
           [1659600502.023560][4306:4311] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Attribute 0x0000_0001 DataVersion: 391463069
           [1659600502.023631][4306:4311] CHIP:TOO:   current position: 2
       disabled: true
@@ -161,7 +155,7 @@ tests:
 
           In Raspi platform to change the switch to third position use the below sample command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
 
-          echo "{"Name":"SwitchLatched","NewPosition":3" > /tmp/chip_all_clusters_fifo<PID>  (PID of DUT)
+          echo "{"Name":"SwitchLatched","NewPosition":3" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659600438.058928][7312:7321] CHIP:-: Received payload: "{"Name":"SwitchLatched","NewPosition":3}"
           [1659600438.059436][7312:7312] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to 1755409d
@@ -173,7 +167,8 @@ tests:
 
           ./chip-tool switch read current-position 1 1
 
-          Verify inTH Log:
+          Verify current position value inTH(chip-tool) Log:
+
           [1659600502.023560][4306:4311] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Attribute 0x0000_0001 DataVersion: 391463069
           [1659600502.023631][4306:4311] CHIP:TOO:   current position: 3
       disabled: true
@@ -181,9 +176,9 @@ tests:
     - label: "Operator returns switch to first position"
       PICS: SWTCH.S.F00
       verification: |
-          In Raspi platform to change the switch to first position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"SwitchLatched","NewPosition":0}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"SwitchLatched","NewPosition":0}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659599702.921797][7312:7312] CHIP:IN: SecureSession[0xaaaacdb77710]: MarkAsDefunct Type:2 LSID:24961
           [1659599703.232994][7312:7321] CHIP:-: Received payload: "{"Name":"SwitchLatched","NewPosition":0}"
@@ -197,7 +192,7 @@ tests:
       verification: |
           ./chip-tool switch read current-position 1 1
 
-          Verify inTH Log:
+          Verify current position value inTH(chip-tool) Log:
 
           [1646209289.746157][2617:2622] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Attribute 0x0000_0001DataVersion: 1206711661
           [1646209289.746228][2617:2622] CHIP:TOO:   current position: 0
@@ -206,9 +201,9 @@ tests:
     - label: "Set up subscription to InitialPress event"
       PICS: SWTCH.S.F01
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659612230.311864][7312:7321] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
           [1659612230.312345][7312:7312] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to 175540a4
@@ -219,8 +214,9 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event  initial-Press 1 100 1 1
-          Verify inTH Log:
+           2. switch subscribe-event  initial-press 1 100 1 1
+
+          Verify inTH (chip-tool)Log:
 
           [1659612272.121119][4957:4962] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659612272.121143][4957:4962] CHIP:TOO:          Event number: 131085
@@ -242,7 +238,7 @@ tests:
       verification: |
           ./chip-tool switch read current-position 1 1
 
-          Verify inTH Log:
+          Verify current position value inTH(chip-tool) Log:
 
           [1646209289.746157][2617:2622] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Attribute 0x0000_0001DataVersion: 1206711661
           [1646209289.746228][2617:2622] CHIP:TOO:   current position: 0
@@ -251,9 +247,9 @@ tests:
     - label: "Operator operates switch (keep it pressed)"
       PICS: SWTCH.S.F01
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
 
           [1659612460.072098][7312:7321] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
@@ -276,9 +272,9 @@ tests:
     - label: "Operator does not operate switch (release switch)"
       PICS: SWTCH.S.F01
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659685803.709724][2530:2538] CHIP:-: Received payload: "{"Name":"ShortRelease","PreviousPosition":1}"
           [1659685803.710214][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7719
@@ -291,7 +287,8 @@ tests:
       verification: |
           ./chip-tool switch read current-position 1 1
 
-          Verify inTH Log:
+          Verify current position value inTH(chip-tool) Log:
+
           [1646209289.746157][2617:2622] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Attribute 0x0000_0001DataVersion: 1206711661
           [1646209289.746228][2617:2622] CHIP:TOO:   current position: 0
       disabled: true
@@ -299,18 +296,18 @@ tests:
     - label: "Set up subscription to InitialPress and ShortRelease events"
       PICS: SWTCH.S.F01 && SWTCH.S.F02 && !SWTCH.S.F03
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659686596.526276][2530:2538] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
           [1659686596.526734][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e771a
           [1659686596.526820][2530:2530] CHIP:-: The new position when the momentary switch starts to be pressed:1
           [1659686596.526881][2530:2530] CHIP:ZCL: SwitchServer: OnInitialPress
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659686852.011134][2530:2538] CHIP:-: Received payload: "{"Name":"ShortRelease","PreviousPosition":1}"
           [1659686852.011424][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e771b
@@ -330,7 +327,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event  initial-Press 1 100 1 1
+           2. switch subscribe-event  initial-press 1 100 1 1
 
           [1659686631.947247][3045:3050] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659686631.947272][3045:3050] CHIP:TOO:          Event number: 23
@@ -362,9 +359,9 @@ tests:
           "Operator operates switch (keep pressed for long time, e.g. 5 seconds)"
       PICS: SWTCH.S.F01 && SWTCH.S.F02 && !SWTCH.S.F03
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_2530
+          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659686596.526276][2530:2538] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
           [1659686596.526734][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e771a
@@ -374,7 +371,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event  initial-Press 1 100 1 1
+           2. switch subscribe-event  initial-press 1 100 1 1
 
           [1659692069.006090][3668:3674] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659692069.006114][3668:3674] CHIP:TOO:          Event number: 26
@@ -388,9 +385,9 @@ tests:
     - label: "Operator releases switch"
       PICS: SWTCH.S.F01 && SWTCH.S.F02 && !SWTCH.S.F03
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659686852.011134][2530:2538] CHIP:-: Received payload: "{"Name":"ShortRelease","PreviousPosition":1}"
           [1659686852.011424][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e771b
@@ -416,36 +413,36 @@ tests:
           LongRelease events"
       PICS: SWTCH.S.F01 && SWTCH.S.F03
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-           echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+           echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659693098.031462][2530:2538] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
           [1659693098.031812][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7724
           [1659693098.031859][2530:2530] CHIP:-: The new position when the momentary switch starts to be pressed:1
           [1659693098.031888][2530:2530] CHIP:ZCL: SwitchServer: OnInitialPress
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-           echo "{"Name":"LongPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+           echo "{"Name":"LongPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           1659693130.924755][2530:2538] CHIP:-: Received payload: "{"Name":"LongPress","NewPosition":1}"
           [1659693130.925030][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7725
           [1659693130.925064][2530:2530] CHIP:-: The new position when the momentary switch has been pressed for a long time:1
           [1659693130.925313][2530:2530] CHIP:ZCL: SwitchServer: OnLongPress
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-           echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+           echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659693174.708920][2530:2538] CHIP:-: Received payload: "{"Name":"ShortRelease","PreviousPosition":1}"
           [1659693174.709388][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7726
           [1659693174.709479][2530:2530] CHIP:-: The the previous value of the CurrentPosition when the momentary switch has been released:1
           [1659693174.709539][2530:2530] CHIP:ZCL: SwitchServer: OnShortRelease
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-           echo "{"Name":"LongRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+           echo "{"Name":"LongRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659693203.272969][2530:2538] CHIP:-: Received payload: "{"Name":"LongPress","NewPosition":1}"
           [1659693203.273235][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7727
@@ -465,7 +462,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event  initial-Press 1 100 1 1
+           2. switch subscribe-event  initial-press 1 100 1 1
 
           [1659692507.869323][3696:3701] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659692507.869342][3696:3701] CHIP:TOO:          Event number: 28
@@ -500,7 +497,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event  initial-Press 1 100 1 1
+           2. switch subscribe-event  initial-press 1 100 1 1
 
           [1659692507.869323][3696:3701] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659692507.869342][3696:3701] CHIP:TOO:          Event number: 28
@@ -513,7 +510,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event long-Press 1 100 1 1
+           2. switch subscribe-event long-press 1 100 1 1
 
           [1659692638.993482][3706:3712] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0002
           [1659692638.993504][3706:3712] CHIP:TOO:          Event number: 30
@@ -546,35 +543,35 @@ tests:
           MultiPressComplete events"
       PICS: SWTCH.S.F01 && SWTCH.S.F04
       verification: |
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"InitialPress","NewPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659693098.031462][2530:2538] CHIP:-: Received payload: "{"Name":"InitialPress","NewPosition":1}"
           [1659693098.031812][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7724
           [1659693098.031859][2530:2530] CHIP:-: The new position when the momentary switch starts to be pressed:1
           [1659693098.031888][2530:2530] CHIP:ZCL: SwitchServer: OnInitialPress
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"ShortRelease","PreviousPosition":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659694387.719620][2530:2538] CHIP:-: Received payload: "{"Name":"ShortRelease","PreviousPosition":1}"
           [1659694387.720095][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7729
           [1659694387.720237][2530:2530] CHIP:-: The the previous value of the CurrentPosition when the momentary switch has been released:1
           [1659694387.720304][2530:2530] CHIP:ZCL: SwitchServer: OnShortRelease
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"MultiPressComplete","PreviousPosition":1,"TotalNumberOfPressesCounted":1}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"MultiPressComplete","PreviousPosition":1,"TotalNumberOfPressesCounted":1}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659694592.347850][2530:2538] CHIP:-: Received payload: "{"Name":"MultiPressComplete","PreviousPosition":1,"TotalNumberOfPressesCounted":1}"
           [1659694592.348389][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e772b
           [1659694592.348481][2530:2530] CHIP:-: The new position when the momentary switch has been pressed in a multi-press sequence:1
 
-          In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
 
-          echo "{"Name":"MultiPressOngoing","NewPosition":1,"CurrentNumberOfPressesCounted":2}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"MultiPressOngoing","NewPosition":1,"CurrentNumberOfPressesCounted":2}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           [1659695302.038797][2530:2538] CHIP:-: Received payload: "{"Name":"MultiPressOngoing","NewPosition":1,"CurrentNumberOfPressesCounted":2}"
           [1659695302.039933][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e7730
@@ -597,7 +594,7 @@ tests:
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
           1. ./chip-tool interactive start
-           2. switch subscribe-event initial-Press 1 100 1 1
+           2. switch subscribe-event initial-press 1 100 1 1
 
           [1659694345.040034][3787:3792] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_003B Event 0x0000_0001
           [1659694345.040059][3787:3792] CHIP:TOO:          Event number: 37
@@ -843,7 +840,7 @@ tests:
 
           In Raspi platform to change the switch to second position use the below command, Pls use equivalent command on the respective DUT.open one more terminal on DUT side execute the echo command on that terminal.
 
-          echo "{"Name":"MultiPressOngoing","NewPosition":1,"CurrentNumberOfPressesCounted":3}" > /tmp/chip_all_clusters_fifo-<PID>  (PID of DUT)
+          echo "{"Name":"MultiPressOngoing","NewPosition":1,"CurrentNumberOfPressesCounted":3}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
 
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
@@ -877,6 +874,13 @@ tests:
           [1659696223.568397][3981:3986] CHIP:TOO:    }
 
 
+          On Raspi platform To trigger the event give the below command by opening an another terminal in DUT (Below is the example command developed in all-clusters-app to generate the event, Vendor Dut should have capability to generate this event)
+
+          echo "{"Name":"MultiPressComplete","PreviousPosition":1,"TotalNumberOfPressesCounted":3}" > /tmp/chip_all_clusters_fifo_<PID>  (PID of DUT)
+
+          [1659694592.347850][2530:2538] CHIP:-: Received payload: "{"Name":"MultiPressComplete","PreviousPosition":1,"TotalNumberOfPressesCounted":3}"
+          [1659694592.348389][2530:2530] CHIP:DMG: Endpoint 1, Cluster 0x0000_003B update version to ee5e772b
+          [1659694592.348481][2530:2530] CHIP:-: The new position when the momentary switch has been pressed in a multi-press sequence:1
 
           Please use Interactive mode to Verify the subscription of an event
           Here the command to enter interactive mode:--
@@ -888,7 +892,7 @@ tests:
           [1659695330.923283][3912:3918] CHIP:TOO:          Priority: Info
           [1659695330.923302][3912:3918] CHIP:TOO:          Timestamp: 17754336
           [1659695330.923326][3912:3918] CHIP:TOO:   MultiPressComplete: {
-          [1659695330.923346][3912:3918] CHIP:TOO:     PrevioiusPosition: 1
+          [1659695330.923346][3912:3918] CHIP:TOO:     PreviousPosition: 1
           [1659695330.923366][3912:3918] CHIP:TOO:     TotalNumberOfPressesCounted: 3
           [1659695330.923385][3912:3918] CHIP:TOO:    }
       disabled: true

@@ -29,6 +29,15 @@ tests:
           For DUT as client test cases, Chip-tool command used below are an example to verify the functionality. For certification test, we expect DUT should have a capability or way to run the equivalent command.
       disabled: true
 
+    - label: "Precondition"
+      verification: |
+          1. Commission DUT to TH
+
+          2. Set DUT OnOff to On
+
+          3. DUT supports CC.C.F04(CT)
+      disabled: true
+
     - label:
           "* TH provides a server implementation of Color Control with
           F04(CT)=true and reasonable values of ColorTempPhysicalMinMireds (e.g.
@@ -96,7 +105,7 @@ tests:
       disabled: true
 
     - label: "DUT sends MoveToColorTemperature command to TH"
-      PICS: CC.C.C0a.Rsp
+      PICS: CC.C.C0a.Tx
       verification: |
           ./chip-tool colorcontrol move-to-color-temperature 150 300 0 0 1 1
 
@@ -138,7 +147,7 @@ tests:
     - label:
           "DUT reads ColorTemperatureMired attribute from TH (potentially
           multiple times)"
-      PICS: CC.C.C0a.Rsp && CC.C.A0007
+      PICS: CC.C.C0a.Tx && CC.C.A0007
       verification: |
           ./chip-tool colorcontrol read color-temperature 1 1
 
@@ -169,7 +178,7 @@ tests:
       disabled: true
 
     - label: "DUT sends MoveColorTemperature command to TH"
-      PICS: CC.C.C4b.Rsp
+      PICS: CC.C.C4b.Tx
       verification: |
           ./chip-tool colorcontrol move-color-temperature 1 16319 0 65279 0 0 1 1
 
@@ -220,7 +229,7 @@ tests:
     - label:
           "DUT reads ColorTemperatureMired attribute from TH (potentially
           multiple times)"
-      PICS: CC.C.C4b.Rsp && CC.C.A0007
+      PICS: CC.C.C4b.Tx && CC.C.A0007
       verification: |
           ./chip-tool colorcontrol read color-temperature 1 1
 
@@ -252,7 +261,7 @@ tests:
       disabled: true
 
     - label: "DUT sends StepColorTemperature command to TH"
-      PICS: CC.C.C4c.Rsp
+      PICS: CC.C.C4c.Tx
       verification: |
           ./chip-tool colorcontrol step-color-temperature 1 32639 200 0 65279 0 0 1 1
 
@@ -304,7 +313,7 @@ tests:
     - label:
           "DUT reads ColorTemperatureMired attribute from TH (potentially
           multiple times)"
-      PICS: CC.C.C4c.Rsp & CC.C.A0007
+      PICS: CC.C.C4c.Tx & CC.C.A0007
       verification: |
           ./chip-tool colorcontrol read color-temperature 1 1
           Verify response contains an ColorTemperatureMireds in  TH(all-clusters-app)  Logs:
@@ -333,7 +342,7 @@ tests:
       disabled: true
 
     - label: "DUT sends StopMoveStep command to TH."
-      PICS: CC.C.C47.Rsp
+      PICS: CC.C.C47.Tx
       verification: |
           ./chip-tool colorcontrol stop-move-step 0 0 1 1
 
@@ -379,7 +388,7 @@ tests:
     - label:
           "DUT reads ColorTemperatureMired attribute from TH (potentially
           multiple times)"
-      PICS: CC.C.C47.Rsp && CC.C.A0007
+      PICS: CC.C.C47.Tx && CC.C.A0007
       verification: |
           ./chip-tool colorcontrol read color-temperature 1 1
 
@@ -406,14 +415,4 @@ tests:
           [1659955633.976610][2718:2718] CHIP:DMG: Reading attribute: Cluster=0x0000_0300 Endpoint=1 AttributeId=0x0000_0007 (expanded=0)
           [1659955633.976650][2718:2718] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0300 e=1 p=v
           [1659955633.976696][2718:2718] CHIP:DMG: AccessControl: allowed
-      disabled: true
-
-    - label: ""
-      verification: |
-          verification step to be updated.
-      disabled: true
-
-    - label: ""
-      verification: |
-          verification step to be updated.
       disabled: true

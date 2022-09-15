@@ -16,12 +16,10 @@
  */
 
 #include <AppConfig.h>
-#include <LcdPainter.h>
 #include <WindowAppImpl.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/clusters/window-covering-server/window-covering-server.h>
 #include <app/server/OnboardingCodesUtil.h>
-#include <lcd.h>
 #include <lib/core/CHIPError.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/support/CodeUtils.h>
@@ -35,6 +33,13 @@
 
 #ifdef SL_WIFI
 #include "wfx_host_events.h"
+#include <app/clusters/network-commissioning/network-commissioning.h>
+#include <platform/EFR32/NetworkCommissioningWiFiDriver.h>
+#endif
+
+#ifdef DISPLAY_ENABLED
+#include <LcdPainter.h>
+SilabsLCD slLCD;
 #endif
 
 #define APP_TASK_STACK_SIZE (4096)
@@ -48,6 +53,10 @@ using namespace chip::app::Clusters::WindowCovering;
 #define APP_STATE_LED &sl_led_led0
 #define APP_ACTION_LED &sl_led_led1
 
+#ifdef SL_WIFI
+chip::app::Clusters::NetworkCommissioning::Instance
+    sWiFiNetworkCommissioningInstance(0 /* Endpoint Id */, &(chip::DeviceLayer::NetworkCommissioning::SlWiFiDriver::GetInstance()));
+#endif
 //------------------------------------------------------------------------------
 // Timers
 //------------------------------------------------------------------------------
@@ -134,20 +143,13 @@ WindowApp & WindowApp::Instance()
     return WindowAppImpl::sInstance;
 }
 
+#ifdef DISPLAY_ENABLED
 WindowAppImpl::WindowAppImpl() : mIconTimer("Timer:icon", LCD_ICON_TIMEOUT, OnIconTimeout, this) {}
+#else
+WindowAppImpl::WindowAppImpl() {}
+#endif
 
 void WindowAppImpl::OnTaskCallback(void * parameter)
-{
-    sInstance.Run();
-}
-
-void WindowAppImpl::OnIconTimeout(WindowApp::Timer & timer)
-{
-    sInstance.mIcon = LcdIcon::None;
-    sInstance.UpdateLCD();
-}
-
-CHIP_ERROR WindowAppImpl::Init()
 {
 #ifdef SL_WIFI
     /*
@@ -160,7 +162,23 @@ CHIP_ERROR WindowAppImpl::Init()
     }
     EFR32_LOG("APP: Done WiFi Init");
     /* We will init server when we get IP */
+    sWiFiNetworkCommissioningInstance.Init();
+    /* added for commisioning with wifi */
 #endif
+
+    sInstance.Run();
+}
+
+void WindowAppImpl::OnIconTimeout(WindowApp::Timer & timer)
+{
+#ifdef DISPLAY_ENABLED
+    sInstance.mIcon = LcdIcon::None;
+    sInstance.UpdateLCD();
+#endif
+}
+
+CHIP_ERROR WindowAppImpl::Init()
+{
     WindowApp::Init();
 
     // Initialize App Task
@@ -183,6 +201,10 @@ CHIP_ERROR WindowAppImpl::Init()
     LEDWidget::InitGpio();
     mStatusLED.Init(APP_STATE_LED);
     mActionLED.Init(APP_ACTION_LED);
+
+#ifdef DISPLAY_ENABLED
+    slLCD.Init();
+#endif
 
     return CHIP_NO_ERROR;
 }
@@ -323,6 +345,7 @@ void WindowAppImpl::DispatchEvent(const WindowApp::Event & event)
     case EventId::BLEConnectionsChanged:
         UpdateLEDs();
         break;
+#ifdef DISPLAY_ENABLED
     case EventId::CoverTypeChange:
         UpdateLCD();
         break;
@@ -336,6 +359,7 @@ void WindowAppImpl::DispatchEvent(const WindowApp::Event & event)
         mIcon = mTiltMode ? LcdIcon::Tilt : LcdIcon::Lift;
         UpdateLCD();
         break;
+#endif
     default:
         break;
     }
@@ -425,10 +449,12 @@ void WindowAppImpl::UpdateLCD()
         Attributes::CurrentPositionTilt::Get(cover.mEndpoint, tilt);
         chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 
+#ifdef DISPLAY_ENABLED
         if (!tilt.IsNull() && !lift.IsNull())
         {
-            LcdPainter::Paint(type, lift.Value(), tilt.Value(), mIcon);
+            LcdPainter::Paint(slLCD, type, lift.Value(), tilt.Value(), mIcon);
         }
+#endif
     }
 #ifdef QR_CODE_ENABLED
     else
@@ -436,7 +462,8 @@ void WindowAppImpl::UpdateLCD()
         chip::MutableCharSpan qrCode(mQRCodeBuffer);
         if (GetQRCode(qrCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR)
         {
-            LCDWriteQRCode((uint8_t *) qrCode.data());
+            slLCD.SetQRCode((uint8_t *) qrCode.data(), qrCode.size());
+            slLCD.ShowQRCode(true, true);
         }
     }
 #endif // QR_CODE_ENABLED

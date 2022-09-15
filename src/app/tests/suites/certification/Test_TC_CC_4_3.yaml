@@ -14,6 +14,9 @@
 
 name: 25.3.7. [TC-CC-4.3] Saturation Step functionality with server as DUT
 
+PICS:
+    - CC.S
+
 config:
     nodeId: 0x12344321
     cluster: "Color Control"
@@ -96,8 +99,8 @@ tests:
       attribute: "CurrentSaturation"
       response:
           constraints:
-              minValue: 210
-              maxValue: 230
+              minValue: 187
+              maxValue: 253
 
     - label: "Wait 10s"
       cluster: "DelayCommands"
@@ -113,8 +116,8 @@ tests:
       attribute: "CurrentSaturation"
       response:
           constraints:
-              minValue: 230
-              maxValue: 240
+              minValue: 204
+              maxValue: 254
 
     - label: "Wait 5s"
       cluster: "DelayCommands"
@@ -237,7 +240,7 @@ tests:
       attribute: "CurrentSaturation"
       response:
           constraints:
-              minValue: 10
+              minValue: 5
               maxValue: 15
 
     - label: "Wait 5s"
@@ -293,6 +296,7 @@ tests:
       command: "readAttribute"
       attribute: "ColorMode"
       response:
+          value: 0
           constraints:
               minValue: 0
               maxValue: 2
@@ -300,8 +304,9 @@ tests:
     - label: "TH reads EnhancedColorMode attribute from DUT"
       PICS: CC.S.F00 && CC.S.A4001
       command: "readAttribute"
-      attribute: "ColorMode"
+      attribute: "EnhancedColorMode"
       response:
+          value: 0
           constraints:
               minValue: 0
               maxValue: 3

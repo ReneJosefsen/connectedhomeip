@@ -32,7 +32,9 @@ from builders.qpg import QpgApp, QpgBoard, QpgBuilder
 from builders.telink import TelinkApp, TelinkBoard, TelinkBuilder
 from builders.tizen import TizenApp, TizenBoard, TizenBuilder
 from builders.bl602 import Bl602App, Bl602Board, Bl602Builder
+from builders.bouffalolab import BouffalolabApp, BouffalolabBoard, BouffalolabBuilder
 from builders.imx import IMXApp, IMXBuilder
+from builders.genio import GenioApp, GenioBuilder
 
 
 class Target:
@@ -282,6 +284,8 @@ def HostTargets():
 
     # Possible build variants. Note that number of potential
     # builds is exponential here
+    builder.AppendVariant(name="libnl", validator=AcceptNameWithSubstrings(
+        ['-minmdns']), minmdns_address_policy="libnl"),
     builder.AppendVariant(name="same-event-loop", validator=AcceptNameWithSubstrings(
         ['-chip-tool', '-darwin-framework-tool']), separate_event_loop=False),
     builder.AppendVariant(name="no-interactive", validator=AcceptNameWithSubstrings(
@@ -336,6 +340,8 @@ def HostTargets():
     yield target_native.Extend('tests-boringssl', app=HostApp.TESTS, crypto_library=HostCryptoLibrary.BORINGSSL).GlobBlacklist("Non-default test")
     yield target_native.Extend('tests-coverage', app=HostApp.TESTS, use_coverage=True).GlobBlacklist("Non-default test")
     yield target_native.Extend('tests-clang', app=HostApp.TESTS, use_clang=True).GlobBlacklist("Non-default test")
+    yield target_native.Extend('tests-clang-asan', app=HostApp.TESTS, use_clang=True, use_asan=True).GlobBlacklist("Non-default test")
+    yield target_native.Extend('tests-dmalloc', app=HostApp.TESTS, use_dmalloc=True).GlobBlacklist("Non-default test")
 
     test_target = Target(HostBoard.NATIVE.PlatformName(), HostBuilder)
     yield test_target.Extend(HostBoard.FAKE.BoardName() + '-tests', board=HostBoard.FAKE, app=HostApp.TESTS)
@@ -376,6 +382,7 @@ def Esp32Targets():
     yield devkitc.Extend('all-clusters-minimal-ipv6only', app=Esp32App.ALL_CLUSTERS_MINIMAL, enable_ipv4=False)
     yield devkitc.Extend('shell', app=Esp32App.SHELL)
     yield devkitc.Extend('light', app=Esp32App.LIGHT)
+    yield devkitc.Extend('light-rpc', app=Esp32App.LIGHT, enable_rpcs=True)
     yield devkitc.Extend('lock', app=Esp32App.LOCK)
     yield devkitc.Extend('bridge', app=Esp32App.BRIDGE)
     yield devkitc.Extend('temperature-measurement', app=Esp32App.TEMPERATURE_MEASUREMENT)
@@ -520,7 +527,7 @@ def InfineonTargets():
     builder.AppendVariant(name="ota", enable_ota_requestor=True)
     builder.AppendVariant(name="updateimage", update_image=True)
 
-    target = Target('infineon-p6', InfineonBuilder, board=InfineonBoard.P6BOARD)
+    target = Target('infineon-psoc6', InfineonBuilder, board=InfineonBoard.PSOC6BOARD)
 
     builder.targets.append(target.Extend('lock', app=InfineonApp.LOCK))
     builder.targets.append(target.Extend('light', app=InfineonApp.LIGHT))
@@ -610,6 +617,16 @@ def Bl602Targets():
     yield target.Extend('light', board=Bl602Board.BL602BOARD, app=Bl602App.LIGHT)
 
 
+def BouffalolabTargets():
+    target = Target('bouffalolab', BouffalolabBuilder)
+
+    yield target.Extend('BL706-IoT-DVK-BL706C-22-light', board=BouffalolabBoard.BL706_IoT_DVK, app=BouffalolabApp.LIGHT, enable_rpcs=False, module_type="BL706C-22")
+    yield target.Extend('BL702-IoT-DVK-light', board=BouffalolabBoard.BL702_IoT_DVK, app=BouffalolabApp.LIGHT, enable_rpcs=False, module_type="BL702")
+    yield target.Extend('BL706-IoT-DVK-BL706C-22-light-rpc', board=BouffalolabBoard.BL706_IoT_DVK, app=BouffalolabApp.LIGHT, enable_rpcs=True, module_type="BL706C-22")
+    yield target.Extend('BL702-IoT-DVK-light-rpc', board=BouffalolabBoard.BL702_IoT_DVK, app=BouffalolabApp.LIGHT, enable_rpcs=True, module_type="BL702")
+    yield target.Extend('BL706-NIGHT-LIGHT-light', board=BouffalolabBoard.BL706_NIGHT_LIGHT, app=BouffalolabApp.LIGHT, enable_rpcs=False, module_type="BL702")
+
+
 def IMXTargets():
     target = Target('imx', IMXBuilder)
 
@@ -633,6 +650,12 @@ def MW320Targets():
     yield target.Extend('all-clusters-app', app=MW320App.ALL_CLUSTERS)
 
 
+def GenioTargets():
+    target = Target('genio', GenioBuilder)
+
+    yield target.Extend('lighting-app', app=GenioApp.LIGHT)
+
+
 ALL = []
 
 target_generators = [
@@ -650,8 +673,10 @@ target_generators = [
     QorvoTargets(),
     TizenTargets(),
     Bl602Targets(),
+    BouffalolabTargets(),
     IMXTargets(),
     MW320Targets(),
+    GenioTargets(),
 ]
 
 for generator in target_generators:
@@ -663,6 +688,8 @@ ALL.append(Target('telink-tlsr9518adk80d-light', TelinkBuilder,
                   board=TelinkBoard.TLSR9518ADK80D, app=TelinkApp.LIGHT))
 ALL.append(Target('telink-tlsr9518adk80d-light-switch', TelinkBuilder,
                   board=TelinkBoard.TLSR9518ADK80D, app=TelinkApp.SWITCH))
+ALL.append(Target('telink-tlsr9518adk80d-ota-requestor', TelinkBuilder,
+                  board=TelinkBoard.TLSR9518ADK80D, app=TelinkApp.OTA_REQUESTOR))
 
 # have a consistent order overall
 ALL.sort(key=lambda t: t.name)

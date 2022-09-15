@@ -44,12 +44,11 @@ public class ChipDeviceController {
     return;
   }
 
-  /** Returns a new {@link ChipDeviceController} with default parameters. */
-  public ChipDeviceController() {
-    this(ControllerParams.newBuilder().build());
-  }
-
-  /** Returns a new {@link ChipDeviceController} with the specified parameters. */
+  /**
+   * Returns a new {@link ChipDeviceController} with the specified parameters. you must set a vendor
+   * ID, ControllerParams.newBuilder().setControllerVendorId(0xFFF4).build() 0xFFF4 is a test vendor
+   * ID
+   */
   public ChipDeviceController(ControllerParams params) {
     deviceControllerPtr = newDeviceController(params);
   }
@@ -398,10 +397,6 @@ public class ChipDeviceController {
    */
   public native long generateCompressedFabricId(byte[] rcac, byte[] noc);
 
-  public void updateDevice(long fabricId, long deviceId) {
-    updateDevice(deviceControllerPtr, fabricId, deviceId);
-  }
-
   /**
    * Get commmissionible Node. Commmissionible Node results are able to get using {@link
    * ChipDeviceController.getDiscoveredDevice}.
@@ -639,8 +634,6 @@ public class ChipDeviceController {
   private native NetworkLocation getNetworkLocation(long deviceControllerPtr, long deviceId);
 
   private native long getCompressedFabricId(long deviceControllerPtr);
-
-  private native void updateDevice(long deviceControllerPtr, long fabricId, long deviceId);
 
   private native void discoverCommissionableNodes(long deviceControllerPtr);
 

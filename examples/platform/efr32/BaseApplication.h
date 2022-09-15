@@ -35,6 +35,14 @@
 #include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceLayer.h>
 
+#ifdef DISPLAY_ENABLED
+#include "demo-ui.h"
+#include "lcd.h"
+#ifdef QR_CODE_ENABLED
+#include "qrcodegen.h"
+#endif // QR_CODE_ENABLED
+#endif // DISPLAY_ENABLED
+
 /**********************************************************
  * Defines
  *********************************************************/
@@ -73,6 +81,13 @@ public:
      */
     static void PostEvent(const AppEvent * event);
 
+#ifdef DISPLAY_ENABLED
+    /**
+     * @brief Return LCD object
+     */
+    static SilabsLCD & GetLCD(void);
+#endif
+
     /**
      * @brief Event handler when a button is pressed
      * Function posts an event for button processing
@@ -86,13 +101,13 @@ public:
     /**
      * @brief Function called to start the LED light timer
      */
-    void StartStatusLEDTimer(void);
+    static void StartStatusLEDTimer(void);
 
     /**
      * @brief Function to stop LED light timer
      *        Turns off Status LED before stopping timer
      */
-    void StopStatusLEDTimer(void);
+    static void StopStatusLEDTimer(void);
 
     enum Function_t
     {
@@ -165,8 +180,7 @@ protected:
     static void LightEventHandler();
 
     /**********************************************************
-     * Private Attributes declaration
+     * Protected Attributes declaration
      *********************************************************/
-
     bool mSyncClusterToButtonAction;
 };

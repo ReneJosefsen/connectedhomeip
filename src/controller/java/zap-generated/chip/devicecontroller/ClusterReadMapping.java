@@ -939,19 +939,20 @@ public class ClusterReadMapping {
         readBinaryInputBasicClusterRevisionAttributeInteractionInfo);
     readAttributeMap.put("binaryInputBasic", readBinaryInputBasicInteractionInfo);
     Map<String, InteractionInfo> readDescriptorInteractionInfo = new LinkedHashMap<>();
-    Map<String, CommandParameterInfo> readDescriptorDeviceListCommandParams =
+    Map<String, CommandParameterInfo> readDescriptorDeviceTypeListCommandParams =
         new LinkedHashMap<String, CommandParameterInfo>();
-    InteractionInfo readDescriptorDeviceListAttributeInteractionInfo =
+    InteractionInfo readDescriptorDeviceTypeListAttributeInteractionInfo =
         new InteractionInfo(
             (cluster, callback, commandArguments) -> {
               ((ChipClusters.DescriptorCluster) cluster)
-                  .readDeviceListAttribute(
-                      (ChipClusters.DescriptorCluster.DeviceListAttributeCallback) callback);
+                  .readDeviceTypeListAttribute(
+                      (ChipClusters.DescriptorCluster.DeviceTypeListAttributeCallback) callback);
             },
-            () -> new ClusterInfoMapping.DelegatedDescriptorClusterDeviceListAttributeCallback(),
-            readDescriptorDeviceListCommandParams);
+            () ->
+                new ClusterInfoMapping.DelegatedDescriptorClusterDeviceTypeListAttributeCallback(),
+            readDescriptorDeviceTypeListCommandParams);
     readDescriptorInteractionInfo.put(
-        "readDeviceListAttribute", readDescriptorDeviceListAttributeInteractionInfo);
+        "readDeviceTypeListAttribute", readDescriptorDeviceTypeListAttributeInteractionInfo);
     Map<String, CommandParameterInfo> readDescriptorServerListCommandParams =
         new LinkedHashMap<String, CommandParameterInfo>();
     InteractionInfo readDescriptorServerListAttributeInteractionInfo =
@@ -8134,18 +8135,20 @@ public class ClusterReadMapping {
             readColorControlCompensationTextCommandParams);
     readColorControlInteractionInfo.put(
         "readCompensationTextAttribute", readColorControlCompensationTextAttributeInteractionInfo);
-    Map<String, CommandParameterInfo> readColorControlColorTemperatureCommandParams =
+    Map<String, CommandParameterInfo> readColorControlColorTemperatureMiredsCommandParams =
         new LinkedHashMap<String, CommandParameterInfo>();
-    InteractionInfo readColorControlColorTemperatureAttributeInteractionInfo =
+    InteractionInfo readColorControlColorTemperatureMiredsAttributeInteractionInfo =
         new InteractionInfo(
             (cluster, callback, commandArguments) -> {
               ((ChipClusters.ColorControlCluster) cluster)
-                  .readColorTemperatureAttribute((ChipClusters.IntegerAttributeCallback) callback);
+                  .readColorTemperatureMiredsAttribute(
+                      (ChipClusters.IntegerAttributeCallback) callback);
             },
             () -> new ClusterInfoMapping.DelegatedIntegerAttributeCallback(),
-            readColorControlColorTemperatureCommandParams);
+            readColorControlColorTemperatureMiredsCommandParams);
     readColorControlInteractionInfo.put(
-        "readColorTemperatureAttribute", readColorControlColorTemperatureAttributeInteractionInfo);
+        "readColorTemperatureMiredsAttribute",
+        readColorControlColorTemperatureMiredsAttributeInteractionInfo);
     Map<String, CommandParameterInfo> readColorControlColorModeCommandParams =
         new LinkedHashMap<String, CommandParameterInfo>();
     InteractionInfo readColorControlColorModeAttributeInteractionInfo =
@@ -8715,7 +8718,9 @@ public class ClusterReadMapping {
             (cluster, callback, commandArguments) -> {
               ((ChipClusters.ColorControlCluster) cluster)
                   .readStartUpColorTemperatureMiredsAttribute(
-                      (ChipClusters.IntegerAttributeCallback) callback);
+                      (ChipClusters.ColorControlCluster
+                              .StartUpColorTemperatureMiredsAttributeCallback)
+                          callback);
             },
             () -> new ClusterInfoMapping.DelegatedIntegerAttributeCallback(),
             readColorControlStartUpColorTemperatureMiredsCommandParams);

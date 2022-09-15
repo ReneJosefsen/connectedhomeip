@@ -29,7 +29,7 @@ tests:
           the following steps)"
       PICS: MCORE.FACTORY_RESET
       verification: |
-          On both DUT and TH side
+          On both DUT and TH side, on Raspi we do factory reset with the below command. The DUT for cert should follow vendor specific procedure for factory reset
           sudo rm -rf /tmp/chip_*
       disabled: true
 
@@ -45,7 +45,7 @@ tests:
     - label: "Verify that the DUT sends AttestationRequest Command to TH"
       PICS: OPCREDS.C.C00.Tx
       verification: |
-          Verify that  the DUT send AttestationRequest Command to TH(all-clusters-app)
+          Verify that  the DUT send AttestationRequest Command to TH(all-clusters-app) commissioning log
 
           [1657778307.595402][8192:8197] CHIP:CTL: Commissioning stage next step: "SendDACCertificateRequest" -> "SendAttestationRequest"
           [1657778307.595466][8192:8197] CHIP:CTL: Performing next commissioning step "SendAttestationRequest"
@@ -288,7 +288,7 @@ tests:
     - label: "Verify that the DUT sends CertificateChainRequest Command to TH"
       PICS: OPCREDS.C.C02.Tx
       verification: |
-          Verify that the DUT send CertificateChainRequest Command to TH (all-clusters-app)
+          Verify that the DUT send CertificateChainRequest Command to TH (all-clusters-app) commissioning log
 
           [1657778306.864918][8192:8197] CHIP:CTL: Sending Certificate Chain request to 0xffff78000b60 device
           [1657778306.865059][8192:8197] CHIP:DMG: ICR moving to [AddingComm]
@@ -419,7 +419,7 @@ tests:
     - label: "Verify that the DUT Sends CSRRequest command to TH"
       PICS: OPCREDS.C.C04.Tx
       verification: |
-          Verify that the DUT send CSRRequest command to TH (all-clusters-app)
+          Verify that the DUT send CSRRequest command to TH (all-clusters-app) commissioning log
 
           [1657778307.949847][8192:8197] CHIP:CTL: Sending CSR request to 0xffff78000b60 device
           [1657778307.949923][8192:8197] CHIP:DMG: ICR moving to [AddingComm]
@@ -519,7 +519,7 @@ tests:
           which contains the Node Operational PublicKey from CSR
           AttestationSignature"
       verification: |
-          Extract the CSRResponse values from TH (all-clusters-app)
+          Extract the CSRResponse values from TH (all-clusters-app) commissioning log
 
           [1657778308.175702][8192:8197] CHIP:EM: Found matching exchange: 40144i, Delegate: 0xaaaaf7819670
           [1657778308.175743][8192:8197] CHIP:DMG: ICR moving to [ResponseRe]
@@ -563,7 +563,7 @@ tests:
     - label: "Verify that the DUT sends AddTrustedRootCertificate command to TH"
       PICS: OPCREDS.C.C0b.Tx
       verification: |
-          Verify that the DUT send AddTrustedRootCertificate command to TH (all-clusters-app)
+          Verify that the DUT send AddTrustedRootCertificate command to TH (all-clusters-app) commissioning log
 
           [1657778308.179742][8192:8197] CHIP:CTL: Performing next commissioning step "SendTrustedRootCert"
           [1657778308.179769][8192:8197] CHIP:CTL: Sending root certificate to the device
@@ -683,7 +683,7 @@ tests:
     - label: "Verify that DUT sends the AddNOC Command to TH"
       PICS: OPCREDS.C.C06.Tx
       verification: |
-          Verify that the DUT send AddNOC command to TH (all-clusters-app)
+          Verify that the DUT send AddNOC command to TH (all-clusters-app) commissioning log
 
 
           [1657778308.374786][8192:8197] CHIP:CTL: Performing next commissioning step "SendNOC"
@@ -920,20 +920,20 @@ tests:
       disabled: true
 
     - label:
-          "Verify that the size of RootPublicKey is within 65 octstr ,Verify
+          "Verify that the size of RootPublicKey is within 65 octstr. Verify
           that the NodeID is the same as the chip-node-id in the NOC sent with
-          AddNOC Command,Verify that the VendorID is the same as the
-          AdminVendorID sent with AddNOC Command,Verify that the FabricID is the
-          same as the matter-fabric-id field from the operational
-          certificate,Verify that the size of Label has a maximum value of 32
+          AddNOC Command. Verify that the VendorID is the same as the
+          AdminVendorID sent with AddNOC Command. Verify that the FabricID is
+          the same as the matter-fabric-id field from the operational
+          certificate. Verify that the size of Label has a maximum value of 32
           bytes."
       verification: |
           Verify that the following  on TH (all-clusters-app) log
 
-          1. Verify RootPublicKey is within 65 octstr in below log
-          2. Verify NodeID is same as chip-node-id
-          3. Verify VendorID is same AdminVendorID
-          4. Verify the FabricID is same as matter-fabric-id
+          1. Verify RootPublicKey (0x1) is within 65 octstr in below log
+          2. Verify NodeID (0x2) is same as chip-node-id
+          3. Verify VendorID (0x3) is same AdminVendorID , Verify if the DUT  vendor ID matches with
+          4. Verify the FabricID (0x4) is same as matter-fabric-id
           5. Verify the size of Label is maximum of 32 bytes
 
           [1660204922.048005][5770:5770] CHIP:DMG: ReportDataMessage =
@@ -994,7 +994,7 @@ tests:
           "Verify that the public Key extracted NOCValue of the AddNOC matches
           the Node Operational Public Key extracted from CSRResponse"
       verification: |
-          Verify public key matches in step 7a of CSRResponse and 5b of ADDNOC command
+          Not verifiable for V1.0
       disabled: true
 
     - label: "DUT sends UpdateNOC to TH"
@@ -1143,28 +1143,28 @@ tests:
           [1659967865.181663][3334:3334] CHIP:EM: Handling via exchange: 16044r, Delegate: 0xaaaad1123fa0
           [1659967865.181734][3334:3334] CHIP:DMG: InvokeRequestMessage =
           [1659967865.181761][3334:3334] CHIP:DMG: {
-          [1659967865.181784][3334:3334] CHIP:DMG: 	suppressResponse = false,
-          [1659967865.181810][3334:3334] CHIP:DMG: 	timedRequest = false,
-          [1659967865.181834][3334:3334] CHIP:DMG: 	InvokeRequests =
-          [1659967865.181865][3334:3334] CHIP:DMG: 	[
-          [1659967865.181889][3334:3334] CHIP:DMG: 		CommandDataIB =
-          [1659967865.181916][3334:3334] CHIP:DMG: 		{
-          [1659967865.181942][3334:3334] CHIP:DMG: 			CommandPathIB =
-          [1659967865.181978][3334:3334] CHIP:DMG: 			{
-          [1659967865.182009][3334:3334] CHIP:DMG: 				EndpointId = 0x0,
-          [1659967865.182045][3334:3334] CHIP:DMG: 				ClusterId = 0x3e,
-          [1659967865.182080][3334:3334] CHIP:DMG: 				CommandId = 0x9,
-          [1659967865.182113][3334:3334] CHIP:DMG: 			},
+          [1659967865.181784][3334:3334] CHIP:DMG:         suppressResponse = false,
+          [1659967865.181810][3334:3334] CHIP:DMG:         timedRequest = false,
+          [1659967865.181834][3334:3334] CHIP:DMG:         InvokeRequests =
+          [1659967865.181865][3334:3334] CHIP:DMG:         [
+          [1659967865.181889][3334:3334] CHIP:DMG:                 CommandDataIB =
+          [1659967865.181916][3334:3334] CHIP:DMG:                 {
+          [1659967865.181942][3334:3334] CHIP:DMG:                         CommandPathIB =
+          [1659967865.181978][3334:3334] CHIP:DMG:                         {
+          [1659967865.182009][3334:3334] CHIP:DMG:                                 EndpointId = 0x0,
+          [1659967865.182045][3334:3334] CHIP:DMG:                                 ClusterId = 0x3e,
+          [1659967865.182080][3334:3334] CHIP:DMG:                                 CommandId = 0x9,
+          [1659967865.182113][3334:3334] CHIP:DMG:                         },
           [1659967865.182141][3334:3334] CHIP:DMG:
-          [1659967865.182167][3334:3334] CHIP:DMG: 			CommandFields =
-          [1659967865.182197][3334:3334] CHIP:DMG: 			{
-          [1659967865.182231][3334:3334] CHIP:DMG: 				0x0 = "node1" (5 chars),
-          [1659967865.182263][3334:3334] CHIP:DMG: 			},
-          [1659967865.182291][3334:3334] CHIP:DMG: 		},
+          [1659967865.182167][3334:3334] CHIP:DMG:                         CommandFields =
+          [1659967865.182197][3334:3334] CHIP:DMG:                         {
+          [1659967865.182231][3334:3334] CHIP:DMG:                                 0x0 = "node1" (5 chars),
+          [1659967865.182263][3334:3334] CHIP:DMG:                         },
+          [1659967865.182291][3334:3334] CHIP:DMG:                 },
           [1659967865.182324][3334:3334] CHIP:DMG:
-          [1659967865.182348][3334:3334] CHIP:DMG: 	],
+          [1659967865.182348][3334:3334] CHIP:DMG:         ],
           [1659967865.182377][3334:3334] CHIP:DMG:
-          [1659967865.182401][3334:3334] CHIP:DMG: 	InteractionModelRevision = 1
+          [1659967865.182401][3334:3334] CHIP:DMG:         InteractionModelRevision = 1
           [1659967865.182424][3334:3334] CHIP:DMG: },
           [1659967865.182488][3334:3334] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_003E e=0 p=a
           [1659967865.182522][3334:3334] CHIP:DMG: AccessControl: allowed

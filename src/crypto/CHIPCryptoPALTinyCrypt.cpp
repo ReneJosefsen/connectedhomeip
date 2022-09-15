@@ -777,6 +777,8 @@ exit:
 CHIP_ERROR VerifyCertificateSigningRequest(const uint8_t * csr_buf, size_t csr_length, P256PublicKey & pubkey)
 {
 #if defined(MBEDTLS_X509_CSR_PARSE_C)
+    ReturnErrorOnFailure(VerifyCertificateSigningRequestFormat(csr_buf, csr_length));
+
     // TODO: For some embedded targets, mbedTLS library doesn't have mbedtls_x509_csr_parse_der, and mbedtls_x509_csr_parse_free.
     //       Taking a step back, embedded targets likely will not process CSR requests. Adding this action item to reevaluate
     //       this if there's a need for this processing for embedded targets.
@@ -1189,8 +1191,6 @@ CHIP_ERROR ValidateCertificateChain(const uint8_t * rootCertificate, size_t root
 
     VerifyOrReturnError(rootCertificate != nullptr && rootCertificateLen != 0,
                         (result = CertificateChainValidationResult::kRootArgumentInvalid, CHIP_ERROR_INVALID_ARGUMENT));
-    VerifyOrReturnError(caCertificate != nullptr && caCertificateLen != 0,
-                        (result = CertificateChainValidationResult::kICAArgumentInvalid, CHIP_ERROR_INVALID_ARGUMENT));
     VerifyOrReturnError(leafCertificate != nullptr && leafCertificateLen != 0,
                         (result = CertificateChainValidationResult::kLeafArgumentInvalid, CHIP_ERROR_INVALID_ARGUMENT));
 
@@ -1201,9 +1201,12 @@ CHIP_ERROR ValidateCertificateChain(const uint8_t * rootCertificate, size_t root
     mbedResult = mbedtls_x509_crt_parse(&certChain, Uint8::to_const_uchar(leafCertificate), leafCertificateLen);
     VerifyOrExit(mbedResult == 0, (result = CertificateChainValidationResult::kLeafFormatInvalid, error = CHIP_ERROR_INTERNAL));
 
-    /* Add the intermediate to the chain  */
-    mbedResult = mbedtls_x509_crt_parse(&certChain, Uint8::to_const_uchar(caCertificate), caCertificateLen);
-    VerifyOrExit(mbedResult == 0, (result = CertificateChainValidationResult::kICAFormatInvalid, error = CHIP_ERROR_INTERNAL));
+    /* Add the intermediate to the chain, if present */
+    if (caCertificate != nullptr && caCertificateLen > 0)
+    {
+        mbedResult = mbedtls_x509_crt_parse(&certChain, Uint8::to_const_uchar(caCertificate), caCertificateLen);
+        VerifyOrExit(mbedResult == 0, (result = CertificateChainValidationResult::kICAFormatInvalid, error = CHIP_ERROR_INTERNAL));
+    }
 
     /* Parse the root cert */
     mbedResult = mbedtls_x509_crt_parse(&rootCert, Uint8::to_const_uchar(rootCertificate), rootCertificateLen);

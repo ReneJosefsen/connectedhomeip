@@ -390,12 +390,12 @@ server cluster BinaryInputBasic = 15 {
 }
 
 server cluster Descriptor = 29 {
-  struct DeviceType {
+  struct DeviceTypeStruct {
     devtype_id type = 0;
     int16u revision = 1;
   }
 
-  readonly attribute DeviceType deviceList[] = 0;
+  readonly attribute DeviceTypeStruct deviceTypeList[] = 0;
   readonly attribute CLUSTER_ID serverList[] = 1;
   readonly attribute CLUSTER_ID clientList[] = 2;
   readonly attribute ENDPOINT_NO partsList[] = 3;
@@ -2807,7 +2807,7 @@ server cluster ColorControl = 768 {
   readonly attribute int16u currentY = 4;
   readonly attribute enum8 driftCompensation = 5;
   readonly attribute char_string<254> compensationText = 6;
-  readonly attribute int16u colorTemperature = 7;
+  readonly attribute int16u colorTemperatureMireds = 7;
   readonly attribute enum8 colorMode = 8;
   attribute bitmap8 options = 15;
   readonly attribute nullable int8u numberOfPrimaries = 16;
@@ -2851,7 +2851,7 @@ server cluster ColorControl = 768 {
   readonly attribute int16u colorTempPhysicalMinMireds = 16395;
   readonly attribute int16u colorTempPhysicalMaxMireds = 16396;
   readonly attribute int16u coupleColorTempToLevelMinMireds = 16397;
-  attribute access(write: manage) int16u startUpColorTemperatureMireds = 16400;
+  attribute access(write: manage) nullable int16u startUpColorTemperatureMireds = 16400;
   readonly attribute bitmap32 featureMap = 65532;
   readonly attribute int16u clusterRevision = 65533;
 
@@ -3827,6 +3827,39 @@ server cluster TestCluster = 4294048773 {
   command TestEmitTestFabricScopedEventRequest(TestEmitTestFabricScopedEventRequestRequest): TestEmitTestFabricScopedEventResponse = 21;
 }
 
+server cluster FaultInjection = 4294048774 {
+  enum FaultType : ENUM8 {
+    kUnspecified = 0;
+    kSystemFault = 1;
+    kInetFault = 2;
+    kChipFault = 3;
+    kCertFault = 4;
+  }
+
+  readonly attribute command_id generatedCommandList[] = 65528;
+  readonly attribute command_id acceptedCommandList[] = 65529;
+  readonly attribute attrib_id attributeList[] = 65531;
+  readonly attribute bitmap32 featureMap = 65532;
+  readonly attribute int16u clusterRevision = 65533;
+
+  request struct FailAtFaultRequest {
+    FaultType type = 0;
+    INT32U id = 1;
+    INT32U numCallsToSkip = 2;
+    INT32U numCallsToFail = 3;
+    BOOLEAN takeMutex = 4;
+  }
+
+  request struct FailRandomlyAtFaultRequest {
+    FaultType type = 0;
+    INT32U id = 1;
+    INT8U percentage = 2;
+  }
+
+  command access(invoke: manage) FailAtFault(FailAtFaultRequest): DefaultSuccess = 0;
+  command access(invoke: manage) FailRandomlyAtFault(FailRandomlyAtFaultRequest): DefaultSuccess = 1;
+}
+
 endpoint 0 {
   device type rootdevice = 22;
   binding cluster OtaSoftwareUpdateProvider;
@@ -3845,7 +3878,7 @@ endpoint 0 {
   }
 
   server cluster Descriptor {
-    callback attribute deviceList;
+    callback attribute deviceTypeList;
     callback attribute serverList;
     callback attribute clientList;
     callback attribute partsList;
@@ -4145,6 +4178,14 @@ endpoint 0 {
     ram      attribute featureMap;
     ram      attribute clusterRevision default = 3;
   }
+
+  server cluster FaultInjection {
+    callback attribute generatedCommandList;
+    callback attribute acceptedCommandList;
+    callback attribute attributeList;
+    ram      attribute featureMap;
+    ram      attribute clusterRevision default = 1;
+  }
 }
 endpoint 1 {
   device type onofflight = 256;
@@ -4217,7 +4258,7 @@ endpoint 1 {
   }
 
   server cluster Descriptor {
-    callback attribute deviceList;
+    callback attribute deviceTypeList;
     callback attribute serverList;
     callback attribute clientList;
     callback attribute partsList;
@@ -4448,7 +4489,7 @@ endpoint 1 {
     ram      attribute currentY default = 0x607D;
     ram      attribute driftCompensation;
     ram      attribute compensationText;
-    ram      attribute colorTemperature default = 0x00FA;
+    ram      attribute colorTemperatureMireds default = 0x00FA;
     ram      attribute colorMode default = 0x01;
     ram      attribute options;
     ram      attribute numberOfPrimaries;
@@ -4755,7 +4796,7 @@ endpoint 2 {
   }
 
   server cluster Descriptor {
-    callback attribute deviceList;
+    callback attribute deviceTypeList;
     callback attribute serverList;
     callback attribute clientList;
     callback attribute partsList;

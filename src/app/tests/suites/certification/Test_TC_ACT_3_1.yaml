@@ -28,13 +28,18 @@ config:
     endpoint: 0
 
 tests:
+    - label: "Note"
+      verification: |
+          For DUT as client test cases, Chip-tool command used below are an example to verify the functionality. For certification test, we expect DUT should have a capability or way to run the equivalent command.
+      disabled: true
+
     - label:
           "DUT reads all supported mandatory attributes from TH one at a time in
           a manufacturer specific order"
       verification: |
-          ./chip-tool bridgedactions  read action-list 1 1
+          ./chip-tool actions  read action-list 1 1
 
-          Verify read command is received on TH(all-clusters-app)
+          Verify read command is received on TH(bridge-app)
 
           [1658848323.188336][28392:28392] CHIP:IM: Received Read request
           [1658848323.188433][28392:28392] CHIP:DMG: ReadRequestMessage =
@@ -59,7 +64,7 @@ tests:
 
 
 
-          ./chip-tool bridgedactions  read endpoint-list   1 1
+          ./chip-tool actions  read endpoint-lists   1 1
 
           Verify read command is received on TH(all-clusters-app
           )
@@ -91,9 +96,9 @@ tests:
       verification: |
           Optional attibute
 
-          ./chip-tool bridgedactions read setup-url 1 1
+          ./chip-tool actions read setup-url 1 1
 
-          Verify read command is received on TH(all-clusters-app)
+          Verify read command is received on TH(bridge-app)
 
           [1658848453.728775][28392:28392] CHIP:IM: Received Read request
           [1658848453.728895][28392:28392] CHIP:DMG: ReadRequestMessage =
@@ -137,7 +142,7 @@ tests:
           also reflects this in global attributes such as FeatureMap and
           AttributeList. Commission DUT to TH again"
       verification: |
-          ./chip-tool bridgedactions  read  attribute-list 1 1
+          ./chip-tool actions  read  attribute-list 1 1
 
           Verify attribute-list attribute contains 7 entries on TH(all-clusters-minimal-app)
           [1658393025.602745][13481:13486] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_0025 Attribute 0x0000_FFFB DataVersion: 2868144574
@@ -152,7 +157,7 @@ tests:
           [1658393025.603258][13481:13486] CHIP:EM: Sending Standalone Ack for MessageCounter:114510707 on exchange 23501i
 
 
-          ./chip-tool bridgedactions  read action-list 1 1
+          ./chip-tool actions  read action-list 1 1
 
           Verify read command is received on TH(all-clusters-minimal-app) Log
 
@@ -179,7 +184,7 @@ tests:
 
 
 
-          ./chip-tool bridgedactions  read endpoint-list   1 1
+          ./chip-tool actions  read endpoint-lists  1 1
 
           Verify read command is received on TH(all-clusters-minimal-app)
 
@@ -211,7 +216,7 @@ tests:
       verification: |
           Optional attibute
 
-          ./chip-tool bridgedactions read setup-url 1 1
+          ./chip-tool actions read setup-url 1 1
 
           General error: 0x86 (UNSUPPORTED_ATTRIBUTE)
       disabled: true

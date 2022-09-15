@@ -214,7 +214,9 @@ class HostBuilder(GnBuilder):
                  separate_event_loop=True, use_libfuzzer=False, use_clang=False,
                  interactive_mode=True, extra_tests=False,
                  use_platform_mdns=False, enable_rpcs=False,
-                 use_coverage=False, crypto_library: HostCryptoLibrary = None):
+                 use_coverage=False, use_dmalloc=False,
+                 minmdns_address_policy=None,
+                 crypto_library: HostCryptoLibrary = None):
         super(HostBuilder, self).__init__(
             root=os.path.join(root, 'examples', app.ExamplePath()),
             runner=runner)
@@ -222,6 +224,10 @@ class HostBuilder(GnBuilder):
         self.app = app
         self.board = board
         self.extra_gn_options = []
+        self.build_env = {}
+
+        if board == HostBoard.ARM64:
+            self.build_env['PKG_CONFIG_PATH'] = os.path.join(self.SysRootPath('SYSROOT_AARCH64'), 'lib/aarch64-linux-gnu/pkgconfig')
 
         if enable_rpcs:
             self.extra_gn_options.append('import("//with_pw_rpc.gni")')
@@ -244,6 +250,16 @@ class HostBuilder(GnBuilder):
         if use_asan:
             self.extra_gn_options.append('is_asan=true')
 
+        if use_dmalloc:
+            self.extra_gn_options.append('chip_config_memory_debug_checks=true')
+            self.extra_gn_options.append('chip_config_memory_debug_dmalloc=true')
+
+            # this is from `dmalloc -b -l DMALLOC_LOG -i 1 high`
+            self.build_env['DMALLOC_OPTIONS'] = 'debug=0x4f4ed03,inter=1,log=DMALLOC_LOG'
+
+            # glib interop with dmalloc
+            self.build_env['G_SLICE'] = 'always-malloc'
+
         if not separate_event_loop:
             self.extra_gn_options.append('config_use_separate_eventloop=false')
 
@@ -264,6 +280,11 @@ class HostBuilder(GnBuilder):
                 # Fake uses "//build/toolchain/fake:fake_x64_gcc"
                 # so setting clang is not correct
                 raise Exception('Fake host board is always gcc (not clang)')
+
+        if minmdns_address_policy:
+            if use_platform_mdns:
+                raise Exception('Address policy applies to minmdns only')
+            self.extra_gn_options.append('chip_minmdns_default_policy="%s"' % minmdns_address_policy)
 
         if use_platform_mdns:
             self.extra_gn_options.append('chip_mdns="platform"')
@@ -327,18 +348,7 @@ class HostBuilder(GnBuilder):
             raise Exception('Unknown host board type: %r' % self)
 
     def GnBuildEnv(self):
-        if self.board == HostBoard.NATIVE:
-            return None
-        elif self.board == HostBoard.FAKE:
-            return None
-        elif self.board == HostBoard.ARM64:
-            return {
-                'PKG_CONFIG_PATH': os.path.join(
-                    self.SysRootPath('SYSROOT_AARCH64'),
-                    'lib/aarch64-linux-gnu/pkgconfig'),
-            }
-        else:
-            raise Exception('Unknown host board type: %r' % self)
+        return self.build_env
 
     def SysRootPath(self, name):
         if name not in os.environ:

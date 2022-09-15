@@ -24,12 +24,17 @@ config:
     endpoint: 0
 
 tests:
-    - label: "Check Attribute defining the cluster Features"
+    - label: "Note"
       verification: |
-          verification step to be updated.
+          For DUT as client test cases, Chip-tool command used below are an example to verify the functionality. For certification test, we expect DUT should have a capability or way to run the equivalent command.
       disabled: true
 
-    - label: "DUT reads the (65532) _FeatureMap_ attribute from T"
+    - label: "Check Attribute defining the cluster Features"
+      verification: |
+
+      disabled: true
+
+    - label: "DUT reads the (65532) _FeatureMap_ attribute from TH"
       PICS: WNCV.C.Afffc
       verification: |
           On TestHarnes (all-cluster-app) a received read of feature-map looks like this:
@@ -58,7 +63,7 @@ tests:
 
     - label: "Check Attribute defining the product"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label: "DUT reads the Type attribute from TH"
@@ -116,7 +121,7 @@ tests:
 
     - label: "Check Attribute defining the working status"
       verification: |
-          verification step to be updated.
+
       disabled: true
 
     - label: "DUT reads the Mode attribute from TH"

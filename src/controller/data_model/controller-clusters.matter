@@ -411,12 +411,12 @@ client cluster BinaryInputBasic = 15 {
 }
 
 client cluster Descriptor = 29 {
-  struct DeviceType {
+  struct DeviceTypeStruct {
     devtype_id type = 0;
     int16u revision = 1;
   }
 
-  readonly attribute DeviceType deviceList[] = 0;
+  readonly attribute DeviceTypeStruct deviceTypeList[] = 0;
   readonly attribute CLUSTER_ID serverList[] = 1;
   readonly attribute CLUSTER_ID clientList[] = 2;
   readonly attribute ENDPOINT_NO partsList[] = 3;
@@ -3134,7 +3134,7 @@ client cluster ColorControl = 768 {
   readonly attribute int16u currentY = 4;
   readonly attribute enum8 driftCompensation = 5;
   readonly attribute char_string<254> compensationText = 6;
-  readonly attribute int16u colorTemperature = 7;
+  readonly attribute int16u colorTemperatureMireds = 7;
   readonly attribute enum8 colorMode = 8;
   attribute bitmap8 options = 15;
   readonly attribute nullable int8u numberOfPrimaries = 16;
@@ -3178,7 +3178,7 @@ client cluster ColorControl = 768 {
   readonly attribute int16u colorTempPhysicalMinMireds = 16395;
   readonly attribute int16u colorTempPhysicalMaxMireds = 16396;
   readonly attribute int16u coupleColorTempToLevelMinMireds = 16397;
-  attribute access(write: manage) int16u startUpColorTemperatureMireds = 16400;
+  attribute access(write: manage) nullable int16u startUpColorTemperatureMireds = 16400;
   readonly attribute command_id generatedCommandList[] = 65528;
   readonly attribute command_id acceptedCommandList[] = 65529;
   readonly attribute attrib_id attributeList[] = 65531;

@@ -14,6 +14,9 @@
 
 name: 25.3.5. [TC-CC-4.1] Saturation MoveTo functionality with server as DUT
 
+PICS:
+    - CC.S
+
 config:
     nodeId: 0x12344321
     cluster: "Color Control"
@@ -131,8 +134,8 @@ tests:
       attribute: "CurrentSaturation"
       response:
           constraints:
-              minValue: 110
-              maxValue: 120
+              minValue: 102
+              maxValue: 138
 
     - label: "Wait 5s"
       cluster: "DelayCommands"
@@ -154,6 +157,7 @@ tests:
       command: "readAttribute"
       attribute: "ColorMode"
       response:
+          value: 0
           constraints:
               minValue: 0
               maxValue: 2
@@ -161,8 +165,9 @@ tests:
     - label: "TH reads EnhancedColorMode attribute from DUT"
       PICS: CC.S.F00 && CC.S.A4001
       command: "readAttribute"
-      attribute: "ColorMode"
+      attribute: "EnhancedColorMode"
       response:
+          value: 0
           constraints:
               minValue: 0
               maxValue: 3

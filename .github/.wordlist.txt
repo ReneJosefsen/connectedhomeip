@@ -19,6 +19,8 @@ AccessControlEntry
 accessor
 AccountLogin
 acdbc
+ack
+ACK
 ACKed
 ACL
 ACLs
@@ -48,11 +50,9 @@ algs
 alloc
 Ameba
 amebad
-AmebaD
 amebaiot
 AmebaZ
 amebaz2
-AmebaZ2
 announcementReason
 AnnounceOTAProvider
 AnnounceOtaProviderRequest
@@ -84,8 +84,6 @@ args
 argv
 armeabi
 armino
-Armino
-ARMINO
 ARMmbed
 armv
 ASAN
@@ -158,6 +156,7 @@ bootable
 Bootloader
 BorderRouterAP
 bouffalolab
+Bouffalolab
 BRD
 breakpoint
 bredr
@@ -257,6 +256,7 @@ ClusterTestGeneration
 cmake
 CMakeLists
 CMD
+CMS
 CMSIS
 CMVH
 cn
@@ -294,8 +294,8 @@ connstring
 conntype
 const
 ContentApp
-ContentApp's
 ContentAppPlatform
+ContentApp's
 ContentLaunch
 ContentLauncher
 continuousHinting
@@ -598,6 +598,7 @@ Gradle
 gradlew
 GroupId
 GroupKeyManagement
+Groupcast
 groupKeySecurityPolicy
 groupKeySetID
 groupsettings
@@ -651,6 +652,7 @@ ignoreQueryImage
 ihex
 IlluminanceMeasurement
 IM
+IsInitiator
 imager
 imagetool
 imageUri
@@ -830,6 +832,7 @@ mdash
 MDNS
 MediaInput
 MediaPlayback
+MediaTek
 mem
 memdf
 MemMonitoring
@@ -1116,8 +1119,8 @@ REPL
 repo
 req
 Requestor
-Requestor's
 RequestorCanConsent
+Requestor's
 Requestors
 responder
 RestrictedEvent
@@ -1164,8 +1167,8 @@ SDB
 SDC
 SDHC
 SDK
-SDK's
 sdkconfig
+SDK's
 SDKs
 SDKTARGETSYSROOT
 sdl
@@ -1342,6 +1345,7 @@ trackFree
 TransferSession
 transitionTime
 TransportMgrBase
+TriggerEffect
 TRNG
 TrustedRootCertificates
 tsan
@@ -1376,6 +1380,7 @@ unfocus
 Unicast
 UniFlash
 UnitLocalization
+Unencrypted
 unpair
 unprovisioned
 untrusted
@@ -1395,6 +1400,7 @@ userConsentState
 userguide
 USERINTERFACE
 UserLabel
+Unsecure
 usermod
 usr
 UTF
