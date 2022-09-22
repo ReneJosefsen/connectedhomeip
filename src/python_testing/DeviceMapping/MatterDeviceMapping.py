@@ -180,10 +180,6 @@ rootNodeEndpointID = 0
 inputJson = {}
 clusterInfoDict = {}
 
-pprint(clusterInfoInputPathStr)
-pprint(xmlTemplatePathStr)
-pprint(outputPathStr)
-
 with open(clusterInfoInputPathStr, 'r') as clusterInfoInputFile:
     clusterInfoJson = json.load(clusterInfoInputFile)
 
