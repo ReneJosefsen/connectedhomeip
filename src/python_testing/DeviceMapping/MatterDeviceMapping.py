@@ -184,8 +184,7 @@ async def DeviceMapping():
             acceptedCommandListPicsList = []
             generatedCommandListPicsList = []
 
-            #console.print(clusterHandler.GetClusterInfoById(server))
-            clusterClass = getattr(Clusters, clusterHandler.GetClusterInfoById(server)['clusterName'])
+            clusterClass = getattr(Clusters, devCtrl.GetClusterHandler().GetClusterInfoById(server)['clusterName'])
             cluserID = f"0x{server:04x}"
             clusterName = clusterInfoDict[cluserID]['Name']
             clusterPICS = f"{clusterInfoDict[cluserID]['PICS_Code']}{serverTag}"
@@ -352,7 +351,6 @@ devCtrl = caList[0].adminList[0].NewController()
 
 builtins.devCtrl = devCtrl
 atexit.register(StackShutdown)
-clusterHandler = devCtrl.GetClusterHandler()
 
 '''
 # Thread commissioning
