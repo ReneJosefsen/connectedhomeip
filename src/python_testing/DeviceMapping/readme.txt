@@ -19,10 +19,6 @@ clusterInfoInputPathStr (Path to data model in JSON format)
 xmlTemplatePathStr (Path to PICS XML templates)
 outputPathStr (Output path of modified PICS files)
 
-### Notes ###
-The script is currently only verified with BLE/Thread based devices (The only thing I had at hand), so it is required to modify the commissioning sequence to match the other interfaces.
-Currently it is possible to either do a Thread commissioning or reuse an already commissioned node ID.
-
 ### How to run ###
 In order to use the script the Python CHIP controller must be build, use the instructions at https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/python_chip_controller_building.md#building
 
@@ -30,4 +26,8 @@ cd into "connectedhomeip" folder
 
 Activate the Python virtual environment using "source out/python_env/bin/activate"
 
-Run the script using the following command: "sudo python3 'src/python_testing/DeviceMapping/MatterDeviceMapping.py'"
+If the "DUT" has not been commissioned this can be done by passing in the configuration in the following way:
+"sudo python3 '/Users/renejosefsen/Downloads/Matter Device Mapping/MatterDeviceMapping.py' --commissioning-method ble-thread --discriminator <DESCRIMINATOR> --passcode <PASSCODE> --thread-dataset-hex <DATASET_AS_HEX> --paa-trust-store-path credentials/development/paa-root-certs"
+
+If a "DUT" has alreasy ben commissioned, run the script using the following command: 
+"sudo python3 'src/python_testing/DeviceMapping/MatterDeviceMapping.py'"
