@@ -92,18 +92,6 @@
 #endif
 
 /**
- * CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH
- *
- * Compute and log a hash of the device's provisioning data on boot.
- *
- * The generated hash value confirms to the form described in the CHIP: Factory
- * Provisioning Specification.
- */
-#ifndef CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH
-#define CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH 1
-#endif
-
-/**
  * CHIP_DEVICE_CONFIG_ENABLE_SED
  *
  * Enable support for sleepy end device behavior.
@@ -791,19 +779,6 @@
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT 0
 #endif
 
-// -------------------- Trait Manager Configuration --------------------
-
-/**
- * CHIP_DEVICE_CONFIG_ENABLE_TRAIT_MANAGER
- *
- * Enable or disable the chip Trait Manager.
- *
- * NOTE: The Trait Manager is an experimental feature of the chip Device Layer.
- */
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_TRAIT_MANAGER
-#define CHIP_DEVICE_CONFIG_ENABLE_TRAIT_MANAGER 0
-#endif
-
 // -------------------- Network Telemetry Configuration --------------------
 
 /**
@@ -981,21 +956,6 @@
 
 #if (CHIP_DEVICE_CONFIG_EVENT_LOGGING_CRIT_BUFFER_SIZE <= 0)
 #error "The Prod critical event buffer must exist (CHIP_DEVICE_CONFIG_EVENT_LOGGING_CRIT_BUFFER_SIZE > 0)"
-#endif
-
-/**
- * @def CHIP_DEVICE_CONFIG_EVENT_LOGGING_PROD_BUFFER_SIZE
- *
- * @brief
- *   A size, in bytes, of the individual production event logging buffer.
- *   Note: the production event buffer must exist.
- */
-#ifndef CHIP_DEVICE_CONFIG_EVENT_LOGGING_PROD_BUFFER_SIZE
-#define CHIP_DEVICE_CONFIG_EVENT_LOGGING_PROD_BUFFER_SIZE (512)
-#endif
-
-#if (CHIP_DEVICE_CONFIG_EVENT_LOGGING_PROD_BUFFER_SIZE <= 0)
-#error "The Prod event buffer must exist (CHIP_DEVICE_CONFIG_EVENT_LOGGING_PROD_BUFFER_SIZE > 0)"
 #endif
 
 /**
@@ -1368,4 +1328,14 @@
  */
 #ifndef CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT
 #define CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT 0
+#endif
+
+/**
+ * CHIP_DISPATCH_EVENT_LONG_DISPATCH_TIME_WARNING_THRESHOLD_MS
+ *
+ * Time threshold for events dispatching
+ * Set 0 to disable event dispatching time measurement
+ */
+#ifndef CHIP_DISPATCH_EVENT_LONG_DISPATCH_TIME_WARNING_THRESHOLD_MS
+#define CHIP_DISPATCH_EVENT_LONG_DISPATCH_TIME_WARNING_THRESHOLD_MS 100
 #endif

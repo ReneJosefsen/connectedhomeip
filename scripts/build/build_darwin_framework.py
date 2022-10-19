@@ -47,13 +47,20 @@ def build_darwin_framework(args):
         '-scheme',
         args.target,
         '-sdk',
-        'macosx',
+        args.target_sdk,
         '-project',
         args.project_path,
         '-derivedDataPath',
         abs_path,
-        "PLATFORM_PREFERRED_ARCH={}".format(platform.machine())
+        "PLATFORM_PREFERRED_ARCH={}".format(args.target_arch),
     ]
+
+    if args.target_sdk != "macosx":
+        command += [
+            # Build Matter.framework as a static library
+            "SUPPORTS_TEXT_BASED_API=NO",
+            "MACH_O_TYPE=staticlib",
+        ]
     command_result = run_command(command)
 
     print("Build Framework Result: {}".format(command_result))
@@ -79,6 +86,16 @@ if __name__ == "__main__":
                         default="Matter",
                         help="Name of target to build",
                         required=True)
+    parser.add_argument("--target_sdk",
+                        default="macosx",
+                        help="Set the target sdk",
+                        required=False,
+                        )
+    parser.add_argument("--target_arch",
+                        default=platform.machine(),
+                        help="Set the target architecture",
+                        required=False,
+                        )
     parser.add_argument("--log_path",
                         help="Output log file destination",
                         required=True)
