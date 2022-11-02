@@ -148,12 +148,15 @@ class TestGenerateFactoryData(unittest.TestCase):
             write_file(os.path.join(outdir, 'PAI_cert.der'), PAI_DER_CERT)
 
             subprocess.check_call(['python3', os.path.join(TOOLS_DIR, 'generate_nrfconnect_chip_factory_data.py'),
+                                   '-s', os.path.join(TOOLS_DIR, 'nrfconnect_factory_data.schema'),
                                    '--include_passcode',
                                    '--sn', 'SN:12345678',
                                    '--vendor_id', '0x127F',
                                    '--product_id', '0xABCD',
                                    '--vendor_name', 'Nordic Semiconductor ASA',
-                                   '--product_name', 'Lock',
+                                   '--product_name', 'Lock Gen2',
+                                   '--product_label', 'Lock',
+                                   '--part_number', 'PCA10056',
                                    '--date', '2022-07-20',
                                    '--hw_ver', '101',
                                    '--hw_ver_str', 'v1.1',
@@ -165,7 +168,7 @@ class TestGenerateFactoryData(unittest.TestCase):
                                    '--passcode', '13243546',
                                    '--spake2_verifier', 'WN0SgEXLfUN19BbJqp6qn4pS69EtdNLReIMZwv/CIM0ECMP7ytiAJ7txIYJ0Ovlha/rQ3E+88mj3qaqqnviMaZzG+OyXEdSocDIT9ZhmkTCgWwERaHz4Vdh3G37RT6kqbw==',
                                    '--discriminator', '0xFED',
-                                   '--rd_uid', '0123456789ABCDEF',
+                                   '--rd_uid', '91a9c12a7c80700a31ddcfa7fce63e44',
                                    '--enable_key', '00112233445566778899aabbccddeeff',
                                    '-o', os.path.join(outdir, 'fd.json')
                                    ])
@@ -177,7 +180,9 @@ class TestGenerateFactoryData(unittest.TestCase):
             self.assertEqual(factory_data.get('vendor_id'), 0x127F)
             self.assertEqual(factory_data.get('product_id'), 0xABCD)
             self.assertEqual(factory_data.get('vendor_name'), 'Nordic Semiconductor ASA')
-            self.assertEqual(factory_data.get('product_name'), 'Lock')
+            self.assertEqual(factory_data.get('product_name'), 'Lock Gen2')
+            self.assertEqual(factory_data.get('product_label'), 'Lock')
+            self.assertEqual(factory_data.get('part_number'), 'PCA10056')
             self.assertEqual(factory_data.get('date'), '2022-07-20')
             self.assertEqual(factory_data.get('hw_ver'), 101)
             self.assertEqual(factory_data.get('hw_ver_str'), 'v1.1')
@@ -190,7 +195,7 @@ class TestGenerateFactoryData(unittest.TestCase):
                 'WN0SgEXLfUN19BbJqp6qn4pS69EtdNLReIMZwv/CIM0ECMP7ytiAJ7txIYJ0Ovlha/rQ3E+88mj3qaqqnviMaZzG+OyXEdSocDIT9ZhmkTCgWwERaHz4Vdh3G37RT6kqbw=='))
             self.assertEqual(factory_data.get('discriminator'), 0xFED)
             self.assertEqual(factory_data.get('passcode'), 13243546)
-            self.assertEqual(factory_data.get('rd_uid'), 'hex:0123456789ABCDEF')
+            self.assertEqual(factory_data.get('rd_uid'), 'hex:91a9c12a7c80700a31ddcfa7fce63e44')
             self.assertEqual(factory_data.get('enable_key'), 'hex:00112233445566778899aabbccddeeff')
 
 
