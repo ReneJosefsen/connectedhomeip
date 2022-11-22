@@ -140,6 +140,44 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
             supportElement = picsItem.find('support')
             supportElement.text = "true"
 
+    # Event PICS (Work in progress)
+    # The ability to set event PICS is fairly limited, due to EventList not being supported,
+    # as well as no way to check for event support in the current Matter SDK.
+
+    # This implementation marks an event as supported if:
+    # 1) Event is mandatody
+    # 2) The event is mandatory based on a feature that is supported (Cross check against feature list) (Not supported yet)
+    serverEventsNode = root.find("./clusterSide[@type='server']/Events")
+    for picsItem in serverEventsNode:
+        itemNumberElement = picsItem.find('itemNumber')
+        statusElement = picsItem.find('status')
+
+        try:
+            condition = statusElement.attrib['cond']
+            print(f"Checking {itemNumberElement.text} with conformance {statusElement.text} and condition {condition}")
+        except:
+            condition = ""
+            print(f"Checking {itemNumberElement.text} with conformance {statusElement.text}")
+
+        if statusElement.text == "M":
+
+            # Is event mandated by the server
+            if condition == clusterPicsCode:
+                print("Found event mandated by server")
+                supportElement = picsItem.find('support')
+                supportElement.text = "true"
+                continue
+            
+            if condition in featurePicsList:
+                print("Found event mandated by feature")
+                supportElement = picsItem.find('support')
+                supportElement.text = "true"
+                continue
+            
+            if condition == "":
+                print("Event is mandated without a condition")
+                continue
+
     # Write XML file
     tree.write(f"{outputPathStr}/{fileName}")
 
@@ -162,9 +200,9 @@ async def DeviceMapping(devCtrl, nodeID):
         print(f"Mapping endpoint: {endpoint}")
 
         # Read device list (Not required)
-        deviceListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.DeviceList)])
+        deviceListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.DeviceTypeList)])
         # TODO: Print the list and not just the first element
-        print(f"Device Type: {deviceListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.DeviceList][0].type}")
+        print(f"Device Type: {deviceListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.DeviceTypeList][0].type}")
 
         # Read server list
         serverListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.ServerList)])
