@@ -32,12 +32,12 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build-telink:0.6.05
+            image: connectedhomeip/chip-build-telink:0.6.06
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
 
         steps:
-            - uses: Wandalen/wretry.action@v1.0.15
+            - uses: Wandalen/wretry.action@v1.0.36
               name: Checkout
               with:
                   action: actions/checkout@v3
@@ -99,8 +99,17 @@ jobs:
                     out/telink-tlsr9518adk80d-ota-requestor/zephyr/zephyr.elf \
                     /tmp/bloat_reports/
 
+            - name: Build example Telink Thermostat App
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                    "./scripts/build/build_examples.py --no-log-timestamps --target 'telink-tlsr9518adk80d-thermostat' build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    telink tlsr9518adk80d thermostat \
+                    out/telink-tlsr9518adk80d-thermostat/zephyr/zephyr.elf \
+                    /tmp/bloat_reports/
+
             - name: Uploading Size Reports
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v3
               if: ${{ !env.ACT }}
               with:
                   name: Size,Telink-Examples,${{ env.GH_EVENT_PR }},${{ env.GH_EVENT_HASH }},${{ env.GH_EVENT_PARENT }},${{ github.event_name }}
