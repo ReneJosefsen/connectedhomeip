@@ -20,8 +20,8 @@ from rich.console import Console
 
 console = None
 
-def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, attributePicsList, acceptedCommandPicsList, generatedCommandPicsList):
-    
+def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, attributePicsList, acceptedCommandPicsList, generatedCommandPicsList, outputPathStr):
+
     xmlPath = xmlTemplatePathStr
     fileName = ""
 
@@ -29,8 +29,6 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     deviceManagementClusterList = ["Basic Information Cluster", "Node Operational Credentials Cluster", "Network Commissioning Cluster"]
     administratorCommissioningCluster = "Administrator Commissioning Cluster"
     onOffCluster = "On/Off"
-    
-    print(clusterName)
     
     if any(x in clusterName for x in deviceManagementClusterList):
         clusterName = "Device Management"
@@ -181,8 +179,8 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # Write XML file
     tree.write(f"{outputPathStr}/{fileName}")
 
-async def DeviceMapping(devCtrl, nodeID):
-    
+async def DeviceMapping(devCtrl, nodeID, outputPathStr):
+
     #### Device mapping ####
     print(f"[blue]Perform device mapping")
     # Determine how many endpoints to map
@@ -198,6 +196,12 @@ async def DeviceMapping(devCtrl, nodeID):
     for endpoint in partsList:
         # Test step 2 - Map each available endpoint
         print(f"Mapping endpoint: {endpoint}")
+
+        # Create endpoint specific output folder and register this as output folder
+        endpointOutputPathStr = f"{outputPathStr}endpoint{endpoint}/"
+        endpointOutputPath = pathlib.Path(endpointOutputPathStr)
+        if not endpointOutputPath.exists():
+            endpointOutputPath.mkdir()
 
         # Read device list (Not required)
         deviceListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.DeviceTypeList)])
@@ -220,7 +224,6 @@ async def DeviceMapping(devCtrl, nodeID):
             clusterPICS = f"{clusterInfoDict[cluserID]['PICS_Code']}{serverTag}"
 
             print(f"{clusterName} - {clusterPICS}")
-
 
             # Print PICS for specific server from dict
             #print(clusterInfoDict[f"0x{server:04x}"])
@@ -284,7 +287,7 @@ async def DeviceMapping(devCtrl, nodeID):
             print(generatedCommandListPicsList)
 
             # Write the collected PICS to a PICS XML file
-            GenerateDevicePicsXmlFiles(clusterName, clusterPICS, featurePicsList, attributePicsList, acceptedCommandListPicsList, generatedCommandListPicsList)
+            GenerateDevicePicsXmlFiles(clusterName, clusterPICS, featurePicsList, attributePicsList, acceptedCommandListPicsList, generatedCommandListPicsList, endpointOutputPathStr)
 
         # Read client list
         clientListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.ClientList)])
@@ -297,12 +300,20 @@ async def DeviceMapping(devCtrl, nodeID):
 
             print(f"{clusterName} - {clusterPICS}")
 
-            GenerateDevicePicsXmlFiles(clusterName, clusterPICS, [], [], [], [])
+            GenerateDevicePicsXmlFiles(clusterName, clusterPICS, [], [], [], [], endpointOutputPathStr)
+
+def cleanDirectory(pathToClean):
+    for entry in pathToClean.iterdir():
+        if entry.is_file():
+            pathlib.Path(entry).unlink()
+        elif entry.is_dir():
+            cleanDirectory(entry)
+            pathlib.Path(entry).rmdir()
 
 basePath = os.path.dirname(__file__)
 clusterInfoInputPathStr = os.path.join(basePath, 'clusterData', 'Specification_version master da1249d.json')
 xmlTemplatePathStr = os.path.join(basePath, 'PICS', 'XML_Version Master-V13/')
-outputPathStr = os.path.join(basePath, 'output/')
+baseOutputPathStr = os.path.join(basePath, 'output/')
 
 serverTag = ".S"
 clientTag = ".C"
@@ -339,12 +350,11 @@ for cluster in clusterInfoJson["ClusterIdentifiers"]:
 xmlFileList = os.listdir(xmlTemplatePathStr)
 
 # Setup output path
-outputPath = pathlib.Path(outputPathStr)
-if not outputPath.exists():
-    outputPath.mkdir()
+baseOutputPath = pathlib.Path(baseOutputPathStr)
+if not baseOutputPath.exists():
+    baseOutputPath.mkdir()
 else:
-    for file in outputPath.iterdir():
-        pathlib.Path(file).unlink()
+    cleanDirectory(baseOutputPath)
 
 class DeviceMappingTest(MatterBaseTest):
     @async_test_body
@@ -355,7 +365,7 @@ class DeviceMappingTest(MatterBaseTest):
         console = Console()
         
         # Run device mapping function
-        await DeviceMapping(self.default_controller, self.dut_node_id)
+        await DeviceMapping(self.default_controller, self.dut_node_id, baseOutputPathStr)
 
 if __name__ == "__main__":
     default_matter_test_main()
