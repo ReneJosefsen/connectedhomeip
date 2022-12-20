@@ -99,10 +99,10 @@
 #define CHIP_PRINTCLUSTER_ACTIONS_CLUSTER
 #endif
 
-#if defined(ZCL_USING_BASIC_CLUSTER_SERVER) || defined(ZCL_USING_BASIC_CLUSTER_CLIENT)
-#define CHIP_PRINTCLUSTER_BASIC_CLUSTER { chip::app::Clusters::Basic::Id, "Basic" },
+#if defined(ZCL_USING_BASIC_INFORMATION_CLUSTER_SERVER) || defined(ZCL_USING_BASIC_INFORMATION_CLUSTER_CLIENT)
+#define CHIP_PRINTCLUSTER_BASIC_INFORMATION_CLUSTER { chip::app::Clusters::BasicInformation::Id, "Basic Information" },
 #else
-#define CHIP_PRINTCLUSTER_BASIC_CLUSTER
+#define CHIP_PRINTCLUSTER_BASIC_INFORMATION_CLUSTER
 #endif
 
 #if defined(ZCL_USING_OTA_SOFTWARE_UPDATE_PROVIDER_CLUSTER_SERVER) || defined(ZCL_USING_OTA_SOFTWARE_UPDATE_PROVIDER_CLUSTER_CLIENT)
@@ -461,6 +461,12 @@
 #define CHIP_PRINTCLUSTER_ELECTRICAL_MEASUREMENT_CLUSTER
 #endif
 
+#if defined(ZCL_USING_CLIENT_MONITORING_CLUSTER_SERVER) || defined(ZCL_USING_CLIENT_MONITORING_CLUSTER_CLIENT)
+#define CHIP_PRINTCLUSTER_CLIENT_MONITORING_CLUSTER { chip::app::Clusters::ClientMonitoring::Id, "Client Monitoring" },
+#else
+#define CHIP_PRINTCLUSTER_CLIENT_MONITORING_CLUSTER
+#endif
+
 #if defined(ZCL_USING_UNIT_TESTING_CLUSTER_SERVER) || defined(ZCL_USING_UNIT_TESTING_CLUSTER_CLIENT)
 #define CHIP_PRINTCLUSTER_UNIT_TESTING_CLUSTER { chip::app::Clusters::UnitTesting::Id, "Unit Testing" },
 #else
@@ -486,7 +492,7 @@
     CHIP_PRINTCLUSTER_BINDING_CLUSTER                                                                                              \
     CHIP_PRINTCLUSTER_ACCESS_CONTROL_CLUSTER                                                                                       \
     CHIP_PRINTCLUSTER_ACTIONS_CLUSTER                                                                                              \
-    CHIP_PRINTCLUSTER_BASIC_CLUSTER                                                                                                \
+    CHIP_PRINTCLUSTER_BASIC_INFORMATION_CLUSTER                                                                                    \
     CHIP_PRINTCLUSTER_OTA_SOFTWARE_UPDATE_PROVIDER_CLUSTER                                                                         \
     CHIP_PRINTCLUSTER_OTA_SOFTWARE_UPDATE_REQUESTOR_CLUSTER                                                                        \
     CHIP_PRINTCLUSTER_LOCALIZATION_CONFIGURATION_CLUSTER                                                                           \
@@ -543,6 +549,7 @@
     CHIP_PRINTCLUSTER_APPLICATION_BASIC_CLUSTER                                                                                    \
     CHIP_PRINTCLUSTER_ACCOUNT_LOGIN_CLUSTER                                                                                        \
     CHIP_PRINTCLUSTER_ELECTRICAL_MEASUREMENT_CLUSTER                                                                               \
+    CHIP_PRINTCLUSTER_CLIENT_MONITORING_CLUSTER                                                                                    \
     CHIP_PRINTCLUSTER_UNIT_TESTING_CLUSTER                                                                                         \
     CHIP_PRINTCLUSTER_FAULT_INJECTION_CLUSTER
 

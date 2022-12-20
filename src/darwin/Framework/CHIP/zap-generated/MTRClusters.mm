@@ -18,13 +18,12 @@
 #import <Foundation/Foundation.h>
 
 #import "MTRAsyncCallbackWorkQueue.h"
-#import "MTRBaseDevice_internal.h"
-#import "MTRCallbackBridge_internal.h"
+#import "MTRBaseDevice_Internal.h"
+#import "MTRCallbackBridge.h"
 #import "MTRClusterConstants.h"
-#import "MTRCluster_internal.h"
-#import "MTRClusters_internal.h"
+#import "MTRCluster_Internal.h"
+#import "MTRClusters_Internal.h"
 #import "MTRCommandPayloadsObjc.h"
-#import "MTRDevice.h"
 #import "MTRDevice_Internal.h"
 #import "MTRLogging_Internal.h"
 #import "MTRStructsObjc.h"
@@ -84,16 +83,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -139,16 +140,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -318,16 +321,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupsClusterAddGroupResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, GroupsClusterAddGroupResponseCallbackType successCb,
@@ -375,16 +380,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupsClusterViewGroupResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -431,16 +438,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupsClusterGetGroupMembershipResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -509,16 +518,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupsClusterRemoveGroupResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -574,16 +585,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -628,16 +641,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -844,16 +859,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterAddSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, ScenesClusterAddSceneResponseCallbackType successCb,
@@ -977,16 +994,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterViewSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1034,16 +1053,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterRemoveSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1092,16 +1113,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterRemoveAllScenesResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1149,16 +1172,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterStoreSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1205,16 +1230,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -1271,16 +1298,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterGetSceneMembershipResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1328,16 +1357,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterEnhancedAddSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1462,16 +1493,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterEnhancedViewSceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1520,16 +1553,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRScenesClusterCopySceneResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -1837,16 +1872,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -1897,16 +1934,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -1957,16 +1996,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2011,16 +2052,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2078,16 +2121,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2132,16 +2177,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2552,16 +2599,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2617,16 +2666,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2683,16 +2734,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2750,16 +2803,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2808,16 +2863,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2873,16 +2930,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -2939,16 +2998,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -3006,16 +3067,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -3064,16 +3127,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4128,16 +4193,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4187,16 +4254,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4247,16 +4316,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4306,16 +4377,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4366,16 +4439,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4425,16 +4500,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4484,16 +4561,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4544,16 +4623,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4603,16 +4684,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4662,16 +4745,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4722,16 +4807,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -4781,16 +4868,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -5022,7 +5111,7 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
 }
 @end
 
-@implementation MTRClusterBasic
+@implementation MTRClusterBasicInformation
 
 - (instancetype)initWithDevice:(MTRDevice *)device endpointID:(NSNumber *)endpointID queue:(dispatch_queue_t)queue
 {
@@ -5046,42 +5135,44 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
               expectedValueInterval:expectedValueIntervalMs
                          completion:completion];
 }
-- (void)mfgSpecificPingWithParams:(MTRBasicClusterMfgSpecificPingParams * _Nullable)params
+- (void)mfgSpecificPingWithParams:(MTRBasicInformationClusterMfgSpecificPingParams * _Nullable)params
                    expectedValues:(NSArray<NSDictionary<NSString *, id> *> *)expectedValues
             expectedValueInterval:(NSNumber *)expectedValueIntervalMs
                        completion:(MTRStatusCompletion)completion
 {
-    NSString * logPrefix =
-        [NSString stringWithFormat:@"MTRDevice command %u %u %u %u", self.device.deviceController.fabricIndex, _endpoint,
-                  (unsigned int) MTRClusterIDTypeBasicID, (unsigned int) MTRCommandIDTypeClusterBasicCommandMfgSpecificPingID];
+    NSString * logPrefix = [NSString stringWithFormat:@"MTRDevice command %u %u %u %u", self.device.deviceController.fabricIndex,
+                                     _endpoint, (unsigned int) MTRClusterIDTypeBasicInformationID,
+                                     (unsigned int) MTRCommandIDTypeClusterBasicInformationCommandMfgSpecificPingID];
     // Make a copy of params before we go async.
     params = [params copy];
     NSNumber * timedInvokeTimeoutMsParam = params.timedInvokeTimeoutMs;
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
                 MTRErrorCallback failureCb, MTRCallbackBridgeBase * bridge) {
                 chip::Optional<uint16_t> timedInvokeTimeoutMs;
                 ListFreer listFreer;
-                Basic::Commands::MfgSpecificPing::Type request;
+                BasicInformation::Commands::MfgSpecificPing::Type request;
                 if (timedInvokeTimeoutMsParam != nil) {
                     timedInvokeTimeoutMs.SetValue(timedInvokeTimeoutMsParam.unsignedShortValue);
                 }
 
-                chip::Controller::BasicCluster cppCluster(exchangeManager, session, self->_endpoint);
+                chip::Controller::BasicInformationCluster cppCluster(exchangeManager, session, self->_endpoint);
                 return cppCluster.InvokeCommand(request, bridge, successCb, failureCb, timedInvokeTimeoutMs);
             });
         std::move(*bridge).DispatchAction(baseDevice);
@@ -5103,48 +5194,48 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
 - (NSDictionary<NSString *, id> *)readAttributeDataModelRevisionWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeDataModelRevisionID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeDataModelRevisionID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeVendorNameWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeVendorNameID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeVendorNameID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeVendorIDWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeVendorIDID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeVendorIDID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeProductNameWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeProductNameID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeProductNameID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeProductIDWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeProductIDID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeProductIDID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeNodeLabelWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeNodeLabelID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeNodeLabelID)
                                              params:params];
 }
 
@@ -5160,8 +5251,8 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     NSNumber * timedWriteTimeout = params.timedWriteTimeout;
 
     [self.device writeAttributeWithEndpointID:@(_endpoint)
-                                    clusterID:@(MTRClusterIDTypeBasicID)
-                                  attributeID:@(MTRAttributeIDTypeClusterBasicAttributeNodeLabelID)
+                                    clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                  attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeNodeLabelID)
                                         value:dataValueDictionary
                         expectedValueInterval:expectedValueIntervalMs
                             timedWriteTimeout:timedWriteTimeout];
@@ -5170,8 +5261,8 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
 - (NSDictionary<NSString *, id> *)readAttributeLocationWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeLocationID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeLocationID)
                                              params:params];
 }
 
@@ -5187,8 +5278,8 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     NSNumber * timedWriteTimeout = params.timedWriteTimeout;
 
     [self.device writeAttributeWithEndpointID:@(_endpoint)
-                                    clusterID:@(MTRClusterIDTypeBasicID)
-                                  attributeID:@(MTRAttributeIDTypeClusterBasicAttributeLocationID)
+                                    clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                  attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeLocationID)
                                         value:dataValueDictionary
                         expectedValueInterval:expectedValueIntervalMs
                             timedWriteTimeout:timedWriteTimeout];
@@ -5197,80 +5288,80 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
 - (NSDictionary<NSString *, id> *)readAttributeHardwareVersionWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeHardwareVersionID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeHardwareVersionID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeHardwareVersionStringWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeHardwareVersionStringID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeHardwareVersionStringID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeSoftwareVersionWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeSoftwareVersionID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeSoftwareVersionID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeSoftwareVersionStringWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeSoftwareVersionStringID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeSoftwareVersionStringID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeManufacturingDateWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeManufacturingDateID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeManufacturingDateID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributePartNumberWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributePartNumberID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributePartNumberID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeProductURLWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeProductURLID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeProductURLID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeProductLabelWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeProductLabelID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeProductLabelID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeSerialNumberWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeSerialNumberID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeSerialNumberID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeLocalConfigDisabledWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeLocalConfigDisabledID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeLocalConfigDisabledID)
                                              params:params];
 }
 
@@ -5286,8 +5377,8 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     NSNumber * timedWriteTimeout = params.timedWriteTimeout;
 
     [self.device writeAttributeWithEndpointID:@(_endpoint)
-                                    clusterID:@(MTRClusterIDTypeBasicID)
-                                  attributeID:@(MTRAttributeIDTypeClusterBasicAttributeLocalConfigDisabledID)
+                                    clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                  attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeLocalConfigDisabledID)
                                         value:dataValueDictionary
                         expectedValueInterval:expectedValueIntervalMs
                             timedWriteTimeout:timedWriteTimeout];
@@ -5296,67 +5387,70 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
 - (NSDictionary<NSString *, id> *)readAttributeReachableWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeReachableID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeReachableID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeUniqueIDWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeUniqueIDID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeUniqueIDID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeCapabilityMinimaWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeCapabilityMinimaID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeCapabilityMinimaID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeGeneratedCommandListWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeGeneratedCommandListID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeGeneratedCommandListID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeAcceptedCommandListWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeAcceptedCommandListID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeAcceptedCommandListID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeAttributeListWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeAttributeListID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeAttributeListID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeFeatureMapWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeFeatureMapID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeFeatureMapID)
                                              params:params];
 }
 
 - (NSDictionary<NSString *, id> *)readAttributeClusterRevisionWithParams:(MTRReadParams * _Nullable)params
 {
     return [self.device readAttributeWithEndpointID:@(_endpoint)
-                                          clusterID:@(MTRClusterIDTypeBasicID)
-                                        attributeID:@(MTRAttributeIDTypeClusterBasicAttributeClusterRevisionID)
+                                          clusterID:@(MTRClusterIDTypeBasicInformationID)
+                                        attributeID:@(MTRAttributeIDTypeClusterBasicInformationAttributeClusterRevisionID)
                                              params:params];
 }
 
+@end
+
+@implementation MTRClusterBasic
 @end
 
 @implementation MTRClusterBasic (Deprecated)
@@ -5417,16 +5511,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROTASoftwareUpdateProviderClusterQueryImageResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -5516,16 +5612,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROTASoftwareUpdateProviderClusterApplyUpdateResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -5573,16 +5671,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -5741,16 +5841,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -6656,16 +6758,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGeneralCommissioningClusterArmFailSafeResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -6714,16 +6818,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGeneralCommissioningClusterSetRegulatoryConfigResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -6787,16 +6893,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGeneralCommissioningClusterCommissioningCompleteResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7030,16 +7138,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterScanNetworksResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7101,16 +7211,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterNetworkConfigResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7163,16 +7275,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterNetworkConfigResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7224,16 +7338,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterNetworkConfigResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7285,16 +7401,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterConnectNetworkResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7346,16 +7464,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRNetworkCommissioningClusterNetworkConfigResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7651,16 +7771,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDiagnosticLogsClusterRetrieveLogsResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -7791,16 +7913,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -8005,16 +8129,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -8186,16 +8312,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -8856,16 +8984,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -9113,16 +9243,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -9622,16 +9754,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -9685,16 +9819,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -9752,16 +9888,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -9942,16 +10080,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterAttestationResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -9999,16 +10139,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterCertificateChainResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10056,16 +10198,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterCSRResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10117,16 +10261,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterNOCResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10182,16 +10328,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterNOCResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10243,16 +10391,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterNOCResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10300,16 +10450,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTROperationalCredentialsClusterNOCResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10357,16 +10509,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -10642,16 +10796,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -10737,16 +10893,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupKeyManagementClusterKeySetReadResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -10793,16 +10951,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -10849,16 +11009,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRGroupKeyManagementClusterKeySetReadAllIndicesResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -11334,16 +11496,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11551,16 +11715,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11614,16 +11780,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11677,16 +11845,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11739,16 +11909,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11802,16 +11974,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterGetWeekDayScheduleResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -11859,16 +12033,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11915,16 +12091,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -11974,16 +12152,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterGetYearDayScheduleResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -12031,16 +12211,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -12087,16 +12269,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -12147,16 +12331,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterGetHolidayScheduleResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -12203,16 +12389,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -12258,16 +12446,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -12351,16 +12541,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterGetUserResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -12406,16 +12598,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -12465,16 +12659,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterSetCredentialResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -12551,16 +12747,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRDoorLockClusterGetCredentialStatusResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -12610,16 +12808,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13602,16 +13802,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13665,16 +13867,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13728,16 +13932,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13782,16 +13988,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13837,16 +14045,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13892,16 +14102,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -13947,16 +14159,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -14366,16 +14580,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -14430,16 +14646,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -15117,16 +15335,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -15173,16 +15393,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -15267,16 +15489,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRThermostatClusterGetWeeklyScheduleResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -15335,16 +15559,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -16869,16 +17095,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -16929,16 +17157,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -16988,16 +17218,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17048,16 +17280,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17106,16 +17340,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17165,16 +17401,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17225,16 +17463,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17284,16 +17524,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17343,16 +17585,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17401,16 +17645,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17460,16 +17706,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17518,16 +17766,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17578,16 +17828,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17637,16 +17889,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17697,16 +17951,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17756,16 +18012,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17819,16 +18077,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17875,16 +18135,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -17936,16 +18198,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -20342,16 +20606,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRChannelClusterChangeChannelResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -20398,16 +20664,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -20454,16 +20722,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -20634,16 +20904,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRTargetNavigatorClusterNavigateTargetResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -20799,16 +21071,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -20862,16 +21136,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -20928,16 +21204,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -20994,16 +21272,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21057,16 +21337,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21120,16 +21402,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21183,16 +21467,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21249,16 +21535,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21305,16 +21593,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21362,16 +21652,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21419,16 +21711,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRMediaPlaybackClusterPlaybackResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -21831,16 +22125,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -21895,16 +22191,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -21958,16 +22256,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -22012,16 +22312,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -22214,16 +22516,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -22354,16 +22658,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRKeypadInputClusterSendKeyResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -22491,16 +22797,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRContentLauncherClusterLaunchResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -22605,16 +22913,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRContentLauncherClusterLaunchResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -22891,16 +23201,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -22946,16 +23258,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -23105,16 +23419,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRApplicationLauncherClusterLauncherResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -23167,16 +23483,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRApplicationLauncherClusterLauncherResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -23225,16 +23543,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRApplicationLauncherClusterLauncherResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -23556,16 +23876,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRAccountLoginClusterGetSetupPINResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -23615,16 +23937,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -23680,16 +24004,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -23855,16 +24181,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -23910,16 +24238,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -25305,16 +25635,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -25368,16 +25700,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -25433,16 +25767,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestSpecificResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -25497,16 +25833,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -25552,16 +25890,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestAddArgumentsResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -25610,16 +25950,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestSimpleArgumentResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -25668,16 +26010,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestStructArrayArgumentResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -25936,16 +26280,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26000,16 +26346,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26068,16 +26416,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26155,16 +26505,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26233,16 +26585,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26400,16 +26754,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterBooleanResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26590,16 +26946,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestListInt8UReverseResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26668,16 +27026,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestEnumsResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26726,16 +27086,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestNullableOptionalResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -26795,16 +27157,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestComplexNullableOptionalResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -27021,16 +27385,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterSimpleStructResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -27093,16 +27459,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -27150,16 +27518,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRCommandSuccessCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session, CommandSuccessCallbackType successCb,
@@ -27211,16 +27581,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestEmitTestEventResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
@@ -27274,16 +27646,18 @@ static void MTRClustersLogCompletion(NSString * logPrefix, id value, NSError * e
     if (timedInvokeTimeoutMsParam) {
         timedInvokeTimeoutMsParam = MTRClampedNumber(timedInvokeTimeoutMsParam, @(1), @(UINT16_MAX));
     }
-    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.callbackQueue];
+    MTRAsyncCallbackQueueWorkItem * workItem = [[MTRAsyncCallbackQueueWorkItem alloc] initWithQueue:self.device.queue];
     MTRAsyncCallbackReadyHandler readyHandler = ^(MTRDevice * device, NSUInteger retryCount) {
         MTRClustersLogDequeue(logPrefix, self.device.asyncCallbackWorkQueue);
         MTRBaseDevice * baseDevice = [[MTRBaseDevice alloc] initWithNodeID:self.device.nodeID
                                                                 controller:self.device.deviceController];
         auto * bridge = new MTRUnitTestingClusterTestEmitTestFabricScopedEventResponseCallbackBridge(
-            self.callbackQueue,
+            self.device.queue,
             ^(id _Nullable value, NSError * _Nullable error) {
-                completion(value, error);
                 MTRClustersLogCompletion(logPrefix, value, error);
+                dispatch_async(self.callbackQueue, ^{
+                    completion(value, error);
+                });
                 [workItem endWork];
             },
             ^(ExchangeManager & exchangeManager, const SessionHandle & session,
