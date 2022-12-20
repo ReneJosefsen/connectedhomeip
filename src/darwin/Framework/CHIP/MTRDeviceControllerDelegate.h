@@ -19,42 +19,54 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef NS_ENUM(NSUInteger, MTRCommissioningStatus) {
+typedef NS_ENUM(NSInteger, MTRCommissioningStatus) {
     MTRCommissioningStatusUnknown = 0,
     MTRCommissioningStatusSuccess = 1,
     MTRCommissioningStatusFailed = 2,
     MTRCommissioningStatusDiscoveringMoreDevices = 3
-};
+} MTR_NEWLY_AVAILABLE;
+
+@class MTRDeviceController;
 
 /**
- * The protocol definition for the MTRDeviceControllerDelegate
+ * The protocol definition for the MTRDeviceControllerDelegate.
  *
  * All delegate methods will be called on the supplied Delegate Queue.
  */
+MTR_NEWLY_AVAILABLE
 @protocol MTRDeviceControllerDelegate <NSObject>
 @optional
 /**
- * Notify the delegate when pairing status gets updated
- *
+ * Notify the delegate when commissioning status gets updated.
  */
-- (void)onStatusUpdate:(MTRCommissioningStatus)status;
+- (void)controller:(MTRDeviceController *)controller statusUpdate:(MTRCommissioningStatus)status;
 
 /**
- * Notify the delegate when pairing is completed
- *
+ * Notify the delegate when a commissioning session is established or the
+ * establishment has errored out.
  */
+- (void)controller:(MTRDeviceController *)controller commissioningSessionEstablishmentDone:(NSError * _Nullable)error;
+
+/**
+ * Notify the delegate when commissioning is completed.
+ */
+- (void)controller:(MTRDeviceController *)controller commissioningComplete:(NSError * _Nullable)error;
+
+@end
+
+typedef NS_ENUM(NSUInteger, MTRPairingStatus) {
+    MTRPairingStatusUnknown MTR_NEWLY_DEPRECATED("Please use MTRCommissioningStatusUnknown") = 0,
+    MTRPairingStatusSuccess MTR_NEWLY_DEPRECATED("Please use MTRCommissioningStatusSuccess") = 1,
+    MTRPairingStatusFailed MTR_NEWLY_DEPRECATED("Please use MTRCommissioningStatusFailed") = 2,
+    MTRPairingStatusDiscoveringMoreDevices MTR_NEWLY_DEPRECATED("Please use MTRCommissioningStatusDiscoveringMoreDevices") = 3
+} MTR_NEWLY_DEPRECATED("Please use MTRCommissioningStatus");
+
+MTR_NEWLY_DEPRECATED("Please use MTRDeviceControllerDelegate")
+@protocol MTRDevicePairingDelegate <NSObject>
+@optional
+- (void)onStatusUpdate:(MTRPairingStatus)status;
 - (void)onPairingComplete:(NSError * _Nullable)error;
-
-/**
- * Notify the delegate when commissioning is completed
- *
- */
 - (void)onCommissioningComplete:(NSError * _Nullable)error;
-
-/**
- * Notify the delegate when pairing is deleted
- *
- */
 - (void)onPairingDeleted:(NSError * _Nullable)error;
 
 @end

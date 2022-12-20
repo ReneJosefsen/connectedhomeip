@@ -1,7 +1,6 @@
 /*
- *
- *    Copyright (c) 2020 Project CHIP Authors
- *    Copyright (c) 2020 Texas Instruments Incorporated
+ *    Copyright (c) 2022 Project CHIP Authors
+ *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -29,7 +28,6 @@
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD_TELEMETRY 0
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD_TELEMETRY_FULL 0
 #define CHIP_DEVICE_CONFIG_ENABLE_TUNNEL_TELEMETRY 0
-#define CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH 0
 
 // ========== CHIP Platform Configuration =========
 #define CHIP_DEVICE_CONFIG_THREAD_TASK_STACK_SIZE (4 * 1024)
@@ -51,7 +49,6 @@
 #ifndef CHIP_DEVICE_CONFIG_ENABLE_DNSSD
 #define CHIP_DEVICE_CONFIG_ENABLE_DNSSD 1
 #endif
-#define CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY 1
 #define CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONABLE_DISCOVERY 1
 
 #define CHIP_DEVICE_CONFIG_PERSISTED_STORAGE_GLOBAL_EIDC_KEY 2

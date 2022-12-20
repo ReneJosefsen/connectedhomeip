@@ -25,7 +25,7 @@
 @implementation CHIPToolDeviceControllerDelegate
 - (void)onStatusUpdate:(MTRCommissioningStatus)status
 {
-    NSLog(@"Pairing Status Update: %lu", status);
+    NSLog(@"Pairing Status Update: %tu", status);
     switch (status) {
     case MTRCommissioningStatusSuccess:
         ChipLogProgress(chipTool, "Secure Pairing Success");
@@ -44,7 +44,7 @@
     }
 }
 
-- (void)onPairingComplete:(NSError *)error
+- (void)controller:(MTRDeviceController *)controller commissioningSessionEstablishmentDone:(NSError *)error
 {
     if (error != nil) {
         ChipLogProgress(chipTool, "PASE establishment failed");
@@ -61,12 +61,7 @@
     }
 }
 
-- (void)onPairingDeleted:(NSError *)error
-{
-    _commandBridge->SetCommandExitStatus(error, "Pairing Delete");
-}
-
-- (void)onCommissioningComplete:(NSError *)error
+- (void)controller:(MTRDeviceController *)controller commissioningComplete:(NSError *)error
 {
     _commandBridge->SetCommandExitStatus(error, "Pairing Commissioning Complete");
 }

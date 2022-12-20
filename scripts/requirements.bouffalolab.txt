@@ -1,1 +1,1 @@
-bflb-iot-tool
+bflb-iot-tool>=1.8.0

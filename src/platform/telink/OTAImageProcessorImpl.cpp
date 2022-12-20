@@ -21,10 +21,10 @@
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#include <dfu/mcuboot.h>
-#include <sys/reboot.h>
+#include <zephyr/dfu/mcuboot.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/storage/stream_flash.h>
+#include <zephyr/sys/reboot.h>
 
 static struct stream_flash_ctx stream;
 
@@ -52,8 +52,8 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
         return System::MapErrorZephyr(-EFAULT);
     }
 
-    int err =
-        stream_flash_init(&stream, flash_dev, mBuffer, sizeof(mBuffer), FLASH_AREA_OFFSET(image_1), FLASH_AREA_SIZE(image_1), NULL);
+    int err = stream_flash_init(&stream, flash_dev, mBuffer, sizeof(mBuffer), FIXED_PARTITION_OFFSET(slot1_partition),
+                                FIXED_PARTITION_SIZE(slot1_partition), NULL);
 
     if (err)
     {

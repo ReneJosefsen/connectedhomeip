@@ -204,9 +204,6 @@ void CommissioningWindowOpener::OnOpenCommissioningWindowSuccess(void * context,
     self->mNextStep = Step::kAcceptCommissioningStart;
     if (self->mCommissioningWindowCallback != nullptr)
     {
-        self->mCommissioningWindowCallback->mCall(self->mCommissioningWindowCallback->mContext, self->mNodeId, CHIP_NO_ERROR,
-                                                  self->mSetupPayload);
-
         char payloadBuffer[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
 
         MutableCharSpan manualCode(payloadBuffer);
@@ -230,11 +227,18 @@ void CommissioningWindowOpener::OnOpenCommissioningWindowSuccess(void * context,
         {
             ChipLogError(Controller, "Unable to generate QR code for setup payload: %" CHIP_ERROR_FORMAT, err.Format());
         }
+
+        self->mCommissioningWindowCallback->mCall(self->mCommissioningWindowCallback->mContext, self->mNodeId, CHIP_NO_ERROR,
+                                                  self->mSetupPayload);
+        // Don't touch `self` anymore; it might have been destroyed by the
+        // callee.
     }
     else if (self->mBasicCommissioningWindowCallback != nullptr)
     {
         self->mBasicCommissioningWindowCallback->mCall(self->mBasicCommissioningWindowCallback->mContext, self->mNodeId,
                                                        CHIP_NO_ERROR);
+        // Don't touch `self` anymore; it might have been destroyed by the
+        // callee.
     }
 }
 
@@ -267,20 +271,18 @@ void CommissioningWindowOpener::OnDeviceConnectedCallback(void * context, Messag
     switch (self->mNextStep)
     {
     case Step::kReadVID: {
-        constexpr EndpointId kBasicClusterEndpoint = 0;
-        BasicCluster cluster(exchangeMgr, sessionHandle, kBasicClusterEndpoint);
-        err = cluster.ReadAttribute<app::Clusters::Basic::Attributes::VendorID::TypeInfo>(context, OnVIDReadResponse,
-                                                                                          OnVIDPIDReadFailureResponse);
+        BasicInformationCluster cluster(exchangeMgr, sessionHandle, kRootEndpointId);
+        err = cluster.ReadAttribute<app::Clusters::BasicInformation::Attributes::VendorID::TypeInfo>(context, OnVIDReadResponse,
+                                                                                                     OnVIDPIDReadFailureResponse);
 #if CHIP_ERROR_LOGGING
         messageIfError = "Could not read VID for opening commissioning window";
 #endif // CHIP_ERROR_LOGGING
         break;
     }
     case Step::kReadPID: {
-        constexpr EndpointId kBasicClusterEndpoint = 0;
-        BasicCluster cluster(exchangeMgr, sessionHandle, kBasicClusterEndpoint);
-        err = cluster.ReadAttribute<app::Clusters::Basic::Attributes::ProductID::TypeInfo>(context, OnPIDReadResponse,
-                                                                                           OnVIDPIDReadFailureResponse);
+        BasicInformationCluster cluster(exchangeMgr, sessionHandle, kRootEndpointId);
+        err = cluster.ReadAttribute<app::Clusters::BasicInformation::Attributes::ProductID::TypeInfo>(context, OnPIDReadResponse,
+                                                                                                      OnVIDPIDReadFailureResponse);
 #if CHIP_ERROR_LOGGING
         messageIfError = "Could not read PID for opening commissioning window";
 #endif // CHIP_ERROR_LOGGING

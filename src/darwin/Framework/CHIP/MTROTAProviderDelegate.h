@@ -21,20 +21,34 @@
 NS_ASSUME_NONNULL_BEGIN
 
 typedef void (^MTRQueryImageCompletionHandler)(
-    MTROtaSoftwareUpdateProviderClusterQueryImageResponseParams * _Nullable data, NSError * _Nullable error);
+    MTROTASoftwareUpdateProviderClusterQueryImageResponseParams * _Nullable data, NSError * _Nullable error);
 
 typedef void (^MTRApplyUpdateRequestCompletionHandler)(
-    MTROtaSoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error);
+    MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error);
 
 typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF);
+
+MTR_NEWLY_DEPRECATED("Please use MTRQueryImageCompletionHandler")
+typedef void (^MTRQueryImageCompletionHandlerDeprecated)(
+    MTROtaSoftwareUpdateProviderClusterQueryImageResponseParams * _Nullable data, NSError * _Nullable error);
+
+MTR_NEWLY_DEPRECATED("Plase Use MTRApplyUpdateRequestCompletionHandler")
+typedef void (^MTRApplyUpdateRequestCompletionHandlerDeprecated)(
+    MTROtaSoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error);
 
 /**
  * The protocol definition for the MTROTAProviderDelegate
  *
  * All delegate methods will be called on the supplied Delegate Queue.
+ *
+ * While the selectors on this protocol are marked @optional, in practice an
+ * implementation must provide an implementation for one of each pair of
+ * selectors (e.g. one of the two handleQueryImageForNodeID selectors must be
+ * implemented).  The selector ending in "completion:" will be used if present;
+ * otherwise the one ending in "completionHandler:" will be used.
  */
 @protocol MTROTAProviderDelegate <NSObject>
-@required
+@optional
 /**
  * Notify the delegate when the query image command is received from some node.
  * The controller identifies the fabric the node is on, and the nodeID
@@ -46,8 +60,13 @@ typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF
  */
 - (void)handleQueryImageForNodeID:(NSNumber *)nodeID
                        controller:(MTRDeviceController *)controller
+                           params:(MTROTASoftwareUpdateProviderClusterQueryImageParams *)params
+                       completion:(MTRQueryImageCompletionHandler)completion MTR_NEWLY_AVAILABLE;
+- (void)handleQueryImageForNodeID:(NSNumber *)nodeID
+                       controller:(MTRDeviceController *)controller
                            params:(MTROtaSoftwareUpdateProviderClusterQueryImageParams *)params
-                       completion:(MTRQueryImageCompletionHandler)completion;
+                completionHandler:(MTRQueryImageCompletionHandlerDeprecated)completionHandler
+    MTR_NEWLY_DEPRECATED("Please use the selector ending in completion:");
 
 /**
  * Notify the delegate when the apply update request command is received from
@@ -60,8 +79,13 @@ typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF
  */
 - (void)handleApplyUpdateRequestForNodeID:(NSNumber *)nodeID
                                controller:(MTRDeviceController *)controller
+                                   params:(MTROTASoftwareUpdateProviderClusterApplyUpdateRequestParams *)params
+                               completion:(MTRApplyUpdateRequestCompletionHandler)completion MTR_NEWLY_AVAILABLE;
+- (void)handleApplyUpdateRequestForNodeID:(NSNumber *)nodeID
+                               controller:(MTRDeviceController *)controller
                                    params:(MTROtaSoftwareUpdateProviderClusterApplyUpdateRequestParams *)params
-                               completion:(MTRApplyUpdateRequestCompletionHandler)completion;
+                        completionHandler:(MTRApplyUpdateRequestCompletionHandlerDeprecated)completionHandler
+    MTR_NEWLY_DEPRECATED("Please use the selector ending in completion:");
 
 /**
  * Notify the delegate when the notify update applied command is received from
@@ -73,8 +97,13 @@ typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF
  */
 - (void)handleNotifyUpdateAppliedForNodeID:(NSNumber *)nodeID
                                 controller:(MTRDeviceController *)controller
+                                    params:(MTROTASoftwareUpdateProviderClusterNotifyUpdateAppliedParams *)params
+                                completion:(MTRStatusCompletion)completion MTR_NEWLY_AVAILABLE;
+- (void)handleNotifyUpdateAppliedForNodeID:(NSNumber *)nodeID
+                                controller:(MTRDeviceController *)controller
                                     params:(MTROtaSoftwareUpdateProviderClusterNotifyUpdateAppliedParams *)params
-                                completion:(MTRStatusCompletion)completion;
+                         completionHandler:(StatusCompletion)completionHandler
+    MTR_NEWLY_DEPRECATED("Please use the selector ending in completion:");
 
 /**
  * Notify the delegate when a BDX Session starts for some node.  The controller
@@ -85,7 +114,13 @@ typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF
                                     controller:(MTRDeviceController *)controller
                                 fileDesignator:(NSString *)fileDesignator
                                         offset:(NSNumber *)offset
-                                    completion:(MTRStatusCompletion)completion;
+                                    completion:(MTRStatusCompletion)completion MTR_NEWLY_AVAILABLE;
+- (void)handleBDXTransferSessionBeginForNodeID:(NSNumber *)nodeID
+                                    controller:(MTRDeviceController *)controller
+                                fileDesignator:(NSString *)fileDesignator
+                                        offset:(NSNumber *)offset
+                             completionHandler:(StatusCompletion)completionHandler
+    MTR_NEWLY_DEPRECATED("Please use the selector ending in completion:");
 
 /**
  * Notify the delegate when a BDX Session ends for some node.  The controller
@@ -106,7 +141,15 @@ typedef void (^MTRBDXQueryCompletionHandler)(NSData * _Nullable data, BOOL isEOF
                       blockSize:(NSNumber *)blockSize
                      blockIndex:(NSNumber *)blockIndex
                     bytesToSkip:(NSNumber *)bytesToSkip
-                     completion:(MTRBDXQueryCompletionHandler)completion;
+                     completion:(MTRBDXQueryCompletionHandler)completion MTR_NEWLY_AVAILABLE;
+- (void)handleBDXQueryForNodeID:(NSNumber *)nodeID
+                     controller:(MTRDeviceController *)controller
+                      blockSize:(NSNumber *)blockSize
+                     blockIndex:(NSNumber *)blockIndex
+                    bytesToSkip:(NSNumber *)bytesToSkip
+              completionHandler:(MTRBDXQueryCompletionHandler)completionHandler
+    MTR_NEWLY_DEPRECATED("Please use the selector ending in completion:");
+
 @end
 
 NS_ASSUME_NONNULL_END

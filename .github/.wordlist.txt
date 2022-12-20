@@ -20,7 +20,6 @@ accessor
 AccountLogin
 acdbc
 ack
-ACK
 ACKed
 ACL
 ACLs
@@ -126,6 +125,7 @@ backtrace
 BallastConfiguration
 BarrierControl
 BasicCHIPRegression
+BasicInformation
 baudrate
 BD
 BDX
@@ -156,7 +156,6 @@ bootable
 Bootloader
 BorderRouterAP
 bouffalolab
-Bouffalolab
 BRD
 breakpoint
 bredr
@@ -294,8 +293,8 @@ connstring
 conntype
 const
 ContentApp
-ContentAppPlatform
 ContentApp's
+ContentAppPlatform
 ContentLaunch
 ContentLauncher
 continuousHinting
@@ -303,6 +302,7 @@ contrib
 controllee
 conv
 CopperConcentrationMeasurement
+Corstone
 cortexa
 cp
 cpio
@@ -332,6 +332,7 @@ cxx
 CY
 CYW
 DAC
+DACs
 dadbdcdddedf
 DAP
 DAPLINK
@@ -449,6 +450,7 @@ dryrun
 DS
 duplicative
 DUT
+DUTS
 DV
 DVK
 dynload
@@ -596,9 +598,9 @@ GPL
 GPLv
 Gradle
 gradlew
+Groupcast
 GroupId
 GroupKeyManagement
-Groupcast
 groupKeySecurityPolicy
 groupKeySetID
 groupsettings
@@ -652,7 +654,6 @@ ignoreQueryImage
 ihex
 IlluminanceMeasurement
 IM
-IsInitiator
 imager
 imagetool
 imageUri
@@ -677,7 +678,6 @@ instantiation
 integrations
 IntelliSense
 InteractionModelVersion
-Interation
 Interoperable
 introvideos
 InvokeCommandRequests
@@ -887,6 +887,7 @@ MyPASSWORD
 MySSID
 NAMESERVER
 NAMESPACE
+namespaces
 namespacing
 nano
 natively
@@ -990,6 +991,7 @@ PAAs
 PacketBuffer
 PAI
 PairDevice
+PAIs
 PAKE
 palletsprojects
 pankore
@@ -1119,8 +1121,8 @@ REPL
 repo
 req
 Requestor
-RequestorCanConsent
 Requestor's
+RequestorCanConsent
 Requestors
 responder
 RestrictedEvent
@@ -1144,11 +1146,13 @@ rsn
 RSSI
 RST
 rsync
+RTC
 rtd
 RTL
 rtld
 RTOS
 RTT
+RTX
 RUNAS
 RunMain
 runtime
@@ -1167,8 +1171,8 @@ SDB
 SDC
 SDHC
 SDK
-sdkconfig
 SDK's
+sdkconfig
 SDKs
 SDKTARGETSYSROOT
 sdl
@@ -1196,6 +1200,7 @@ sexualized
 sfv
 SHA
 ShadeConfiguration
+SHAs
 showDocumentation
 shubhamdp
 SIGINT
@@ -1254,6 +1259,7 @@ subdirectory
 subfolder
 submodule
 submodules
+subnet
 subprocess
 SubscribeResponse
 SubscriptionId
@@ -1319,11 +1325,13 @@ ths
 Thunderboard
 timedInteractionTimeoutMs
 TimeFormatLocalization
+timeframe
 timeoutMs
 TimeSynchronization
 tinycrypt
 Tizen
 TKIP
+TLS
 tlsr
 TLV
 tmp
@@ -1376,13 +1384,14 @@ uint
 ULA
 UNBLUR
 uncommissioned
+Unencrypted
 unfocus
 Unicast
 UniFlash
 UnitLocalization
-Unencrypted
 unpair
 unprovisioned
+Unsecure
 untrusted
 updateAvailable
 updateNotAvailable
@@ -1400,7 +1409,6 @@ userConsentState
 userguide
 USERINTERFACE
 UserLabel
-Unsecure
 usermod
 usr
 UTF
@@ -1419,6 +1427,7 @@ ver
 Verifier
 Verifiers
 VID
+vids
 virtualenv
 visualstudio
 vlatest

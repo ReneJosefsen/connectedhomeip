@@ -32,7 +32,6 @@
 #include "esp_log.h"
 #include "route_hook/esp_route_hook.h"
 #include <app-common/zap-generated/attribute-id.h>
-#include <app-common/zap-generated/cluster-id.h>
 #include <app/server/Dnssd.h>
 #include <app/util/util.h>
 #include <lib/support/CodeUtils.h>
@@ -79,7 +78,7 @@ void CommonDeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, i
 
     case DeviceEventType::kCommissioningComplete: {
         ESP_LOGI(TAG, "Commissioning complete");
-#if CONFIG_BT_NIMBLE_ENABLED && CONFIG_DEINIT_BLE_ON_COMMISSIONING_COMPLETE
+#if CONFIG_BT_NIMBLE_ENABLED && CONFIG_USE_BLE_ONLY_FOR_COMMISSIONING
 
         if (ble_hs_is_enabled())
         {
@@ -91,7 +90,7 @@ void CommonDeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, i
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
                 err = esp_nimble_hci_and_controller_deinit();
 #endif // ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-                err += esp_bt_mem_release(ESP_BT_MODE_BLE);
+                err += esp_bt_mem_release(ESP_BT_MODE_BTDM);
                 if (err == ESP_OK)
                 {
                     ESP_LOGI(TAG, "BLE deinit successful and memory reclaimed");

@@ -53,6 +53,7 @@ qpg_executable("lighting_app") {
   output_name = "chip-${qpg_target_ic}-lighting-example.out"
 
   sources = [
+    "${chip_root}/src/app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerDelegate.cpp",
     "${examples_plat_dir}/app/main.cpp",
     "${examples_plat_dir}/ota/ota.cpp",
     "include/LightingManager.h",
@@ -62,6 +63,7 @@ qpg_executable("lighting_app") {
   ]
 
   deps = [
+    ":factorydata_lib",
     ":sdk",
     "${chip_root}/examples/lighting-app/lighting-common",
     "${chip_root}/examples/lighting-app/lighting-common:color-format",
@@ -152,4 +154,16 @@ group("qpg") {
 
 group("default") {
   deps = [ ":qpg" ]
+}
+
+static_library("factorydata_lib") {
+  libs = [ "${qpg_sdk_root}/Binaries/FactoryData/FactoryData_example/FactoryData_example.a" ]
+  public_configs = [ ":qpg_retain_factorydata" ]
+}
+
+config("qpg_retain_factorydata") {
+  ldflags = [
+    "-Wl,-u_binary_factory_data_bin_start",
+    "-Wl,-u_binary_factory_data_start",
+  ]
 }
