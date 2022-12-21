@@ -20,8 +20,6 @@
 #include "AppTask.h"
 #include "AppConfig.h"
 #include "AppEvent.h"
-#include "CHIPDeviceManager.h"
-#include "DeviceCallbacks.h"
 #include <app/server/Server.h>
 
 #include "FreeRTOS.h"
@@ -57,7 +55,6 @@
 using namespace chip;
 using namespace chip::Credentials;
 using namespace chip::DeviceLayer;
-using namespace chip::DeviceManager;
 
 static TaskHandle_t sAppTaskHandle;
 static QueueHandle_t sAppEventQueue;
@@ -69,8 +66,6 @@ static Button_Handle sAppRightHandle;
 
 AppTask AppTask::sAppTask;
 
-static DeviceCallbacks sDeviceCallbacks;
-
 #if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
 static DefaultOTARequestor sRequestorCore;
 static DefaultOTARequestorStorage sRequestorStorage;
@@ -78,7 +73,7 @@ static DefaultOTARequestorDriver sRequestorUser;
 static BDXDownloader sDownloader;
 static OTAImageProcessorImpl sImageProcessor;
 
-void InitializeOTARequestor(void)
+void InitializeOTARequestor(intptr_t context)
 {
     // Initialize and interconnect the Requestor and Image Processor objects
     SetRequestorInstance(&sRequestorCore);
@@ -91,8 +86,36 @@ void InitializeOTARequestor(void)
 }
 #endif
 
+void DeviceEventCallback(const ChipDeviceEvent * event, intptr_t arg)
+{
+    switch (event->Type)
+    {
+    case DeviceEventType::kCHIPoBLEConnectionEstablished:
+        PLAT_LOG("CHIPoBLE connection established");
+        break;
+
+    case DeviceEventType::kCHIPoBLEConnectionClosed:
+        PLAT_LOG("CHIPoBLE disconnected");
+        break;
+
+    case DeviceEventType::kCommissioningComplete:
+        PLAT_LOG("Commissioning complete");
+        break;
+
+    case DeviceEventType::kDnssdPlatformInitialized:
+        PLAT_LOG("Dnssd platform initialized");
+
+#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+        PLAT_LOG("Scheduling OTA Requestor initialization")
+        PlatformMgr().ScheduleWork(AppTask::InitializeOTARequestor, reinterpret_cast<intptr_t>(nullptr));
+#endif
+
+        break;
+    }
+}
+
 static const chip::EndpointId sOccupancySensorEndpointId = 1;
-static const uint32_t sIdentifyBlinkRateMs          = 500;
+static const uint32_t sIdentifyBlinkRateMs               = 500;
 
 ::Identify stIdentify = { sOccupancySensorEndpointId, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
                           EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED };
@@ -196,7 +219,7 @@ int AppTask::Init()
     sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
-// Init ZCL Data Model
+    // Init ZCL Data Model
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
@@ -206,21 +229,12 @@ int AppTask::Init()
 
     ConfigurationMgr().LogDeviceConfig();
 
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
-    InitializeOTARequestor();
-#endif
+    // Register a function to receive events from the device layer.  Note that calls to
+    // this function will happen on the event loop thread, not the app_main thread.
+    PlatformMgr().AddEventHandler(DeviceEventCallback, reinterpret_cast<intptr_t>(nullptr));
 
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
-
-CHIPDeviceManager & deviceMgr = CHIPDeviceManager::GetInstance();
-    ret                           = deviceMgr.Init(&sDeviceCallbacks);
-    if (ret != CHIP_NO_ERROR)
-    {
-        PLAT_LOG("CHIPDeviceManager::Init() failed: %s", ErrorStr(ret));
-        while (1)
-            ;
-    }
 
     return 0;
 }
@@ -358,9 +372,9 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
 }
 
-void AppTask::SetOccupancyState( bool state )
+void AppTask::SetOccupancyState(bool state)
 {
-    if( state == true )
+    if (state == true)
     {
         LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
     }
@@ -373,12 +387,12 @@ void AppTask::SetOccupancyState( bool state )
     chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Set(1, state);
 }
 
-void AppTask::ToogleOccupancyState( void )
+void AppTask::ToogleOccupancyState(void)
 {
     uint8_t attributeValue;
     chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Get(1, &attributeValue);
     PLAT_LOG("Current occupancy state: %d", attributeValue);
-    
+
     SetOccupancyState(!attributeValue);
 }
 
