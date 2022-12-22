@@ -75,6 +75,8 @@ ti_simplelink_executable("occupancy_sensor_app") {
   sources = [
     "${project_dir}/main/AppTask.cpp",
     "${project_dir}/main/main.cpp",
+    "${project_dir}/main/DeviceCallbacks.cpp",
+    "${project_dir}/main/ZclCallbacks.cpp",
   ]
 
   deps = [

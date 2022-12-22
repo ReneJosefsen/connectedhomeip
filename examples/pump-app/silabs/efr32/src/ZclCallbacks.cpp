@@ -15,21 +15,49 @@
  *    limitations under the License.
  */
 
-#include <lib/support/logging/CHIPLogging.h>
-
-#include "AppConfig.h"
 #include "AppTask.h"
 #include "PumpManager.h"
-
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/ConcreteAttributePath.h>
+#include <app/clusters/identify-server/identify-server.h>
 #include <lib/support/logging/CHIPLogging.h>
 
-using namespace ::chip;
-using namespace ::chip::app::Clusters;
+using namespace chip;
+using namespace chip::app;
+using namespace chip::app::Clusters;
 
+/***** Function declarations *****/
+static void IdentifyStartHandler(::Identify *);
+static void IdentifyStopHandler(::Identify *);
+
+void OnOnOffPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value);
+void OnLevelControlPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value);
+
+/***** Identify configuration and functions *****/
+// This creates a static object of the Identify class and calls the constructor
+// which registers the object and its callbacks inside the identify server
+::Identify stIdentify = { chip::EndpointId{ PUMP_DEVICE_ENDPOINT }, IdentifyStartHandler, IdentifyStopHandler,
+                          EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED };
+
+void IdentifyStartHandler(::Identify *)
+{
+    AppEvent event;
+    event.Type    = AppEvent::kEventType_IdentifyStart;
+    event.Handler = AppTask::IdentifyActionEventHandler;
+    AppTask::GetAppTask().PostEvent(&event);
+}
+
+void IdentifyStopHandler(::Identify *)
+{
+    AppEvent event;
+    event.Type    = AppEvent::kEventType_IdentifyStop;
+    event.Handler = AppTask::IdentifyActionEventHandler;
+    AppTask::GetAppTask().PostEvent(&event);
+}
+
+/***** Helper functions *****/
 void OnOnOffPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
     BitMask<chip::app::Clusters::PumpConfigurationAndControl::PumpStatus> pumpStatus;
@@ -78,6 +106,7 @@ exit:
     return;
 }
 
+/***** Matter attribute change callbacks *****/
 chip::Protocols::InteractionModel::Status MatterPreAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath,
                                                                            uint8_t type, uint16_t size, uint8_t * value)
 {

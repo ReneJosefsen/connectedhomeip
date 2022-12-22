@@ -35,23 +35,21 @@ struct Identify;
 class AppTask
 {
 public:
+    static AppTask & GetAppTask() { return sAppTask; }
+
     int StartAppTask();
     static void AppTaskMain(void * pvParameter);
     void PostEvent(const AppEvent * event);
-    static void IdentifyStartHandler(::Identify *);
-    static void IdentifyStopHandler(::Identify *);
 
 private:
-    friend AppTask & GetAppTask(void);
-
     int Init();
     void DispatchEvent(AppEvent * event);
     static void ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events);
     static void ButtonRightEventHandler(Button_Handle handle, Button_EventMask events);
     static void TimerEventHandler(void * p_context);
-    static void SetOccupancyState( bool state );
-    static void ToogleOccupancyState( void );
-    
+    static void SetOccupancyState(bool state);
+    static void ToogleOccupancyState(void);
+
     enum Function_t
     {
         kFunction_NoneSelected   = 0,
@@ -66,10 +64,5 @@ private:
 
     static AppTask sAppTask;
 };
-
-inline AppTask & GetAppTask(void)
-{
-    return AppTask::sAppTask;
-}
 
 #endif // APP_TASK_H

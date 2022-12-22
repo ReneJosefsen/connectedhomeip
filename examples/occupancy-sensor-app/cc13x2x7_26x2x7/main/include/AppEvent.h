@@ -30,6 +30,7 @@ struct AppEvent
         kEventType_ButtonLeft,
         kEventType_ButtonRight,
         kEventType_AppEvent,
+        kEventTyoe_DeviceOperational,
         kEventType_IdentifyStart,
         kEventType_IdentifyStop,
     };

@@ -20,6 +20,7 @@
 #include "AppTask.h"
 #include "AppConfig.h"
 #include "AppEvent.h"
+#include "DeviceCallbacks.h"
 #include <app/server/Server.h>
 
 #include "FreeRTOS.h"
@@ -66,6 +67,8 @@ static Button_Handle sAppRightHandle;
 
 AppTask AppTask::sAppTask;
 
+static const uint32_t sIdentifyBlinkRateMs = 500;
+
 #if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
 static DefaultOTARequestor sRequestorCore;
 static DefaultOTARequestorStorage sRequestorStorage;
@@ -73,7 +76,7 @@ static DefaultOTARequestorDriver sRequestorUser;
 static BDXDownloader sDownloader;
 static OTAImageProcessorImpl sImageProcessor;
 
-void InitializeOTARequestor(intptr_t context)
+void InitializeOTARequestor()
 {
     // Initialize and interconnect the Requestor and Image Processor objects
     SetRequestorInstance(&sRequestorCore);
@@ -85,40 +88,6 @@ void InitializeOTARequestor(intptr_t context)
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
 }
 #endif
-
-void DeviceEventCallback(const ChipDeviceEvent * event, intptr_t arg)
-{
-    switch (event->Type)
-    {
-    case DeviceEventType::kCHIPoBLEConnectionEstablished:
-        PLAT_LOG("CHIPoBLE connection established");
-        break;
-
-    case DeviceEventType::kCHIPoBLEConnectionClosed:
-        PLAT_LOG("CHIPoBLE disconnected");
-        break;
-
-    case DeviceEventType::kCommissioningComplete:
-        PLAT_LOG("Commissioning complete");
-        break;
-
-    case DeviceEventType::kDnssdPlatformInitialized:
-        PLAT_LOG("Dnssd platform initialized");
-
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
-        PLAT_LOG("Scheduling OTA Requestor initialization")
-        PlatformMgr().ScheduleWork(AppTask::InitializeOTARequestor, reinterpret_cast<intptr_t>(nullptr));
-#endif
-
-        break;
-    }
-}
-
-static const chip::EndpointId sOccupancySensorEndpointId = 1;
-static const uint32_t sIdentifyBlinkRateMs               = 500;
-
-::Identify stIdentify = { sOccupancySensorEndpointId, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
-                          EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED };
 
 int AppTask::StartAppTask()
 {
@@ -229,9 +198,9 @@ int AppTask::Init()
 
     ConfigurationMgr().LogDeviceConfig();
 
-    // Register a function to receive events from the device layer.  Note that calls to
-    // this function will happen on the event loop thread, not the app_main thread.
-    PlatformMgr().AddEventHandler(DeviceEventCallback, reinterpret_cast<intptr_t>(nullptr));
+    // Init event callback and start event loop
+    InitDeviceEventCallback();
+    PlatformMgr().StartEventLoopTask();
 
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
@@ -359,6 +328,12 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         PLAT_LOG("Identify stopped");
         break;
 
+    case AppEvent::kEventTyoe_DeviceOperational:
+#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+        InitializeOTARequestor();
+#endif
+        break;
+
     case AppEvent::kEventType_AppEvent:
         if (NULL != aEvent->Handler)
         {
@@ -394,18 +369,4 @@ void AppTask::ToogleOccupancyState(void)
     PLAT_LOG("Current occupancy state: %d", attributeValue);
 
     SetOccupancyState(!attributeValue);
-}
-
-void AppTask::IdentifyStartHandler(::Identify *)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_IdentifyStart;
-    sAppTask.PostEvent(&event);
-}
-
-void AppTask::IdentifyStopHandler(::Identify *)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_IdentifyStop;
-    sAppTask.PostEvent(&event);
 }

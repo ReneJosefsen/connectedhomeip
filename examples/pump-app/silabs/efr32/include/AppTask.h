@@ -32,7 +32,6 @@
 #include "PumpManager.h"
 #include "sl_simple_button_instances.h"
 #include "timers.h" // provides FreeRTOS timer support
-#include <app/clusters/identify-server/identify-server.h>
 #include <ble/BLEEndPoint.h>
 #include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -48,6 +47,8 @@
 #define APP_ERROR_CREATE_TIMER_FAILED CHIP_APPLICATION_ERROR(0x04)
 #define APP_ERROR_START_TIMER_FAILED CHIP_APPLICATION_ERROR(0x05)
 #define APP_ERROR_STOP_TIMER_FAILED CHIP_APPLICATION_ERROR(0x06)
+
+#define PUMP_DEVICE_ENDPOINT 1
 
 /**********************************************************
  * AppTask Declaration
@@ -80,19 +81,7 @@ public:
      */
     void ButtonEventHandler(const sl_button_t * buttonHandle, uint8_t btnAction) override;
 
-    /**
-     * @brief Callback called by the identify-server when an identify command is received
-     *
-     * @param identify identify structure the command applies on
-     */
-    static void OnIdentifyStart(Identify * identify);
-
-    /**
-     * @brief Callback called by the identify-server when an identify command is stopped or finished
-     *
-     * @param identify identify structure the command applies on
-     */
-    static void OnIdentifyStop(Identify * identify);
+    static void IdentifyActionEventHandler(AppEvent * aEvent);
 
 private:
     static AppTask sAppTask;
