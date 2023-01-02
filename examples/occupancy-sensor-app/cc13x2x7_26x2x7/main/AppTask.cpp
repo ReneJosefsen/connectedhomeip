@@ -76,7 +76,7 @@ static DefaultOTARequestorDriver sRequestorUser;
 static BDXDownloader sDownloader;
 static OTAImageProcessorImpl sImageProcessor;
 
-void InitializeOTARequestor()
+void InitializeOTARequestor(void)
 {
     // Initialize and interconnect the Requestor and Image Processor objects
     SetRequestorInstance(&sRequestorCore);
@@ -177,18 +177,19 @@ int AppTask::Init()
     Button_init();
 
     Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
+    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGPRESSED;
     buttonParams.longPressDuration = 5000U; // ms
     sAppLeftHandle                 = Button_open(CONFIG_BTN_LEFT, &buttonParams);
     Button_setCallback(sAppLeftHandle, ButtonLeftEventHandler);
 
     Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
+    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGPRESSED;
     buttonParams.longPressDuration = 5000U; // ms
     sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
-    // Init ZCL Data Model
+    // Init ZCL Data Model and start server
+    PLAT_LOG("Initialize Server");
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
@@ -198,12 +199,18 @@ int AppTask::Init()
 
     ConfigurationMgr().LogDeviceConfig();
 
-    // Init event callback and start event loop
-    InitDeviceEventCallback();
-    PlatformMgr().StartEventLoopTask();
-
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
+
+    // Init event callback and start event loop
+    InitDeviceEventCallback();
+    ret = PlatformMgr().StartEventLoopTask();
+    if (ret != CHIP_NO_ERROR)
+    {
+        PLAT_LOG("PlatformMgr().StartEventLoopTask() failed");
+        while (1)
+            ;
+    }
 
     return 0;
 }
@@ -241,9 +248,9 @@ void AppTask::ButtonLeftEventHandler(Button_Handle handle, Button_EventMask even
     {
         event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
     }
-    else if (events & Button_EV_LONGCLICKED)
+    else if (events & Button_EV_LONGPRESSED)
     {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongPressed;
     }
     // button callbacks are in ISR context
     if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
@@ -261,9 +268,9 @@ void AppTask::ButtonRightEventHandler(Button_Handle handle, Button_EventMask eve
     {
         event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
     }
-    else if (events & Button_EV_LONGCLICKED)
+    else if (events & Button_EV_LONGPRESSED)
     {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongPressed;
     }
     // button callbacks are in ISR context
     if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
@@ -298,7 +305,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
                 PLAT_LOG("Disabled BLE Advertisements");
             }
         }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
             // Factory reset
             chip::Server::GetInstance().ScheduleFactoryReset();
@@ -310,7 +317,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         {
             ToogleOccupancyState();
         }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
             // No action
         }

@@ -80,7 +80,7 @@ int main(void)
 
     SHA2_init();
 
-    int ret = GetAppTask().StartAppTask();
+    int ret = AppTask::GetAppTask().StartAppTask();
     if (ret != 0)
     {
         // can't log until the kernel is started

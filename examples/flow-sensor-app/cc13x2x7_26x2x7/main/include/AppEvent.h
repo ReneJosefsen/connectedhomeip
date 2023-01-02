@@ -30,6 +30,7 @@ struct AppEvent
         kEventType_ButtonLeft,
         kEventType_ButtonRight,
         kEventType_AppEvent,
+        kEventTyoe_DeviceOperational,
         kEventType_IdentifyStart,
         kEventType_IdentifyStop,
     };
@@ -38,7 +39,7 @@ struct AppEvent
     {
         kAppEventButtonType_None = 0,
         kAppEventButtonType_Clicked,
-        kAppEventButtonType_LongClicked,
+        kAppEventButtonType_LongPressed,
     };
 
     enum AppEventType Type;

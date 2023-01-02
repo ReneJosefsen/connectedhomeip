@@ -20,10 +20,10 @@
 #include "AppTask.h"
 #include "AppConfig.h"
 #include "AppEvent.h"
+#include "DeviceCallbacks.h"
 #include <app/server/Server.h>
 
 #include "FreeRTOS.h"
-
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
@@ -53,9 +53,9 @@
 #define APP_TASK_PRIORITY 4
 #define APP_EVENT_QUEUE_SIZE 10
 
-using namespace ::chip;
-using namespace ::chip::Credentials;
-using namespace ::chip::DeviceLayer;
+using namespace chip;
+using namespace chip::Credentials;
+using namespace chip::DeviceLayer;
 
 static TaskHandle_t sAppTaskHandle;
 static QueueHandle_t sAppEventQueue;
@@ -66,6 +66,8 @@ static Button_Handle sAppLeftHandle;
 static Button_Handle sAppRightHandle;
 
 AppTask AppTask::sAppTask;
+
+static const uint32_t sIdentifyBlinkRateMs = 500;
 
 #if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
 static DefaultOTARequestor sRequestorCore;
@@ -86,12 +88,6 @@ void InitializeOTARequestor(void)
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
 }
 #endif
-
-static const chip::EndpointId sFlowSensorEndpointId = 1;
-static const uint32_t sIdentifyBlinkRateMs          = 500;
-
-::Identify stIdentify = { sFlowSensorEndpointId, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
-                          EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED };
 
 int AppTask::StartAppTask()
 {
@@ -150,14 +146,6 @@ int AppTask::Init()
             ;
     }
 
-    ret = PlatformMgr().StartEventLoopTask();
-    if (ret != CHIP_NO_ERROR)
-    {
-        PLAT_LOG("PlatformMgr().StartEventLoopTask() failed");
-        while (1)
-            ;
-    }
-
     ret = ThreadStackMgrImpl().StartThreadTask();
     if (ret != CHIP_NO_ERROR)
     {
@@ -165,15 +153,6 @@ int AppTask::Init()
         while (1)
             ;
     }
-
-    // Init ZCL Data Model and start server
-    PLAT_LOG("Initialize Server");
-    static chip::CommonCaseDeviceServerInitParams initParams;
-    (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    chip::Server::GetInstance().Init(initParams);
-
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 
     // Initialize LEDs
     PLAT_LOG("Initialize LEDs");
@@ -192,25 +171,40 @@ int AppTask::Init()
     Button_init();
 
     Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
+    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGPRESSED;
     buttonParams.longPressDuration = 5000U; // ms
     sAppLeftHandle                 = Button_open(CONFIG_BTN_LEFT, &buttonParams);
     Button_setCallback(sAppLeftHandle, ButtonLeftEventHandler);
 
     Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
+    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGPRESSED;
     buttonParams.longPressDuration = 5000U; // ms
     sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
-    ConfigurationMgr().LogDeviceConfig();
+    // Init ZCL Data Model and start server
+    PLAT_LOG("Initialize Server");
+    static chip::CommonCaseDeviceServerInitParams initParams;
+    (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    chip::Server::GetInstance().Init(initParams);
 
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
-    InitializeOTARequestor();
-#endif
+    // Initialize device attestation config
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+
+    ConfigurationMgr().LogDeviceConfig();
 
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
+
+    // Init event callback and start event loop
+    InitDeviceEventCallback();
+    ret = PlatformMgr().StartEventLoopTask();
+    if (ret != CHIP_NO_ERROR)
+    {
+        PLAT_LOG("PlatformMgr().StartEventLoopTask() failed");
+        while (1)
+            ;
+    }
 
     return 0;
 }
@@ -248,9 +242,9 @@ void AppTask::ButtonLeftEventHandler(Button_Handle handle, Button_EventMask even
     {
         event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
     }
-    else if (events & Button_EV_LONGCLICKED)
+    else if (events & Button_EV_LONGPRESSED)
     {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongPressed;
     }
     // button callbacks are in ISR context
     if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
@@ -268,9 +262,9 @@ void AppTask::ButtonRightEventHandler(Button_Handle handle, Button_EventMask eve
     {
         event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
     }
-    else if (events & Button_EV_LONGCLICKED)
+    else if (events & Button_EV_LONGPRESSED)
     {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongPressed;
     }
     // button callbacks are in ISR context
     if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
@@ -290,11 +284,11 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             chip::app::DataModel::Nullable<uint16_t> flowValue;
             chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, flowValue);
 
-            if( flowValue.IsNull() )
+            if (flowValue.IsNull())
             {
-                newValue = 0xFFFF/2;
+                newValue = 0xFFFF / 2;
             }
-            else if( flowValue.Value() < 100 )
+            else if (flowValue.Value() < 100)
             {
                 newValue = 0;
             }
@@ -305,7 +299,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
 
             SetMeasuredFlowValue(newValue);
         }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
             // Factory reset
             chip::Server::GetInstance().ScheduleFactoryReset();
@@ -319,11 +313,11 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             chip::app::DataModel::Nullable<uint16_t> flowValue;
             chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, flowValue);
 
-            if( flowValue.IsNull() )
+            if (flowValue.IsNull())
             {
-                newValue = 0xFFFF/2;
+                newValue = 0xFFFF / 2;
             }
-            else if( flowValue.Value() > 65434 )
+            else if (flowValue.Value() > 65434)
             {
                 newValue = 65534;
             }
@@ -334,7 +328,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
 
             SetMeasuredFlowValue(newValue);
         }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
             // Enable BLE advertisements
             if (!ConnectivityMgr().IsBLEAdvertisingEnabled())
@@ -369,6 +363,12 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         PLAT_LOG("Identify stopped");
         break;
 
+    case AppEvent::kEventTyoe_DeviceOperational:
+#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+        InitializeOTARequestor();
+#endif
+        break;
+
     case AppEvent::kEventType_AppEvent:
         if (NULL != aEvent->Handler)
         {
@@ -382,18 +382,18 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
 }
 
-void AppTask::SetMeasuredFlowValue( uint16_t flowValue )
+void AppTask::SetMeasuredFlowValue(uint16_t flowValue)
 {
     chip::app::DataModel::Nullable<uint16_t> storedFlowValue;
     chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, storedFlowValue);
 
-    if( storedFlowValue.IsNull() )
+    if (storedFlowValue.IsNull())
     {
         PLAT_LOG("Setting initial flow values");
     }
 
     // Determien direction of change
-    else if( storedFlowValue.Value() > flowValue )
+    else if (storedFlowValue.Value() > flowValue)
     {
         PLAT_LOG("Decrease flow value");
         PLAT_LOG("Stored flow value: %d", storedFlowValue.Value());
@@ -406,18 +406,4 @@ void AppTask::SetMeasuredFlowValue( uint16_t flowValue )
 
     PLAT_LOG("New flow value: %d", flowValue);
     chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Set(1, flowValue);
-}
-
-void AppTask::IdentifyStartHandler(::Identify *)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_IdentifyStart;
-    sAppTask.PostEvent(&event);
-}
-
-void AppTask::IdentifyStopHandler(::Identify *)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_IdentifyStop;
-    sAppTask.PostEvent(&event);
 }
