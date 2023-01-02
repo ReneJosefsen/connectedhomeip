@@ -131,6 +131,9 @@ server cluster AccessControl = 31 {
 
   attribute access(read: administer, write: administer) AccessControlEntry acl[] = 0;
   attribute access(read: administer, write: administer) ExtensionEntry extension[] = 1;
+  readonly attribute int16u subjectsPerAccessControlEntry = 2;
+  readonly attribute int16u targetsPerAccessControlEntry = 3;
+  readonly attribute int16u accessControlEntriesPerFabric = 4;
   readonly attribute command_id generatedCommandList[] = 65528;
   readonly attribute command_id acceptedCommandList[] = 65529;
   readonly attribute attrib_id attributeList[] = 65531;
@@ -139,6 +142,11 @@ server cluster AccessControl = 31 {
 }
 
 server cluster BasicInformation = 40 {
+  struct CapabilityMinimaStruct {
+    int16u caseSessionsPerFabric = 0;
+    int16u subscriptionsPerFabric = 1;
+  }
+
   critical event StartUp = 0 {
     INT32U softwareVersion = 0;
   }
@@ -173,6 +181,7 @@ server cluster BasicInformation = 40 {
   attribute access(write: manage) boolean localConfigDisabled = 16;
   readonly attribute boolean reachable = 17;
   readonly attribute char_string<32> uniqueID = 18;
+  readonly attribute CapabilityMinimaStruct capabilityMinima = 19;
   readonly attribute command_id generatedCommandList[] = 65528;
   readonly attribute command_id acceptedCommandList[] = 65529;
   readonly attribute attrib_id attributeList[] = 65531;
@@ -605,11 +614,19 @@ server cluster GeneralDiagnostics = 51 {
   readonly attribute ENUM8 activeHardwareFaults[] = 5;
   readonly attribute ENUM8 activeRadioFaults[] = 6;
   readonly attribute ENUM8 activeNetworkFaults[] = 7;
+  readonly attribute boolean testEventTriggersEnabled = 8;
   readonly attribute command_id generatedCommandList[] = 65528;
   readonly attribute command_id acceptedCommandList[] = 65529;
   readonly attribute attrib_id attributeList[] = 65531;
   readonly attribute bitmap32 featureMap = 65532;
   readonly attribute int16u clusterRevision = 65533;
+
+  request struct TestEventTriggerRequest {
+    OCTET_STRING<16> enableKey = 0;
+    INT64U eventTrigger = 1;
+  }
+
+  command access(invoke: manage) TestEventTrigger(TestEventTriggerRequest): DefaultSuccess = 0;
 }
 
 server cluster SoftwareDiagnostics = 52 {
@@ -1050,6 +1067,9 @@ endpoint 0 {
   server cluster AccessControl {
     callback attribute acl;
     callback attribute extension;
+    callback attribute subjectsPerAccessControlEntry;
+    callback attribute targetsPerAccessControlEntry;
+    callback attribute accessControlEntriesPerFabric;
     callback attribute generatedCommandList;
     callback attribute acceptedCommandList;
     callback attribute attributeList;
@@ -1077,6 +1097,7 @@ endpoint 0 {
     persist  attribute localConfigDisabled;
     ram      attribute reachable default = 1;
     callback attribute uniqueID;
+    callback attribute capabilityMinima;
     callback attribute generatedCommandList;
     callback attribute acceptedCommandList;
     callback attribute attributeList;
@@ -1134,6 +1155,7 @@ endpoint 0 {
     callback attribute activeHardwareFaults;
     callback attribute activeRadioFaults;
     callback attribute activeNetworkFaults;
+    ram      attribute testEventTriggersEnabled;
     callback attribute generatedCommandList;
     callback attribute acceptedCommandList;
     callback attribute attributeList;

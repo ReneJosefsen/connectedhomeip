@@ -31,6 +31,9 @@
 #define GENERATED_ACCESS_READ_ATTRIBUTE__CLUSTER { \
     31, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     31, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -49,6 +52,9 @@
 #define GENERATED_ACCESS_READ_ATTRIBUTE__ATTRIBUTE { \
     0, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     1, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -67,6 +73,9 @@
 #define GENERATED_ACCESS_READ_ATTRIBUTE__PRIVILEGE { \
     kMatterAccessPrivilegeAdminister, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -133,6 +142,7 @@
     49, /* Cluster: Network Commissioning, Command: RemoveNetwork, Privilege: administer */ \
     49, /* Cluster: Network Commissioning, Command: ConnectNetwork, Privilege: administer */ \
     49, /* Cluster: Network Commissioning, Command: ReorderNetwork, Privilege: administer */ \
+    51, /* Cluster: General Diagnostics, Command: TestEventTrigger, Privilege: manage */ \
     60, /* Cluster: AdministratorCommissioning, Command: OpenCommissioningWindow, Privilege: administer */ \
     60, /* Cluster: AdministratorCommissioning, Command: OpenBasicCommissioningWindow, Privilege: administer */ \
     60, /* Cluster: AdministratorCommissioning, Command: RevokeCommissioning, Privilege: administer */ \
@@ -162,6 +172,7 @@
     4, /* Cluster: Network Commissioning, Command: RemoveNetwork, Privilege: administer */ \
     6, /* Cluster: Network Commissioning, Command: ConnectNetwork, Privilege: administer */ \
     8, /* Cluster: Network Commissioning, Command: ReorderNetwork, Privilege: administer */ \
+    0, /* Cluster: General Diagnostics, Command: TestEventTrigger, Privilege: manage */ \
     0, /* Cluster: AdministratorCommissioning, Command: OpenCommissioningWindow, Privilege: administer */ \
     1, /* Cluster: AdministratorCommissioning, Command: OpenBasicCommissioningWindow, Privilege: administer */ \
     2, /* Cluster: AdministratorCommissioning, Command: RevokeCommissioning, Privilege: administer */ \
@@ -191,6 +202,7 @@
     kMatterAccessPrivilegeAdminister, /* Cluster: Network Commissioning, Command: RemoveNetwork, Privilege: administer */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: Network Commissioning, Command: ConnectNetwork, Privilege: administer */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: Network Commissioning, Command: ReorderNetwork, Privilege: administer */ \
+    kMatterAccessPrivilegeManage, /* Cluster: General Diagnostics, Command: TestEventTrigger, Privilege: manage */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: AdministratorCommissioning, Command: OpenCommissioningWindow, Privilege: administer */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: AdministratorCommissioning, Command: OpenBasicCommissioningWindow, Privilege: administer */ \
     kMatterAccessPrivilegeAdminister, /* Cluster: AdministratorCommissioning, Command: RevokeCommissioning, Privilege: administer */ \
