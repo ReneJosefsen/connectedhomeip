@@ -75,7 +75,7 @@
 
 #define ZAP_ATTRIBUTE_MASK(mask) ATTRIBUTE_MASK_##mask
 // This is an array of EmberAfAttributeMetadata structures.
-#define GENERATED_ATTRIBUTE_COUNT 176
+#define GENERATED_ATTRIBUTE_COUNT 173
 #define GENERATED_ATTRIBUTES                                                                                                       \
     {                                                                                                                              \
                                                                                                                                    \
@@ -149,7 +149,7 @@
                                                                                                                                    \
             /* Endpoint: 0, Cluster: OTA Software Update Requestor (server) */                                                     \
             { 0x00000000, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(WRITABLE),                 \
-              ZAP_EMPTY_DEFAULT() },                                                                 /* DefaultOtaProviders */     \
+              ZAP_EMPTY_DEFAULT() },                                                                 /* DefaultOTAProviders */     \
             { 0x00000001, ZAP_TYPE(BOOLEAN), 1, 0, ZAP_SIMPLE_DEFAULT(1) },                          /* UpdatePossible */          \
             { 0x00000002, ZAP_TYPE(ENUM8), 1, 0, ZAP_SIMPLE_DEFAULT(0) },                            /* UpdateState */             \
             { 0x00000003, ZAP_TYPE(INT8U), 1, ZAP_ATTRIBUTE_MASK(NULLABLE), ZAP_SIMPLE_DEFAULT(0) }, /* UpdateStateProgress */     \
@@ -186,7 +186,7 @@
             { 0x00000002, ZAP_TYPE(INT64U), 8, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* UpTime */           \
             { 0x00000003, ZAP_TYPE(INT32U), 4, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE),                                               \
               ZAP_EMPTY_DEFAULT() }, /* TotalOperationalHours */                                                                   \
-            { 0x00000004, ZAP_TYPE(ENUM8), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* BootReasons */       \
+            { 0x00000004, ZAP_TYPE(ENUM8), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* BootReason */        \
             { 0x00000005, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE),                                                \
               ZAP_EMPTY_DEFAULT() }, /* ActiveHardwareFaults */                                                                    \
             { 0x00000006, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* ActiveRadioFaults */ \
@@ -205,7 +205,7 @@
                                                                                                                                    \
             /* Endpoint: 0, Cluster: Thread Network Diagnostics (server) */                                                        \
             { 0x00000000, ZAP_TYPE(INT16U), 2, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                \
-              ZAP_EMPTY_DEFAULT() }, /* channel */                                                                                 \
+              ZAP_EMPTY_DEFAULT() }, /* Channel */                                                                                 \
             { 0x00000001, ZAP_TYPE(ENUM8), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                 \
               ZAP_EMPTY_DEFAULT() }, /* RoutingRole */                                                                             \
             { 0x00000002, ZAP_TYPE(CHAR_STRING), 17, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),          \
@@ -217,12 +217,12 @@
             { 0x00000005, ZAP_TYPE(OCTET_STRING), 18, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),         \
               ZAP_EMPTY_DEFAULT() },                                                                        /* MeshLocalPrefix */  \
             { 0x00000006, ZAP_TYPE(INT64U), 8, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* OverrunCount */     \
-            { 0x00000007, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* NeighborTableList */ \
-            { 0x00000008, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* RouteTableList */    \
+            { 0x00000007, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() },  /* NeighborTable */    \
+            { 0x00000008, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() },  /* RouteTable */       \
             { 0x00000009, ZAP_TYPE(INT32U), 4, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                \
               ZAP_EMPTY_DEFAULT() }, /* PartitionId */                                                                             \
             { 0x0000000A, ZAP_TYPE(INT8U), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                 \
-              ZAP_EMPTY_DEFAULT() }, /* weighting */                                                                               \
+              ZAP_EMPTY_DEFAULT() }, /* Weighting */                                                                               \
             { 0x0000000B, ZAP_TYPE(INT8U), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                 \
               ZAP_EMPTY_DEFAULT() }, /* DataVersion */                                                                             \
             { 0x0000000C, ZAP_TYPE(INT8U), 1, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(NULLABLE),                 \
@@ -340,8 +340,8 @@
             { 0x0000FFFD, ZAP_TYPE(INT16U), 2, 0, ZAP_SIMPLE_DEFAULT(1) },   /* ClusterRevision */                                 \
                                                                                                                                    \
             /* Endpoint: 1, Cluster: Identify (server) */                                                                          \
-            { 0x00000000, ZAP_TYPE(INT16U), 2, ZAP_ATTRIBUTE_MASK(WRITABLE), ZAP_SIMPLE_DEFAULT(0x0000) }, /* identify time */     \
-            { 0x00000001, ZAP_TYPE(ENUM8), 1, 0, ZAP_SIMPLE_DEFAULT(0x0) },                                /* identify type */     \
+            { 0x00000000, ZAP_TYPE(INT16U), 2, ZAP_ATTRIBUTE_MASK(WRITABLE), ZAP_SIMPLE_DEFAULT(0x0000) }, /* IdentifyTime */      \
+            { 0x00000001, ZAP_TYPE(ENUM8), 1, 0, ZAP_SIMPLE_DEFAULT(0x0) },                                /* IdentifyType */      \
             { 0x0000FFFC, ZAP_TYPE(BITMAP32), 4, 0, ZAP_SIMPLE_DEFAULT(0) },                               /* FeatureMap */        \
             { 0x0000FFFD, ZAP_TYPE(INT16U), 2, 0, ZAP_SIMPLE_DEFAULT(4) },                                 /* ClusterRevision */   \
                                                                                                                                    \
@@ -352,12 +352,6 @@
             { 0x00000003, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() },  /* PartsList */        \
             { 0x0000FFFC, ZAP_TYPE(BITMAP32), 4, 0, ZAP_SIMPLE_DEFAULT(0) },                                /* FeatureMap */       \
             { 0x0000FFFD, ZAP_TYPE(INT16U), 2, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT() }, /* ClusterRevision */  \
-                                                                                                                                   \
-            /* Endpoint: 1, Cluster: Binding (server) */                                                                           \
-            { 0x00000000, ZAP_TYPE(ARRAY), 0, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE) | ZAP_ATTRIBUTE_MASK(WRITABLE),                 \
-              ZAP_EMPTY_DEFAULT() },                                         /* Binding */                                         \
-            { 0x0000FFFC, ZAP_TYPE(BITMAP32), 4, 0, ZAP_SIMPLE_DEFAULT(0) }, /* FeatureMap */                                      \
-            { 0x0000FFFD, ZAP_TYPE(INT16U), 2, 0, ZAP_SIMPLE_DEFAULT(1) },   /* ClusterRevision */                                 \
                                                                                                                                    \
             /* Endpoint: 1, Cluster: Occupancy Sensing (server) */                                                                 \
             { 0x00000000, ZAP_TYPE(BITMAP8), 1, 0, ZAP_SIMPLE_DEFAULT(0) },  /* occupancy */                                       \
@@ -386,7 +380,7 @@
 #define GENERATED_COMMANDS { \
   /* Endpoint: 0, Cluster: OTA Software Update Requestor (server) */\
   /*   AcceptedCommandList (index=0) */ \
-  0x00000000 /* AnnounceOtaProvider */, \
+  0x00000000 /* AnnounceOTAProvider */, \
   chip::kInvalidCommandId /* end of list */, \
   /* Endpoint: 0, Cluster: General Commissioning (server) */\
   /*   AcceptedCommandList (index=2) */ \
@@ -464,7 +458,7 @@
 // clang-format on
 
 #define ZAP_CLUSTER_MASK(mask) CLUSTER_MASK_##mask
-#define GENERATED_CLUSTER_COUNT 17
+#define GENERATED_CLUSTER_COUNT 16
 
 // clang-format off
 #define GENERATED_CLUSTERS { \
@@ -634,20 +628,9 @@
       .generatedCommandList = nullptr ,\
     },\
   { \
-      /* Endpoint: 1, Cluster: Binding (server) */ \
-      .clusterId = 0x0000001E,  \
-      .attributes = ZAP_ATTRIBUTE_INDEX(168), \
-      .attributeCount = 3, \
-      .clusterSize = 6, \
-      .mask = ZAP_CLUSTER_MASK(SERVER), \
-      .functions = NULL, \
-      .acceptedCommandList = nullptr ,\
-      .generatedCommandList = nullptr ,\
-    },\
-  { \
       /* Endpoint: 1, Cluster: Occupancy Sensing (server) */ \
       .clusterId = 0x00000406,  \
-      .attributes = ZAP_ATTRIBUTE_INDEX(171), \
+      .attributes = ZAP_ATTRIBUTE_INDEX(168), \
       .attributeCount = 5, \
       .clusterSize = 9, \
       .mask = ZAP_CLUSTER_MASK(SERVER) | ZAP_CLUSTER_MASK(INIT_FUNCTION), \
@@ -661,12 +644,12 @@
 
 #define ZAP_CLUSTER_INDEX(index) (&generatedClusters[index])
 
-#define ZAP_FIXED_ENDPOINT_DATA_VERSION_COUNT 16
+#define ZAP_FIXED_ENDPOINT_DATA_VERSION_COUNT 15
 
 // This is an array of EmberAfEndpointType structures.
 #define GENERATED_ENDPOINT_TYPES                                                                                                   \
     {                                                                                                                              \
-        { ZAP_CLUSTER_INDEX(0), 13, 159 }, { ZAP_CLUSTER_INDEX(13), 4, 28 },                                                       \
+        { ZAP_CLUSTER_INDEX(0), 13, 159 }, { ZAP_CLUSTER_INDEX(13), 3, 22 },                                                       \
     }
 
 // Largest attribute size is needed for various buffers
@@ -678,7 +661,7 @@ static_assert(ATTRIBUTE_LARGEST <= CHIP_CONFIG_MAX_ATTRIBUTE_STORE_ELEMENT_SIZE,
 #define ATTRIBUTE_SINGLETONS_SIZE (41)
 
 // Total size of attribute storage
-#define ATTRIBUTE_MAX_SIZE (187)
+#define ATTRIBUTE_MAX_SIZE (181)
 
 // Number of fixed endpoints
 #define FIXED_ENDPOINT_COUNT (2)

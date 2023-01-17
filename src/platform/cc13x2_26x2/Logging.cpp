@@ -15,10 +15,17 @@
 
 #include <stdio.h>
 
+#include <FreeRTOS.h>
+#include <semphr.h>
+
 UART_Handle sDebugUartHandle;
 char sDebugUartBuffer[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
 
 #if MATTER_CC13X2_26X2_PLATFORM_LOG_ENABLED
+
+// Flag/lock used to ensure thread safe printing to the UART
+static SemaphoreHandle_t loggingMutex = NULL;
+
 extern "C" int cc13x2_26x2LogInit(void)
 {
     UART_Params uartParams;
@@ -27,17 +34,24 @@ extern "C" int cc13x2_26x2LogInit(void)
 
     UART_Params_init(&uartParams);
     // Most params can be default because we only send data, we don't receive
-    uartParams.baudRate = 115200;
+    uartParams.baudRate = 115200; // 921600;//
     // unclear why the UART driver sticks in writing sometimes
     uartParams.writeTimeout = 10000; // ticks
 
     sDebugUartHandle = UART_open(CONFIG_UART_DEBUG, &uartParams);
+
+    // Create mutes
+    loggingMutex = xSemaphoreCreateMutex();
+
     return 0;
 }
 
 extern "C" void cc13x2_26x2VLog(const char * msg, va_list v)
 {
     int ret;
+
+    // If a thread is already printing, wait for the flag/lock to be lowered
+    xSemaphoreTake(loggingMutex, portMAX_DELAY);
 
     ret = vsnprintf(sDebugUartBuffer, sizeof(sDebugUartBuffer), msg, v);
     if (0 < ret)
@@ -49,6 +63,9 @@ extern "C" void cc13x2_26x2VLog(const char * msg, va_list v)
 
         UART_write(sDebugUartHandle, sDebugUartBuffer, len);
     }
+
+    // Lower the flag to indicate printing is done
+    xSemaphoreGive(loggingMutex);
 }
 
 #else

@@ -1,0 +1,191 @@
+# Copyright (c) 2020 Project CHIP Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/build.gni")
+import("//build_overrides/chip.gni")
+import("//build_overrides/efr32_sdk.gni")
+import("//build_overrides/pigweed.gni")
+
+import("${build_root}/config/defaults.gni")
+import("${efr32_sdk_build_root}/efr32_executable.gni")
+import("${efr32_sdk_build_root}/efr32_sdk.gni")
+
+import("${chip_root}/examples/common/pigweed/pigweed_rpcs.gni")
+import("${chip_root}/src/platform/device.gni")
+
+assert(current_os == "freertos")
+
+efr32_project_dir = "${chip_root}/examples/room-sensor-app/silabs/efr32"
+examples_plat_dir = "${chip_root}/examples/platform/silabs/efr32"
+examples_common_plat_dir = "${chip_root}/examples/platform/silabs"
+
+declare_args() {
+  # Dump memory usage at link time.
+  chip_print_memory_usage = false
+
+  # Monitor & log memory usage at runtime.
+  enable_heap_monitoring = false
+
+  # Enable Sleepy end device
+  enable_sleepy_device = false
+
+  # OTA timeout in seconds
+  OTA_periodic_query_timeout = 86400
+}
+
+# This example app only supports BRD4166A and BRD2601B
+if (silabs_board != "BRD4166A" && silabs_board != "BRD2601B") {
+  assert(false, "The board ${silabs_board} is not supported by this example")
+}
+
+defines = []
+
+efr32_sdk("sdk") {
+  sources = [
+    "${efr32_project_dir}/include/CHIPProjectConfig.h",
+    "${examples_plat_dir}/FreeRTOSConfig.h",
+  ]
+
+  include_dirs = [
+    "${chip_root}/src/platform/silabs/EFR32",
+    "${efr32_project_dir}/include",
+    "${examples_plat_dir}",
+    "${chip_root}/src/lib",
+    "${examples_common_plat_dir}",
+  ]
+
+  defines += [
+    "BOARD_ID=${silabs_board}",
+    "OTA_PERIODIC_TIMEOUT=${OTA_periodic_query_timeout}",
+  ]
+
+  if (enable_heap_monitoring) {
+    defines += [ "HEAP_MONITORING" ]
+  }
+}
+
+efr32_executable("room_sensor_app") {
+  output_name = "chip-efr32-room-sensor-example.out"
+  public_configs = [ "${efr32_sdk_build_root}:silabs_config" ]
+  include_dirs = [ 
+    "include",
+    "autogen",
+    "${efr32_sdk_root}/hardware/board/inc",
+    "${efr32_sdk_root}/platform/emdrv/ustimer/inc",
+    "${efr32_sdk_root}/platform/driver/i2cspm/inc",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_select",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_rht",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_pressure",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_lux",
+    "${efr32_sdk_root}/hardware/driver/si70xx/inc",
+    "${efr32_sdk_root}/hardware/driver/pressure/inc",
+    "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver",
+    "${efr32_sdk_root}/hardware/driver/bmp3xx/inc",
+    "${efr32_sdk_root}/hardware/driver/veml6035/inc",
+  ]
+  defines = []
+
+  sources = [
+    "${examples_common_plat_dir}/heap_4_silabs.c",
+    "${examples_plat_dir}/BaseApplication.cpp",
+    "${examples_plat_dir}/efr32_utils.cpp",
+    "${examples_plat_dir}/init_efrPlatform.cpp",
+    "${examples_plat_dir}/matter_config.cpp",
+    "src/AppTask.cpp",
+    "src/SensorManager.cpp",
+    "src/ZclCallbacks.cpp",
+    "src/main.cpp",
+    "${efr32_sdk_root}/platform/emdrv/ustimer/src/ustimer.c",
+    "${efr32_sdk_root}/platform/emlib/src/em_i2c.c",
+    "${efr32_sdk_root}/platform/driver/i2cspm/src/sl_i2cspm.c",
+    "autogen/sl_i2cspm_init.c",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_select/sl_sensor_select.c",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_rht/sl_sensor_rht.c",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_pressure/sl_sensor_pressure.c",
+    "${efr32_sdk_root}/app/bluetooth/common/sensor_lux/sl_sensor_lux.c",
+    "${efr32_sdk_root}/hardware/driver/si70xx/src/sl_si70xx.c",
+    "${efr32_sdk_root}/hardware/driver/pressure/src/sl_pressure_bmp3xx.c",
+    "${efr32_sdk_root}/hardware/driver/bmp3xx/src/sl_bmp3xx.c",
+    "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver/bmp3.c",
+    "${efr32_sdk_root}/hardware/driver/veml6035/src/sl_veml6035.c",
+  ]
+
+  if (use_wstk_leds) {
+    sources += [ "${examples_plat_dir}/LEDWidget.cpp" ]
+  }
+
+  if (chip_build_libshell || enable_openthread_cli) {
+    sources += [ "${examples_plat_dir}/uart.cpp" ]
+  }
+
+  deps = [
+    ":sdk",
+    "${chip_root}/examples/room-sensor-app/room-sensor-common",
+    "${chip_root}/examples/providers:device_info_provider",
+    "${chip_root}/src/lib",
+    "${chip_root}/src/setup_payload",
+  ]
+
+  # OpenThread Settings
+  if (chip_enable_openthread) {
+    deps += [
+      "${chip_root}/third_party/openthread:openthread",
+      "${chip_root}/third_party/openthread:openthread-platform",
+      "${examples_plat_dir}:efr-matter-shell",
+    ]
+  }
+
+  if (chip_enable_ota_requestor) {
+    defines += [ "EFR32_OTA_ENABLED" ]
+    sources += [ "${examples_plat_dir}/OTAConfig.cpp" ]
+  }
+
+  if (enable_heap_monitoring) {
+    sources += [ "${examples_common_plat_dir}/MemMonitoring.cpp" ]
+    defines += [ "HEAP_MONITORING" ]
+  }
+
+  ldscript = "${examples_plat_dir}/ldscripts/${silabs_family}.ld"
+
+  inputs = [ ldscript ]
+
+  ldflags = [ "-T" + rebase_path(ldscript, root_build_dir) ]
+
+  if (chip_print_memory_usage) {
+    ldflags += [
+      "-Wl,--print-memory-usage",
+      "-fstack-usage",
+    ]
+  }
+
+  # Attestation Credentials
+  if (chip_build_platform_attestation_credentials_provider) {
+    deps += [ "${examples_plat_dir}:efr32-attestation-credentials" ]
+  }
+
+  # Factory Data Provider
+  if (use_efr32_factory_data_provider) {
+    deps += [ "${examples_plat_dir}:efr32-factory-data-provider" ]
+  }
+
+  output_dir = root_out_dir
+}
+
+group("efr32") {
+  deps = [ ":room_sensor_app" ]
+}
+
+group("default") {
+  deps = [ ":efr32" ]
+}
