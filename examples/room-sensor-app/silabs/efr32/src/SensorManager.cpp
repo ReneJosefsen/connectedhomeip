@@ -32,7 +32,13 @@ extern "C" {
 #include "sl_board_control.h"
 #include "sl_i2cspm_instances.h"
 #include "sl_pressure.h"
+#if defined(BOARD_BRD2601B)
 #include "sl_sensor_lux.h"
+#endif
+#if defined(BOARD_BRD4166A)
+#include "sl_sensor_gas.h"
+#include "sl_sensor_light.h"
+#endif
 #include "sl_sensor_pressure.h"
 #include "sl_sensor_rht.h"
 #include "sl_sensor_select.h"
@@ -53,21 +59,32 @@ SensorManager SensorManager::sSensor;
 
 TimerHandle_t sSensorTimer;
 
+#if defined(BRD4166A)
+static float uvi     = 0.0;
+static uint16_t eco2 = 0;
+static uint16_t tvoc = 0;
+#endif
+
 #if PRINT_MEASSUREMENTS
-static float meassurementFloat = 0.0;
-static int meassurementInt     = 0;
-static int meassurementFrac    = 0;
+static float meassurementFloat   = 0.0;
+static uint32_t meassurementInt  = 0;
+static uint32_t meassurementFrac = 0;
 #endif
 
 CHIP_ERROR SensorManager::Init()
 {
     // Init sensors
-    sl_board_enable_sensor(SL_BOARD_SENSOR_RHT);
-
     sl_i2cspm_init_instances();
     sl_sensor_rht_init();
     sl_sensor_pressure_init();
+
+#if defined(BOARD_BRD2601B)
     sl_sensor_lux_init();
+#endif
+#if defined(BOARD_BRD4166A)
+    sl_sensor_light_init();
+    sl_sensor_gas_init();
+#endif
 
     // Create FreeRTOS sw timer for sensor timer.
     sSensorTimer = xTimerCreate("sensorTmr",      // Just a text name, not used by the RTOS kernel
@@ -102,13 +119,23 @@ void SensorManager::TimerEventHandler(TimerHandle_t xTimer)
     stSensorMeasurements * sensorMeasurements = chip::Platform::New<stSensorMeasurements>();
 
     sl_sensor_rht_get(&sensorMeasurements->rh, &sensorMeasurements->temp);
+
+#if defined(BOARD_BRD2601B)
     sl_sensor_lux_get(&sensorMeasurements->lux);
+#endif
+#if defined(BOARD_BRD4166A)
+    sl_sensor_light_get(&sensorMeasurements->lux, &uvi);
+#endif
 
     // There is a bug in sl_sensor_pressure_get, meaning that it actually returns
     // the temp and not pressure so the direct API is used instead.
     // sl_sensor_pressure_get(&pressure);
     sl_pressure_measure_pressure(sl_sensor_select(SL_BOARD_SENSOR_PRESSURE), &sensorMeasurements->pressure);
     sl_pressure_measure_temperature(sl_sensor_select(SL_BOARD_SENSOR_PRESSURE), &sensorMeasurements->temp2);
+
+#if defined(BOARD_BRD4166A)
+    sl_sensor_gas_get(&eco2, &tvoc);
+#endif
 
 #if PRINT_MEASSUREMENTS
     meassurementFloat = (float) sensorMeasurements->temp / 1000.00;
@@ -132,6 +159,11 @@ void SensorManager::TimerEventHandler(TimerHandle_t xTimer)
     meassurementInt  = sensorMeasurements->pressure;
     meassurementFrac = (sensorMeasurements->pressure - meassurementInt) * 1000;
     SILABS_LOG("Pressure: %d.%03d Pa", meassurementInt, meassurementFrac);
+#if defined(BOARD_BRD4166A)
+    SILABS_LOG("UV Index = %d", uvi);
+    SILABS_LOG("eCO2 = %u ppm", (uint16_t) eco2);
+    SILABS_LOG("TVOC = %u ppd", (uint16_t) tvoc);
+#endif
 #endif
 
     // We must ensure that the Cluster accessors gets called in the right context

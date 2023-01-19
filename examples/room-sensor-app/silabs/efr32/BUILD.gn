@@ -44,12 +44,12 @@ declare_args() {
   OTA_periodic_query_timeout = 86400
 }
 
+defines = []
+
 # This example app only supports BRD4166A and BRD2601B
 if (silabs_board != "BRD4166A" && silabs_board != "BRD2601B") {
   assert(false, "The board ${silabs_board} is not supported by this example")
 }
-
-defines = []
 
 efr32_sdk("sdk") {
   sources = [
@@ -87,12 +87,8 @@ efr32_executable("room_sensor_app") {
     "${efr32_sdk_root}/app/bluetooth/common/sensor_select",
     "${efr32_sdk_root}/app/bluetooth/common/sensor_rht",
     "${efr32_sdk_root}/app/bluetooth/common/sensor_pressure",
-    "${efr32_sdk_root}/app/bluetooth/common/sensor_lux",
     "${efr32_sdk_root}/hardware/driver/si70xx/inc",
     "${efr32_sdk_root}/hardware/driver/pressure/inc",
-    "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver",
-    "${efr32_sdk_root}/hardware/driver/bmp3xx/inc",
-    "${efr32_sdk_root}/hardware/driver/veml6035/inc",
   ]
   defines = []
 
@@ -113,13 +109,55 @@ efr32_executable("room_sensor_app") {
     "${efr32_sdk_root}/app/bluetooth/common/sensor_select/sl_sensor_select.c",
     "${efr32_sdk_root}/app/bluetooth/common/sensor_rht/sl_sensor_rht.c",
     "${efr32_sdk_root}/app/bluetooth/common/sensor_pressure/sl_sensor_pressure.c",
-    "${efr32_sdk_root}/app/bluetooth/common/sensor_lux/sl_sensor_lux.c",
     "${efr32_sdk_root}/hardware/driver/si70xx/src/sl_si70xx.c",
-    "${efr32_sdk_root}/hardware/driver/pressure/src/sl_pressure_bmp3xx.c",
-    "${efr32_sdk_root}/hardware/driver/bmp3xx/src/sl_bmp3xx.c",
-    "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver/bmp3.c",
-    "${efr32_sdk_root}/hardware/driver/veml6035/src/sl_veml6035.c",
   ]
+
+  if (silabs_board == "BRD4166A") {
+    defines += [ 
+      "BOARD_BRD4166A",
+      "BRD4166A_SUPPORT=1", ]
+
+    include_dirs += [
+      "include/brd4166a",
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_light",
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_gas",
+      "${efr32_sdk_root}/hardware/driver/bmp280/bosch/BMP280_driver",
+      "${efr32_sdk_root}/hardware/driver/bmp280/inc",
+      "${efr32_sdk_root}/hardware/driver/si1133/inc",
+      "${efr32_sdk_root}/hardware/driver/ccs811/inc",
+    ]
+
+    sources += [ 
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_light/sl_sensor_light.c",
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_gas/sl_sensor_gas.c",
+      "${efr32_sdk_root}/hardware/driver/pressure/src/sl_pressure_bmp280.c",
+      "${efr32_sdk_root}/hardware/driver/bmp280/src/sl_bmp280.c",
+      "${efr32_sdk_root}/hardware/driver/bmp280/bosch/BMP280_driver/bmp280.c",
+      "${efr32_sdk_root}/hardware/driver/si1133/src/sl_si1133.c",
+      "${efr32_sdk_root}/hardware/driver/ccs811/src/sl_ccs811.c",
+      "${efr32_sdk_root}/hardware/board/src/brd4166a_support.c",
+      
+    ]
+  }
+  else if (silabs_board == "BRD2601B") {
+    defines += [ "BOARD_BRD2601B" ]
+
+    include_dirs += [
+      "include/brd2601b",
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_lux",
+      "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver",
+      "${efr32_sdk_root}/hardware/driver/bmp3xx/inc",
+      "${efr32_sdk_root}/hardware/driver/veml6035/inc",
+    ]
+
+    sources += [ 
+      "${efr32_sdk_root}/app/bluetooth/common/sensor_lux/sl_sensor_lux.c",
+      "${efr32_sdk_root}/hardware/driver/pressure/src/sl_pressure_bmp3xx.c",
+      "${efr32_sdk_root}/hardware/driver/bmp3xx/src/sl_bmp3xx.c",
+      "${efr32_sdk_root}/hardware/driver/bmp3xx/bosch/BMP3_driver/bmp3.c",
+      "${efr32_sdk_root}/hardware/driver/veml6035/src/sl_veml6035.c",
+    ]
+  }
 
   if (use_wstk_leds) {
     sources += [ "${examples_plat_dir}/LEDWidget.cpp" ]
