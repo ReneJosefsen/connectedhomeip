@@ -97,8 +97,6 @@ public:
 private:
     static AppTask sAppTask;
 
-    static void UpdateClusterState(intptr_t context);
-
     /**
      * @brief AppTask initialisation function
      *

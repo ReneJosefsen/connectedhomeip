@@ -168,8 +168,3 @@ void AppTask::ButtonEventHandler(const sl_button_t * buttonHandle, uint8_t btnAc
         sAppTask.PostEvent(&button_event);
     }
 }
-
-void AppTask::UpdateClusterState(intptr_t context)
-{
-    SILABS_LOG("UpdateClusterState");
-}
