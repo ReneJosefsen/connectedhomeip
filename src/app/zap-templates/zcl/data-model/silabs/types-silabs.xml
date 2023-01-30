@@ -119,16 +119,6 @@ limitations under the License.
     <item name="Off" value="0x1"/>
     <item name="Toggle" value="0x2"/>
   </enum>
-  <enum name="MoveMode" type="ENUM8">
-    <cluster code="0x0008"/>
-    <item name="Up" value="0x0"/>
-    <item name="Down" value="0x1"/>
-  </enum>
-  <enum name="StepMode" type="ENUM8">
-    <cluster code="0x0008"/>
-    <item name="Up" value="0x0"/>
-    <item name="Down" value="0x1"/>
-  </enum>
   <enum name="FanMode" type="ENUM8">
     <item name="off" value="0x0"/>
     <item name="low" value="0x1"/>
@@ -578,30 +568,5 @@ limitations under the License.
     <item name="SetToOn" value="0x01"/>
     <item name="SetToToggle" value="0x02"/>
     <!-- 0x03-0xFF reserved -->
-  </enum>
-  <bitmap name="LevelControlOptions" type="BITMAP8">
-    <cluster code="0x0008"/>
-    <field name="ExecuteIfOff" mask="0x1"/>
-    <field name="CoupleColorTempToLevel" mask="0x02"/>
-  </bitmap>
-  <!-- Barrier Control Cluster -->
-  <bitmap name="BarrierControlCapabilities" type="BITMAP8">
-    <field name="partialBarrier" mask="0x01"/>
-  </bitmap>
-  <bitmap name="BarrierControlSafetyStatus" type="BITMAP16">
-    <field name="remoteLockout" mask="0x01"/>
-    <field name="temperDetected" mask="0x02"/>
-    <field name="failedCommunication" mask="0x04"/>
-    <field name="positionFailure" mask="0x08"/>
-  </bitmap>
-  <enum name="BarrierControlBarrierPosition" type="INT8U">
-    <item name="Closed" value="0"/>
-    <item name="Open" value="100"/>
-    <item name="Unknown" value="0xFF"/>
-  </enum>
-  <enum name="BarrierControlMovingState" type="ENUM8">
-    <item name="Stopped" value="0x00"/>
-    <item name="Closing" value="0x01"/>
-    <item name="Opening" value="0x02"/>
   </enum>
 </configurator>
