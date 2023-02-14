@@ -37,7 +37,14 @@
 // This is an array of EmberAfCluster structures.
 #define ZAP_ATTRIBUTE_INDEX(index) (&generatedAttributes[index])
 
-#define ZAP_GENERATED_COMMANDS_INDEX(index) ((chip::CommandId *) (&generatedCommands[index]))
+#define ZAP_GENERATED_COMMANDS_INDEX(index) (&generatedCommands[index])
+
+// clang-format off
+#define GENERATED_EVENT_COUNT {{ chip_endpoint_generated_event_count }}
+#define GENERATED_EVENTS {{ chip_endpoint_generated_event_list }}
+// clang-format on
+
+#define ZAP_GENERATED_EVENTS_INDEX(index) (&generatedEvents[index])
 
 // Cluster function static arrays
 #define GENERATED_FUNCTION_ARRAYS   {{chip_endpoint_generated_functions}}

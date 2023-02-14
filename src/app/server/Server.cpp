@@ -43,6 +43,7 @@
 #include <platform/DeviceControlServer.h>
 #include <platform/DeviceInfoProvider.h>
 #include <platform/KeyValueStoreManager.h>
+#include <platform/LockTracker.h>
 #include <protocols/secure_channel/CASEServer.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <setup_payload/SetupPayload.h>
@@ -105,6 +106,9 @@ static ::chip::app::CircularEventBuffer sLoggingBuffer[CHIP_NUM_EVENT_LOGGING_BU
 CHIP_ERROR Server::Init(const ServerInitParams & initParams)
 {
     ChipLogProgress(AppServer, "Server initializing...");
+    assertChipStackLockedByCurrentThread();
+
+    mInitTimestamp = System::SystemClock().GetMonotonicMicroseconds64();
 
     CASESessionManagerConfig caseSessionManagerConfig;
     DeviceLayer::DeviceInfoProvider * deviceInfoprovider = nullptr;
@@ -353,11 +357,11 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
         }
     }
 
-#if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
-    ResumeSubscriptions();
-#endif
-
+    PlatformMgr().AddEventHandler(OnPlatformEventWrapper, reinterpret_cast<intptr_t>(this));
     PlatformMgr().HandleServerStarted();
+
+    mIsDnssdReady = Dnssd::Resolver::Instance().IsInitialized();
+    CheckServerReadyEvent();
 
 exit:
     if (err != CHIP_NO_ERROR)
@@ -370,6 +374,46 @@ exit:
         ChipLogProgress(AppServer, "Server Listening...");
     }
     return err;
+}
+
+void Server::OnPlatformEvent(const DeviceLayer::ChipDeviceEvent & event)
+{
+    switch (event.Type)
+    {
+    case DeviceEventType::kDnssdInitialized:
+        // Platform DNS-SD implementation uses kPlatformDnssdInitialized event to signal that it's ready.
+        if (!mIsDnssdReady)
+        {
+            mIsDnssdReady = true;
+            CheckServerReadyEvent();
+        }
+        break;
+    case DeviceEventType::kServerReady:
+#if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
+        ResumeSubscriptions();
+#endif
+        break;
+    default:
+        break;
+    }
+}
+
+void Server::CheckServerReadyEvent()
+{
+    // Check if all asynchronously initialized server components (currently, only DNS-SD)
+    // are ready, and emit the 'server ready' event if so.
+    if (mIsDnssdReady)
+    {
+        ChipLogError(AppServer, "Server initialization complete");
+
+        ChipDeviceEvent event = { .Type = DeviceEventType::kServerReady };
+        PlatformMgr().PostEventOrDie(&event);
+    }
+}
+
+void Server::OnPlatformEventWrapper(const DeviceLayer::ChipDeviceEvent * event, intptr_t server)
+{
+    reinterpret_cast<Server *>(server)->OnPlatformEvent(*event);
 }
 
 void Server::RejoinExistingMulticastGroups()
@@ -423,6 +467,8 @@ void Server::ScheduleFactoryReset()
 
 void Server::Shutdown()
 {
+    assertChipStackLockedByCurrentThread();
+    PlatformMgr().RemoveEventHandler(OnPlatformEventWrapper, 0);
     mCASEServer.Shutdown();
     mCASESessionManager.Shutdown();
     app::DnssdServer::Instance().SetCommissioningModeProvider(nullptr);

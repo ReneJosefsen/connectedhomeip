@@ -348,7 +348,7 @@ static void setOnOffValue(EndpointId endpoint, bool onOff)
 #ifdef EMBER_AF_PLUGIN_ON_OFF
     if (emberAfContainsServer(endpoint, OnOff::Id))
     {
-        emberAfLevelControlClusterPrintln("Setting on/off to %p due to level change", onOff ? "ON" : "OFF");
+        emberAfLevelControlClusterPrintln("Setting on/off to %s due to level change", onOff ? "ON" : "OFF");
         OnOffServer::Instance().setOnOffValue(endpoint, (onOff ? OnOff::Commands::On::Id : OnOff::Commands::Off::Id), true);
     }
 #endif // EMBER_AF_PLUGIN_ON_OFF
@@ -450,12 +450,12 @@ bool emberAfLevelControlClusterMoveToLevelCallback(app::CommandHandler * command
 
     if (transitionTime.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_TO_LEVEL %x null %x %x", "RX level-control:", level, optionsMask.Raw(),
+        emberAfLevelControlClusterPrintln("%s MOVE_TO_LEVEL %x null %x %x", "RX level-control:", level, optionsMask.Raw(),
                                           optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_TO_LEVEL %x %2x %x %x", "RX level-control:", level, transitionTime.Value(),
+        emberAfLevelControlClusterPrintln("%s MOVE_TO_LEVEL %x %2x %x %x", "RX level-control:", level, transitionTime.Value(),
                                           optionsMask.Raw(), optionsOverride.Raw());
     }
 
@@ -480,12 +480,12 @@ bool emberAfLevelControlClusterMoveToLevelWithOnOffCallback(app::CommandHandler 
 
     if (transitionTime.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_TO_LEVEL_WITH_ON_OFF %x null %x %x", "RX level-control:", level,
+        emberAfLevelControlClusterPrintln("%s MOVE_TO_LEVEL_WITH_ON_OFF %x null %x %x", "RX level-control:", level,
                                           optionsMask.Raw(), optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_TO_LEVEL_WITH_ON_OFF %x %2x %x %x", "RX level-control:", level,
+        emberAfLevelControlClusterPrintln("%s MOVE_TO_LEVEL_WITH_ON_OFF %x %2x %x %x", "RX level-control:", level,
                                           transitionTime.Value(), optionsMask.Raw(), optionsOverride.Raw());
     }
 
@@ -509,12 +509,12 @@ bool emberAfLevelControlClusterMoveCallback(app::CommandHandler * commandObj, co
 
     if (rate.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pMOVE %x null %x %x", "RX level-control:", moveMode, optionsMask.Raw(),
+        emberAfLevelControlClusterPrintln("%s MOVE %x null %x %x", "RX level-control:", moveMode, optionsMask.Raw(),
                                           optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pMOVE %x %u %x %x", "RX level-control:", moveMode, rate.Value(), optionsMask.Raw(),
+        emberAfLevelControlClusterPrintln("%s MOVE %x %u %x %x", "RX level-control:", moveMode, rate.Value(), optionsMask.Raw(),
                                           optionsOverride.Raw());
     }
 
@@ -533,12 +533,12 @@ bool emberAfLevelControlClusterMoveWithOnOffCallback(app::CommandHandler * comma
 
     if (rate.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_WITH_ON_OFF %x null %x %x", "RX level-control:", moveMode, optionsMask.Raw(),
+        emberAfLevelControlClusterPrintln("%s MOVE_WITH_ON_OFF %x null %x %x", "RX level-control:", moveMode, optionsMask.Raw(),
                                           optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pMOVE_WITH_ON_OFF %u %2x %x %x", "RX level-control:", moveMode, rate.Value(),
+        emberAfLevelControlClusterPrintln("%s MOVE_WITH_ON_OFF %u %2x %x %x", "RX level-control:", moveMode, rate.Value(),
                                           optionsMask.Raw(), optionsOverride.Raw());
     }
 
@@ -558,13 +558,13 @@ bool emberAfLevelControlClusterStepCallback(app::CommandHandler * commandObj, co
 
     if (transitionTime.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pSTEP %x %x null %x %x", "RX level-control:", stepMode, stepSize, optionsMask.Raw(),
+        emberAfLevelControlClusterPrintln("%s STEP %x %x null %x %x", "RX level-control:", stepMode, stepSize, optionsMask.Raw(),
                                           optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pSTEP %x %x %2x %x %x", "RX level-control:", stepMode, stepSize, transitionTime.Value(),
-                                          optionsMask.Raw(), optionsOverride.Raw());
+        emberAfLevelControlClusterPrintln("%s STEP %x %x %2x %x %x", "RX level-control:", stepMode, stepSize,
+                                          transitionTime.Value(), optionsMask.Raw(), optionsOverride.Raw());
     }
 
     stepHandler(commandPath.mEndpointId, Commands::Step::Id, stepMode, stepSize, transitionTime,
@@ -583,12 +583,12 @@ bool emberAfLevelControlClusterStepWithOnOffCallback(app::CommandHandler * comma
 
     if (transitionTime.IsNull())
     {
-        emberAfLevelControlClusterPrintln("%pSTEP_WITH_ON_OFF %x %x null %x %x", "RX level-control:", stepMode, stepSize,
+        emberAfLevelControlClusterPrintln("%s STEP_WITH_ON_OFF %x %x null %x %x", "RX level-control:", stepMode, stepSize,
                                           optionsMask.Raw(), optionsOverride.Raw());
     }
     else
     {
-        emberAfLevelControlClusterPrintln("%pSTEP_WITH_ON_OFF %x %x %2x %x %x", "RX level-control:", stepMode, stepSize,
+        emberAfLevelControlClusterPrintln("%s STEP_WITH_ON_OFF %x %x %2x %x %x", "RX level-control:", stepMode, stepSize,
                                           transitionTime.Value(), optionsMask.Raw(), optionsOverride.Raw());
     }
 
@@ -603,7 +603,7 @@ bool emberAfLevelControlClusterStopCallback(app::CommandHandler * commandObj, co
     auto & optionsMask     = commandData.optionsMask;
     auto & optionsOverride = commandData.optionsOverride;
 
-    emberAfLevelControlClusterPrintln("%pSTOP", "RX level-control:");
+    emberAfLevelControlClusterPrintln("%s STOP", "RX level-control:");
     stopHandler(commandPath.mEndpointId, Commands::Stop::Id, Optional<BitMask<LevelControlOptions>>(optionsMask),
                 Optional<BitMask<LevelControlOptions>>(optionsOverride));
     return true;
@@ -614,7 +614,7 @@ bool emberAfLevelControlClusterStopWithOnOffCallback(app::CommandHandler * comma
 {
     auto & optionsMask     = commandData.optionsMask;
     auto & optionsOverride = commandData.optionsOverride;
-    emberAfLevelControlClusterPrintln("%pSTOP_WITH_ON_OFF", "RX level-control:");
+    emberAfLevelControlClusterPrintln("%s STOP_WITH_ON_OFF", "RX level-control:");
     stopHandler(commandPath.mEndpointId, Commands::StopWithOnOff::Id, Optional<BitMask<LevelControlOptions>>(optionsMask),
                 Optional<BitMask<LevelControlOptions>>(optionsOverride));
     return true;
@@ -761,15 +761,14 @@ static EmberAfStatus moveToLevelHandler(EndpointId endpoint, CommandId commandId
     schedule(endpoint, computeCallbackWaitTimeMs(state->callbackSchedule, state->eventDurationMs));
     status = EMBER_ZCL_STATUS_SUCCESS;
 
-    if (commandId == Commands::MoveToLevelWithOnOff::Id)
+#ifdef EMBER_AF_PLUGIN_ON_OFF
+    // Check that the received MoveToLevelWithOnOff produces a On action and that the onoff support the lighting featuremap
+    if (commandId == Commands::MoveToLevelWithOnOff::Id && state->moveToLevel != state->minLevel &&
+        OnOffServer::Instance().SupportsLightingApplications(endpoint))
     {
-        uint32_t featureMap;
-        if (Attributes::FeatureMap::Get(endpoint, &featureMap) == EMBER_ZCL_STATUS_SUCCESS &&
-            READBITS(featureMap, EMBER_AF_LEVEL_CONTROL_FEATURE_LIGHTING))
-        {
-            OnOff::Attributes::GlobalSceneControl::Set(endpoint, true);
-        }
+        OnOff::Attributes::GlobalSceneControl::Set(endpoint, true);
     }
+#endif // EMBER_AF_PLUGIN_ON_OFF
 
     return status;
 }

@@ -399,7 +399,7 @@ void DiscoveryImplPlatform::HandleDnssdInit(void * context, CHIP_ERROR initError
 
         // Post an event that will start advertising
         DeviceLayer::ChipDeviceEvent event;
-        event.Type = DeviceLayer::DeviceEventType::kDnssdPlatformInitialized;
+        event.Type = DeviceLayer::DeviceEventType::kDnssdInitialized;
 
         CHIP_ERROR error = DeviceLayer::PlatformMgr().PostEvent(&event);
         if (error != CHIP_NO_ERROR)
@@ -601,6 +601,11 @@ CHIP_ERROR DiscoveryImplPlatform::RemoveServices()
 CHIP_ERROR DiscoveryImplPlatform::FinalizeServiceUpdate()
 {
     return ChipDnssdFinalizeServiceUpdate();
+}
+
+bool DiscoveryImplPlatform::IsInitialized()
+{
+    return mState == State::kInitialized;
 }
 
 CHIP_ERROR DiscoveryImplPlatform::ResolveNodeId(const PeerId & peerId)

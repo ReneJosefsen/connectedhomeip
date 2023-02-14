@@ -380,11 +380,10 @@ void DoorLockServer::setUserCommandHandler(chip::app::CommandHandler * commandOb
         return;
     }
 
-    if (!userType.IsNull() &&
-        (userType.Value() < UserTypeEnum::kUnrestrictedUser || userType.Value() > UserTypeEnum::kRemoteOnlyUser))
+    if (userType == UserTypeEnum::kUnknownEnumValue)
     {
         emberAfDoorLockClusterPrintln(
-            "[SetUser] Unable to set the user: user type is out of range [endpointId=%d,userIndex=%d,userType=%u]",
+            "[SetUser] Unable to set the user: user type is unknown [endpointId=%d,userIndex=%d,userType=%u]",
             commandPath.mEndpointId, userIndex, to_underlying(userType.Value()));
 
         sendClusterResponse(commandObj, commandPath, EMBER_ZCL_STATUS_INVALID_COMMAND);
@@ -694,10 +693,9 @@ void DoorLockServer::setCredentialCommandHandler(
         return;
     }
 
-    if (!userType.IsNull() &&
-        (userType.Value() < UserTypeEnum::kUnrestrictedUser || userType.Value() > UserTypeEnum::kRemoteOnlyUser))
+    if (userType == UserTypeEnum::kUnknownEnumValue)
     {
-        emberAfDoorLockClusterPrintln("[SetCredential] Unable to set the credential: user type is out of range "
+        emberAfDoorLockClusterPrintln("[SetCredential] Unable to set the credential: user type is unknown "
                                       "[endpointId=%d,credentialIndex=%d,userType=%u]",
                                       commandPath.mEndpointId, credentialIndex, to_underlying(userType.Value()));
         sendSetCredentialResponse(commandObj, commandPath, DlStatus::kInvalidField, 0, nextAvailableCredentialSlot);
@@ -1457,6 +1455,15 @@ DlStatus DoorLockServer::credentialLengthWithinRange(chip::EndpointId endpointId
         statusMin = GetAttribute(endpointId, Attributes::MinRFIDCodeLength::Id, Attributes::MinRFIDCodeLength::Get, minLen);
         statusMax = GetAttribute(endpointId, Attributes::MaxRFIDCodeLength::Id, Attributes::MaxRFIDCodeLength::Get, maxLen);
         break;
+    case CredentialTypeEnum::kFingerprint:
+        statusMin = statusMax = emberAfPluginDoorLockGetFingerprintCredentialLengthConstraints(endpointId, minLen, maxLen);
+        break;
+    case CredentialTypeEnum::kFingerVein:
+        statusMin = statusMax = emberAfPluginDoorLockGetFingerVeinCredentialLengthConstraints(endpointId, minLen, maxLen);
+        break;
+    case CredentialTypeEnum::kFace:
+        statusMin = statusMax = emberAfPluginDoorLockGetFaceCredentialLengthConstraints(endpointId, minLen, maxLen);
+        break;
     default:
         return DlStatus::kFailure;
     }
@@ -1495,6 +1502,15 @@ bool DoorLockServer::getMaxNumberOfCredentials(chip::EndpointId endpointId, Cred
         break;
     case CredentialTypeEnum::kRfid:
         status = GetNumberOfRFIDCredentialsSupported(endpointId, maxNumberOfCredentials);
+        break;
+    case CredentialTypeEnum::kFingerprint:
+        status = emberAfPluginDoorLockGetNumberOfFingerprintCredentialsSupported(endpointId, maxNumberOfCredentials);
+        break;
+    case CredentialTypeEnum::kFingerVein:
+        status = emberAfPluginDoorLockGetNumberOfFingerVeinCredentialsSupported(endpointId, maxNumberOfCredentials);
+        break;
+    case CredentialTypeEnum::kFace:
+        status = emberAfPluginDoorLockGetNumberOfFaceCredentialsSupported(endpointId, maxNumberOfCredentials);
         break;
     default:
         return false;
@@ -1646,7 +1662,6 @@ bool DoorLockServer::findUserIndexByCredential(chip::EndpointId endpointId, Cred
         if (!emberAfPluginDoorLockGetUser(endpointId, i, user))
         {
             ChipLogError(Zcl, "[GetCredentialStatus] Unable to get user: app error [userIndex=%d]", i);
-            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_FAILURE);
             return false;
         }
 
@@ -1685,7 +1700,6 @@ bool DoorLockServer::findUserIndexByCredential(chip::EndpointId endpointId, Cred
         if (!emberAfPluginDoorLockGetUser(endpointId, i, user))
         {
             ChipLogError(Zcl, "[findUserIndexByCredential] Unable to get user: app error [userIndex=%d]", i);
-            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_FAILURE);
             return false;
         }
 
@@ -1709,7 +1723,6 @@ bool DoorLockServer::findUserIndexByCredential(chip::EndpointId endpointId, Cred
                              "[findUserIndexByCredential] Unable to get credential: app error "
                              "[userIndex=%d,credentialIndex=%d,credentialType=%u]",
                              i, credential.CredentialIndex, to_underlying(credentialType));
-                emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_FAILURE);
                 return false;
             }
 
@@ -1720,14 +1733,13 @@ bool DoorLockServer::findUserIndexByCredential(chip::EndpointId endpointId, Cred
                              "not occupied "
                              "[userIndex=%d,credentialIndex=%d,credentialType=%u]",
                              i, credential.CredentialIndex, to_underlying(credentialType));
-                emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_FAILURE);
                 return false;
             }
 
             if (credentialInfo.credentialData.data_equal(credentialData))
             {
                 userIndex       = i;
-                credentialIndex = i;
+                credentialIndex = credential.CredentialIndex;
                 userInfo        = user;
                 return true;
             }
@@ -2391,6 +2403,11 @@ bool DoorLockServer::credentialTypeSupported(chip::EndpointId endpointId, Creden
         return SupportsPIN(endpointId);
     case CredentialTypeEnum::kRfid:
         return SupportsRFID(endpointId);
+    case CredentialTypeEnum::kFingerprint:
+    case CredentialTypeEnum::kFingerVein:
+        return SupportsFingers(endpointId);
+    case CredentialTypeEnum::kFace:
+        return SupportsFace(endpointId);
     default:
         return false;
     }
@@ -2878,23 +2895,37 @@ EmberAfStatus DoorLockServer::clearCredentials(chip::EndpointId endpointId, chip
         return EMBER_ZCL_STATUS_FAILURE;
     }
 
+    EmberAfStatus status   = EMBER_ZCL_STATUS_SUCCESS;
+    bool clearedCredential = false;
     for (uint16_t i = 1; i < maxNumberOfCredentials; ++i)
     {
-        auto status = clearCredential(endpointId, modifier, sourceNodeId, credentialType, i, false);
-        if (EMBER_ZCL_STATUS_SUCCESS != status)
+        EmberAfStatus clearStatus = clearCredential(endpointId, modifier, sourceNodeId, credentialType, i, false);
+        if (EMBER_ZCL_STATUS_SUCCESS != clearStatus)
         {
             ChipLogError(Zcl,
                          "[clearCredentials] Unable to clear the credential - internal error "
                          "[endpointId=%d,credentialType=%u,credentialIndex=%d,status=%d]",
                          endpointId, to_underlying(credentialType), i, status);
-            return status;
+            if (status == EMBER_ZCL_STATUS_SUCCESS)
+            {
+                status = clearStatus;
+            }
+        }
+        else
+        {
+            clearedCredential = true;
         }
     }
 
-    sendRemoteLockUserChange(endpointId, credentialTypeToLockDataType(credentialType), DataOperationTypeEnum::kClear, sourceNodeId,
-                             modifier, 0xFFFE, 0xFFFE);
+    // Generate the event if we cleared any credentials, even if we then had errors
+    // clearing other ones, so we don't have credentials silently disappearing.
+    if (clearedCredential)
+    {
+        sendRemoteLockUserChange(endpointId, credentialTypeToLockDataType(credentialType), DataOperationTypeEnum::kClear,
+                                 sourceNodeId, modifier, 0xFFFE, 0xFFFE);
+    }
 
-    return EMBER_ZCL_STATUS_SUCCESS;
+    return status;
 }
 
 bool DoorLockServer::clearFabricFromCredentials(chip::EndpointId endpointId, CredentialTypeEnum credentialType,
@@ -3039,9 +3070,10 @@ LockDataTypeEnum DoorLockServer::credentialTypeToLockDataType(CredentialTypeEnum
     case CredentialTypeEnum::kFingerprint:
         return LockDataTypeEnum::kFingerprint;
     case CredentialTypeEnum::kFingerVein:
-        return LockDataTypeEnum::kFingerprint;
+        return LockDataTypeEnum::kFingerVein;
     case CredentialTypeEnum::kFace:
-        // So far there's no distinct data type for face credentials
+        // So far there's no distinct data type for face credentials.
+        // See https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/6272
         return LockDataTypeEnum::kUnspecified;
     case CredentialTypeEnum::kUnknownEnumValue:
         return LockDataTypeEnum::kUnspecified;
@@ -3090,9 +3122,9 @@ void DoorLockServer::setHolidayScheduleCommandHandler(chip::app::CommandHandler 
         return;
     }
 
-    if (operatingMode > OperatingModeEnum::kPassage || operatingMode < OperatingModeEnum::kNormal)
+    if (operatingMode == OperatingModeEnum::kUnknownEnumValue)
     {
-        emberAfDoorLockClusterPrintln("[SetHolidaySchedule] Unable to add schedule - operating mode is out of range"
+        emberAfDoorLockClusterPrintln("[SetHolidaySchedule] Unable to add schedule - operating mode is unknown"
                                       "[endpointId=%d,scheduleIndex=%d,localStarTime=%" PRIu32 ",localEndTime=%" PRIu32
                                       ", operatingMode=%d]",
                                       endpointId, holidayIndex, localStartTime, localEndTime, to_underlying(operatingMode));
@@ -3778,8 +3810,19 @@ void MatterDoorLockClusterServerAttributeChangedCallback(const app::ConcreteAttr
 
 void DoorLockServer::DoorLockOnAutoRelockCallback(chip::EndpointId endpointId)
 {
-    emberAfDoorLockClusterPrintln("Door Auto relock timer expired. Locking...");
     emberEventControlSetInactive(&DoorLockServer::Instance().AutolockEvent);
-    DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kLocked, OperationSourceEnum::kAuto);
-    emberAfPluginDoorLockOnAutoRelock(endpointId);
+
+    Nullable<DlLockState> lockState;
+    if (Attributes::LockState::Get(endpointId, lockState) != EMBER_ZCL_STATUS_SUCCESS || lockState.IsNull() ||
+        lockState.Value() != DlLockState::kLocked)
+    {
+        emberAfDoorLockClusterPrintln("Door Auto relock timer expired. %s", "Locking...");
+
+        DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kLocked, OperationSourceEnum::kAuto);
+        emberAfPluginDoorLockOnAutoRelock(endpointId);
+    }
+    else
+    {
+        emberAfDoorLockClusterPrintln("Door Auto relock timer expired. %s", "Already locked.");
+    }
 }
