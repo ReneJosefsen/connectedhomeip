@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <lib/core/CHIPEventLoggingConfig.h>
-#include <lib/core/CHIPTLVUtilities.hpp>
+#include <lib/core/TLVUtilities.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 
@@ -691,7 +691,7 @@ CHIP_ERROR EventManagement::FabricRemovedCB(const TLV::TLVReader & aReader, size
             VerifyOrReturnError(event.Get(fabricIndex) == CHIP_NO_ERROR, CHIP_NO_ERROR);
             if (fabricIndex == *invalidFabricIndex)
             {
-                CHIPCircularTLVBuffer * readBuffer = static_cast<CHIPCircularTLVBuffer *>(event.GetBackingStore());
+                TLVCircularBuffer * readBuffer = static_cast<TLVCircularBuffer *>(event.GetBackingStore());
                 // fabricIndex is encoded as an integer; the dataPtr will point to a location immediately after its encoding
                 // shift the dataPtr to point to the encoding of the fabric index, accounting for wraparound in backing storage
                 // we cannot get the actual encoding size from current container beginning to the fabric index because of several
@@ -796,7 +796,7 @@ CHIP_ERROR EventManagement::FetchEventParameters(const TLVReader & aReader, size
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR EventManagement::EvictEvent(CHIPCircularTLVBuffer & apBuffer, void * apAppData, TLVReader & aReader)
+CHIP_ERROR EventManagement::EvictEvent(TLVCircularBuffer & apBuffer, void * apAppData, TLVReader & aReader)
 {
     // pull out the delta time, pull out the priority
     ReturnErrorOnFailure(aReader.Next());
@@ -847,7 +847,7 @@ void EventManagement::SetScheduledEventInfo(EventNumber & aEventNumber, uint32_t
 void CircularEventBuffer::Init(uint8_t * apBuffer, uint32_t aBufferLength, CircularEventBuffer * apPrev,
                                CircularEventBuffer * apNext, PriorityLevel aPriorityLevel)
 {
-    CHIPCircularTLVBuffer::Init(apBuffer, aBufferLength);
+    TLVCircularBuffer::Init(apBuffer, aBufferLength);
     mpPrev    = apPrev;
     mpNext    = apNext;
     mPriority = aPriorityLevel;
@@ -856,6 +856,17 @@ void CircularEventBuffer::Init(uint8_t * apBuffer, uint32_t aBufferLength, Circu
 bool CircularEventBuffer::IsFinalDestinationForPriority(PriorityLevel aPriority) const
 {
     return !((mpNext != nullptr) && (mpNext->mPriority <= aPriority));
+}
+
+/**
+ * @brief
+ * TLVCircularBuffer::OnInit can modify the state of the buffer, but we don't want that behavior here.
+ * We want to make sure we don't change our state, and just report the currently-available space.
+ */
+CHIP_ERROR CircularEventBuffer::OnInit(TLV::TLVWriter & writer, uint8_t *& bufStart, uint32_t & bufLen)
+{
+    GetCurrentWritableBuffer(bufStart, bufLen);
+    return CHIP_NO_ERROR;
 }
 
 void CircularEventReader::Init(CircularEventBufferWrapper * apBufWrapper)

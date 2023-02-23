@@ -1,1 +1,1 @@
-0.6.24 Version bump reason: Updating ZAP to v2022.12.19-nightly
+0.6.40 Version bump reason: [Linux] add libsdl2 to allow ui variants to be built
