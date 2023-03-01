@@ -5967,12 +5967,12 @@ public class ChipClusters {
           chipClusterPtr, callback, minInterval, maxInterval);
     }
 
-    public void readBatCommonDesignationAttribute(LongAttributeCallback callback) {
+    public void readBatCommonDesignationAttribute(IntegerAttributeCallback callback) {
       readBatCommonDesignationAttribute(chipClusterPtr, callback);
     }
 
     public void subscribeBatCommonDesignationAttribute(
-        LongAttributeCallback callback, int minInterval, int maxInterval) {
+        IntegerAttributeCallback callback, int minInterval, int maxInterval) {
       subscribeBatCommonDesignationAttribute(chipClusterPtr, callback, minInterval, maxInterval);
     }
 
@@ -5994,12 +5994,12 @@ public class ChipClusters {
       subscribeBatIECDesignationAttribute(chipClusterPtr, callback, minInterval, maxInterval);
     }
 
-    public void readBatApprovedChemistryAttribute(LongAttributeCallback callback) {
+    public void readBatApprovedChemistryAttribute(IntegerAttributeCallback callback) {
       readBatApprovedChemistryAttribute(chipClusterPtr, callback);
     }
 
     public void subscribeBatApprovedChemistryAttribute(
-        LongAttributeCallback callback, int minInterval, int maxInterval) {
+        IntegerAttributeCallback callback, int minInterval, int maxInterval) {
       subscribeBatApprovedChemistryAttribute(chipClusterPtr, callback, minInterval, maxInterval);
     }
 
@@ -6271,10 +6271,10 @@ public class ChipClusters {
         int maxInterval);
 
     private native void readBatCommonDesignationAttribute(
-        long chipClusterPtr, LongAttributeCallback callback);
+        long chipClusterPtr, IntegerAttributeCallback callback);
 
     private native void subscribeBatCommonDesignationAttribute(
-        long chipClusterPtr, LongAttributeCallback callback, int minInterval, int maxInterval);
+        long chipClusterPtr, IntegerAttributeCallback callback, int minInterval, int maxInterval);
 
     private native void readBatANSIDesignationAttribute(
         long chipClusterPtr, CharStringAttributeCallback callback);
@@ -6295,10 +6295,10 @@ public class ChipClusters {
         int maxInterval);
 
     private native void readBatApprovedChemistryAttribute(
-        long chipClusterPtr, LongAttributeCallback callback);
+        long chipClusterPtr, IntegerAttributeCallback callback);
 
     private native void subscribeBatApprovedChemistryAttribute(
-        long chipClusterPtr, LongAttributeCallback callback, int minInterval, int maxInterval);
+        long chipClusterPtr, IntegerAttributeCallback callback, int minInterval, int maxInterval);
 
     private native void readBatCapacityAttribute(
         long chipClusterPtr, LongAttributeCallback callback);
@@ -7196,7 +7196,7 @@ public class ChipClusters {
         RetrieveLogsResponseCallback callback,
         Integer intent,
         Integer requestedProtocol,
-        byte[] transferFileDesignator) {
+        Optional<String> transferFileDesignator) {
       retrieveLogsRequest(
           chipClusterPtr, callback, intent, requestedProtocol, transferFileDesignator, null);
     }
@@ -7205,7 +7205,7 @@ public class ChipClusters {
         RetrieveLogsResponseCallback callback,
         Integer intent,
         Integer requestedProtocol,
-        byte[] transferFileDesignator,
+        Optional<String> transferFileDesignator,
         int timedInvokeTimeoutMs) {
       retrieveLogsRequest(
           chipClusterPtr,
@@ -7221,7 +7221,7 @@ public class ChipClusters {
         RetrieveLogsResponseCallback Callback,
         Integer intent,
         Integer requestedProtocol,
-        byte[] transferFileDesignator,
+        Optional<String> transferFileDesignator,
         @Nullable Integer timedInvokeTimeoutMs);
 
     public interface RetrieveLogsResponseCallback {

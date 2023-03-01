@@ -1,5 +1,5 @@
 {
-  "featureLevel": 90,
+  "featureLevel": 92,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -1719,7 +1719,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "HourFormat",
+              "type": "HourFormatEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -1735,7 +1735,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "CalendarType",
+              "type": "CalendarTypeEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -1817,7 +1817,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "TempUnit",
+              "type": "TempUnitEnum",
               "included": 0,
               "storageOption": "NVM",
               "singleton": 0,
@@ -1949,7 +1949,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "PowerSourceStatus",
+              "type": "PowerSourceStatusEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -2048,13 +2048,6 @@
               "mfgCode": null,
               "side": "server",
               "included": 1
-            },
-            {
-              "name": "BatFaultChange",
-              "code": 1,
-              "mfgCode": null,
-              "side": "server",
-              "included": 0
             }
           ]
         },
@@ -2973,15 +2966,6 @@
               "minInterval": 0,
               "maxInterval": 65344,
               "reportableChange": 0
-            }
-          ],
-          "events": [
-            {
-              "name": "SoftwareFault",
-              "code": 0,
-              "mfgCode": null,
-              "side": "server",
-              "included": 1
             }
           ]
         },
@@ -4069,22 +4053,6 @@
               "maxInterval": 65344,
               "reportableChange": 0
             }
-          ],
-          "events": [
-            {
-              "name": "ConnectionStatus",
-              "code": 0,
-              "mfgCode": null,
-              "side": "server",
-              "included": 1
-            },
-            {
-              "name": "NetworkFaultChange",
-              "code": 1,
-              "mfgCode": null,
-              "side": "server",
-              "included": 1
-            }
           ]
         },
         {
@@ -4152,7 +4120,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "SecurityType",
+              "type": "SecurityTypeEnum",
               "included": 1,
               "storageOption": "External",
               "singleton": 0,
@@ -4168,7 +4136,7 @@
               "code": 2,
               "mfgCode": null,
               "side": "server",
-              "type": "WiFiVersionType",
+              "type": "WiFiVersionEnum",
               "included": 1,
               "storageOption": "External",
               "singleton": 0,
@@ -5377,7 +5345,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "bitmap8",
+              "type": "OccupancyBitmap",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -5393,7 +5361,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "enum8",
+              "type": "OccupancySensorTypeEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -5409,7 +5377,7 @@
               "code": 2,
               "mfgCode": null,
               "side": "server",
-              "type": "bitmap8",
+              "type": "OccupancySensorTypeBitmap",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -6747,7 +6715,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "PowerSourceStatus",
+              "type": "PowerSourceStatusEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -6811,7 +6779,7 @@
               "code": 14,
               "mfgCode": null,
               "side": "server",
-              "type": "BatChargeLevel",
+              "type": "BatChargeLevelEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -6843,7 +6811,7 @@
               "code": 16,
               "mfgCode": null,
               "side": "server",
-              "type": "BatReplaceability",
+              "type": "BatReplaceabilityEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -7868,7 +7836,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "bitmap8",
+              "type": "OccupancyBitmap",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -7884,7 +7852,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "enum8",
+              "type": "OccupancySensorTypeEnum",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -7900,7 +7868,7 @@
               "code": 2,
               "mfgCode": null,
               "side": "server",
-              "type": "bitmap8",
+              "type": "OccupancySensorTypeBitmap",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,
@@ -7951,6 +7919,5 @@
       "endpointVersion": 1,
       "deviceIdentifier": 10
     }
-  ],
-  "log": []
+  ]
 }
