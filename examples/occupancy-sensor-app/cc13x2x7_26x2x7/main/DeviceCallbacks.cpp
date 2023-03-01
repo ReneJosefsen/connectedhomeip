@@ -36,7 +36,7 @@ void DeviceEventHandler(const ChipDeviceEvent * event, intptr_t arg)
 {
     switch (event->Type)
     {
-    case DeviceEventType::kDnssdPlatformInitialized:
+    case DeviceEventType::kDnssdInitialized:
 #if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
         // Post operational event to app task
         AppEvent operationalEvent;

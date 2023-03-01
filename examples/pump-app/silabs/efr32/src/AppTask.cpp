@@ -26,8 +26,6 @@
 #include "sl_simple_led_instances.h"
 #endif // ENABLE_WSTK_LEDS
 
-#include <app-common/zap-generated/attribute-id.h>
-#include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/OnboardingCodesUtil.h>

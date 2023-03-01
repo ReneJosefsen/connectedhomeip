@@ -354,9 +354,17 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
 }
 
-void AppTask::SetOccupancyState(bool state)
+void AppTask::ToogleOccupancyState(void)
 {
-    if (state == true)
+    BitMask<chip::app::Clusters::OccupancySensing::OccupancyBitmap> attributeValue;
+    uint8_t bitValue;
+
+    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Get(1, &attributeValue);
+    bitValue = attributeValue.Raw();
+
+    PLAT_LOG("Toggle occupancy state: %d -> %d", bitValue, !bitValue);
+
+    if ((!bitValue) == true)
     {
         LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
     }
@@ -365,15 +373,6 @@ void AppTask::SetOccupancyState(bool state)
         LED_setOff(sAppRedHandle);
     }
 
-    PLAT_LOG("New occupancy state: %d", state);
-    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Set(1, state);
-}
-
-void AppTask::ToogleOccupancyState(void)
-{
-    uint8_t attributeValue;
-    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Get(1, &attributeValue);
-    PLAT_LOG("Current occupancy state: %d", attributeValue);
-
-    SetOccupancyState(!attributeValue);
+    attributeValue.SetRaw(!bitValue);
+    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Set(1, attributeValue);
 }

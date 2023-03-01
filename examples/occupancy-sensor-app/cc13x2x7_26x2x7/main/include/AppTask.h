@@ -47,7 +47,6 @@ private:
     static void ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events);
     static void ButtonRightEventHandler(Button_Handle handle, Button_EventMask events);
     static void TimerEventHandler(void * p_context);
-    static void SetOccupancyState(bool state);
     static void ToogleOccupancyState(void);
 
     enum Function_t
