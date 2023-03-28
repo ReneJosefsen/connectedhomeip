@@ -206,7 +206,7 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
         # Read device list (Not required)
         deviceListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.DeviceTypeList)])
         # TODO: Print the list and not just the first element
-        print(f"Device Type: {deviceListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.DeviceTypeList][0].type}")
+        print(f"Device Type: {deviceListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.DeviceTypeList][0].deviceType}")
 
         # Read server list
         serverListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, Clusters.Descriptor.Attributes.ServerList)])
@@ -312,7 +312,7 @@ def cleanDirectory(pathToClean):
 
 basePath = os.path.dirname(__file__)
 clusterInfoInputPathStr = os.path.join(basePath, 'clusterData', 'Specification_version master da1249d.json')
-xmlTemplatePathStr = os.path.join(basePath, 'PICS', 'XML_Version Master-V13/')
+xmlTemplatePathStr = os.path.join(basePath, 'PICS', 'XML_version master Version V15/')
 baseOutputPathStr = os.path.join(basePath, 'output/')
 
 serverTag = ".S"
