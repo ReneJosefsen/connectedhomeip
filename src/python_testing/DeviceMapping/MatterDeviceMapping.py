@@ -9,6 +9,7 @@ import atexit
 import logging
 import json
 import pathlib
+import argparse
 import xml.etree.ElementTree as ET
 
 from binascii import unhexlify
@@ -310,10 +311,22 @@ def cleanDirectory(pathToClean):
             cleanDirectory(entry)
             pathlib.Path(entry).rmdir()
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--cluster-data', required=True)
+parser.add_argument('--pics-template', required=True)
+parser.add_argument('--pics-output', required=True)
+args, unknown = parser.parse_known_args()
+
 basePath = os.path.dirname(__file__)
-clusterInfoInputPathStr = os.path.join(basePath, 'clusterData', 'Specification_version master da1249d.json')
-xmlTemplatePathStr = os.path.join(basePath, 'PICS', 'XML_version master Version V15/')
-baseOutputPathStr = os.path.join(basePath, 'output/')
+clusterInfoInputPathStr = args.cluster_data #os.path.join(basePath, 'clusterData', 'Specification_version master da1249d.json')
+
+xmlTemplatePathStr = args.pics_template #os.path.join(basePath, 'PICS', 'XML_version master Version V15/')
+if not xmlTemplatePathStr.endswith('/'):
+    xmlTemplatePathStr += '/'
+
+baseOutputPathStr = args.pics_output #os.path.join(basePath, 'output/')
+if not baseOutputPathStr.endswith('/'):
+    baseOutputPathStr += '/'
 
 serverTag = ".S"
 clientTag = ".C"
