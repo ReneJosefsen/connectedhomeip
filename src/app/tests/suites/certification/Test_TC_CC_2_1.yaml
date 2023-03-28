@@ -92,7 +92,7 @@ tests:
               maxValue: 4
 
     - label: "TH reads CompensationText attribute from DUT"
-      PICS: CC.S.A0005
+      PICS: CC.S.A0006
       command: "readAttribute"
       attribute: "CompensationText"
       response:
@@ -141,7 +141,7 @@ tests:
               maxValue: 65535
 
     - label: "TH reads EnhancedColorMode attribute from DUT"
-      PICS: CC.S.F02
+      PICS: CC.S.A4001
       command: "readAttribute"
       attribute: "EnhancedColorMode"
       response:

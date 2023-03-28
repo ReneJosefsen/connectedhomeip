@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import re
-from itertools import combinations
-from typing import Any, List, Optional
-
 from builders.ameba import AmebaApp, AmebaBoard, AmebaBuilder
 from builders.android import AndroidApp, AndroidBoard, AndroidBuilder, AndroidProfile
 from builders.bouffalolab import BouffalolabApp, BouffalolabBoard, BouffalolabBuilder
@@ -110,6 +105,8 @@ def BuildHostTarget():
         TargetPart('shell', app=HostApp.SHELL),
         TargetPart('ota-provider', app=HostApp.OTA_PROVIDER, enable_ble=False),
         TargetPart('ota-requestor', app=HostApp.OTA_REQUESTOR, enable_ble=False),
+        TargetPart('simulated-app1', app=HostApp.SIMULATED_APP1, enable_ble=False),
+        TargetPart('simulated-app2', app=HostApp.SIMULATED_APP2, enable_ble=False),
         TargetPart('python-bindings', app=HostApp.PYTHON_BINDINGS),
         TargetPart('tv-app', app=HostApp.TV_APP),
         TargetPart('tv-casting-app', app=HostApp.TV_CASTING),
@@ -159,7 +156,7 @@ def BuildEsp32Target():
 
     # boards
     target.AppendFixedTargets([
-        TargetPart('m5stack', board=Esp32Board.M5Stack).OnlyIfRe('-(all-clusters|ota-requestor)'),
+        TargetPart('m5stack', board=Esp32Board.M5Stack),
         TargetPart('c3devkit', board=Esp32Board.C3DevKit),
         TargetPart('devkitc', board=Esp32Board.DevKitC),
         TargetPart('qemu', board=Esp32Board.QEMU).OnlyIfRe('-tests'),
@@ -477,6 +474,7 @@ def BuildTizenTarget():
         TargetPart('all-clusters-minimal', app=TizenApp.ALL_CLUSTERS_MINIMAL),
         TargetPart('chip-tool', app=TizenApp.CHIP_TOOL),
         TargetPart('light', app=TizenApp.LIGHT),
+        TargetPart('tests', app=TizenApp.TESTS),
     ])
 
     target.AppendModifier(name="no-ble", enable_ble=False)
@@ -552,9 +550,17 @@ def BuildTelinkTarget():
         TargetPart('contact-sensor', app=TelinkApp.CONTACT_SENSOR),
         TargetPart('light', app=TelinkApp.LIGHT),
         TargetPart('light-switch', app=TelinkApp.SWITCH),
+        TargetPart('lock', app=TelinkApp.LOCK),
         TargetPart('ota-requestor', app=TelinkApp.OTA_REQUESTOR),
+        TargetPart('pump', app=TelinkApp.PUMP),
+        TargetPart('pump-controller', app=TelinkApp.PUMP_CONTROLLER),
+        TargetPart('temperature-measurement', app=TelinkApp.TEMPERATURE_MEASUREMENT),
         TargetPart('thermostat', app=TelinkApp.THERMOSTAT),
+        TargetPart('window-covering', app=TelinkApp.WINDOW_COVERING),
     ])
+
+    target.AppendModifier('rpc', enable_rpcs=True)
+    target.AppendModifier('factory-data', enable_factory_data=True)
 
     return target
 

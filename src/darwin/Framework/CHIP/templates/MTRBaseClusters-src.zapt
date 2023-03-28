@@ -129,10 +129,11 @@ MTR{{cluster}}Cluster{{command}}Params
                 command=(asUpperCamelCase name preserveAcronyms=true)}}
 {{/chip_cluster_commands}}
 
-{{#chip_server_cluster_attributes}}
+{{#zcl_attributes_server removeKeys='isOptional'}}
 {{! This is used as the implementation for both the new-name and old-name bits, so check for both here. }}
-{{#unless (and (wasRemoved (asUpperCamelCase parent.name preserveAcronyms=true) command=(asUpperCamelCase name preserveAcronyms=true))
-               (wasRemoved (compatClusterNameRemapping parent.name) command=(compatCommandNameRemapping parent.name name)))}}
+{{#unless (and (wasRemoved (asUpperCamelCase parent.name preserveAcronyms=true) attribute=(asUpperCamelCase name preserveAcronyms=true))
+               (or (wasRemoved (compatClusterNameRemapping parent.name) attribute=(compatAttributeNameRemapping parent.name name))
+                   (not wasIntroducedBeforeRelease "First major API revamp" (compatClusterNameRemapping parent.name) attribute=(compatAttributeNameRemapping parent.name name))))}}
 {{#*inline "attribute"}}Attribute{{asUpperCamelCase name preserveAcronyms=true}}{{/inline}}
 - (void)read{{>attribute}}With
 {{~#if_is_fabric_scoped_struct type~}}
@@ -231,7 +232,7 @@ reportHandler:(void (^)({{asObjectiveCClass type parent.name}} * _Nullable value
 
 {{/if}}
 {{/unless}}
-{{/chip_server_cluster_attributes}}
+{{/zcl_attributes_server}}
 
 @end
 {{/unless}}
@@ -276,7 +277,7 @@ reportHandler:(void (^)({{asObjectiveCClass type parent.name}} * _Nullable value
                 command=(compatCommandNameRemapping parent.name name)}}
 {{/chip_cluster_commands}}
 
-{{#chip_server_cluster_attributes}}
+{{#zcl_attributes_server removeKeys='isOptional'}}
 {{#if (and (wasIntroducedBeforeRelease "First major API revamp" (compatClusterNameRemapping parent.name) attribute=(compatAttributeNameRemapping parent.name name))
            (not (wasRemoved (compatClusterNameRemapping parent.name) attribute=(compatAttributeNameRemapping parent.name name))))}}
 {{#*inline "attribute"}}Attribute{{compatAttributeNameRemapping parent.name name}}{{/inline}}
@@ -332,7 +333,7 @@ subscriptionEstablished:(MTRSubscriptionEstablishedHandler _Nullable)subscriptio
 }
 {{/if}}
 {{/if}}
-{{/chip_server_cluster_attributes}}
+{{/zcl_attributes_server}}
 
 - (nullable instancetype)initWithDevice:(MTRBaseDevice *)device
                                endpoint:(uint16_t)endpoint

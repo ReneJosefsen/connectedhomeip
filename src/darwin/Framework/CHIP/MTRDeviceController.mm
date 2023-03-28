@@ -48,9 +48,12 @@
 #include <credentials/attestation_verifier/DacOnlyPartialAttestationVerifier.h>
 #include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 #include <lib/core/CHIPVendorIdentifiers.hpp>
+#include <platform/LockTracker.h>
 #include <platform/PlatformManager.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <system/SystemClock.h>
+
+#include <atomic>
 
 #import <os/lock.h>
 
@@ -82,7 +85,10 @@ typedef void (^SyncWorkQueueBlock)(void);
 typedef id (^SyncWorkQueueBlockWithReturnValue)(void);
 typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 
-@interface MTRDeviceController ()
+@interface MTRDeviceController () {
+    // Atomic because it can be touched from multiple threads.
+    std::atomic<chip::FabricIndex> _storedFabricIndex;
+}
 
 // queue used to serialize all work performed by the MTRDeviceController
 @property (atomic, readonly) dispatch_queue_t chipWorkQueue;
@@ -123,6 +129,8 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         if ([self checkForInitError:(_operationalCredentialsDelegate != nullptr) logMsg:kErrorOperationalCredentialsInit]) {
             return nil;
         }
+
+        _storedFabricIndex = chip::kUndefinedFabricIndex;
     }
     return self;
 }
@@ -145,6 +153,14 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 // Clean up from a state where startup was called.
 - (void)cleanupAfterStartup
 {
+    // Invalidate our MTRDevice instances before we shut down our secure
+    // sessions and whatnot, so they don't start trying to resubscribe when we
+    // do the secure session shutdowns.
+    for (MTRDevice * device in [self.nodeIDToDeviceMap allValues]) {
+        [device invalidate];
+    }
+    [self.nodeIDToDeviceMap removeAllObjects];
+
     [_factory controllerShuttingDown:self];
 }
 
@@ -152,12 +168,15 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 // in a very specific way that only MTRDeviceControllerFactory knows about.
 - (void)shutDownCppController
 {
+    assertChipStackLockedByCurrentThread();
+
     if (_cppCommissioner) {
         auto * commissionerToShutDown = _cppCommissioner;
         // Flag ourselves as not running before we start shutting down
         // _cppCommissioner, so we're not in a state where we claim to be
         // running but are actually partially shut down.
         _cppCommissioner = nullptr;
+        _storedFabricIndex = chip::kUndefinedFabricIndex;
         commissionerToShutDown->Shutdown();
         delete commissionerToShutDown;
         if (_operationalCredentialsDelegate != nil) {
@@ -192,11 +211,6 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         delete _deviceControllerDelegateBridge;
         _deviceControllerDelegateBridge = nullptr;
     }
-
-    for (MTRDevice * device in [self.nodeIDToDeviceMap allValues]) {
-        [device invalidate];
-    }
-    [self.nodeIDToDeviceMap removeAllObjects];
 }
 
 - (BOOL)startup:(MTRDeviceControllerStartupParamsInternal *)startupParams
@@ -345,6 +359,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
             return;
         }
 
+        self->_storedFabricIndex = fabricIdx;
         commissionerInitialized = YES;
     });
 
@@ -522,7 +537,13 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
     MTRDevice * deviceToReturn = self.nodeIDToDeviceMap[nodeID];
     if (!deviceToReturn) {
         deviceToReturn = [[MTRDevice alloc] initWithNodeID:nodeID controller:self];
-        self.nodeIDToDeviceMap[nodeID] = deviceToReturn;
+        // If we're not running, don't add the device to our map.  That would
+        // create a cycle that nothing would break.  Just return the device,
+        // which will be in exactly the state it would be in if it were created
+        // while we were running and then we got shut down.
+        if ([self isRunning]) {
+            self.nodeIDToDeviceMap[nodeID] = deviceToReturn;
+        }
     }
     os_unfair_lock_unlock(&_deviceMapLock);
 
@@ -813,17 +834,26 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 
 - (chip::FabricIndex)fabricIndex
 {
+    return _storedFabricIndex;
+}
+
+- (nullable NSNumber *)compressedFabricID
+{
+    assertChipStackLockedByCurrentThread();
+
     if (!_cppCommissioner) {
-        return chip::kUndefinedFabricIndex;
+        return nil;
     }
 
-    return _cppCommissioner->GetFabricIndex();
+    return @(_cppCommissioner->GetCompressedFabricId());
 }
 
 - (CHIP_ERROR)isRunningOnFabric:(chip::FabricTable *)fabricTable
                     fabricIndex:(chip::FabricIndex)fabricIndex
                       isRunning:(BOOL *)isRunning
 {
+    assertChipStackLockedByCurrentThread();
+
     if (![self isRunning]) {
         *isRunning = NO;
         return CHIP_NO_ERROR;
@@ -859,6 +889,22 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
     };
 
     [self syncRunOnWorkQueue:block error:nil];
+}
+
+- (void)operationalInstanceAdded:(chip::NodeId)nodeID
+{
+    // Don't use deviceForNodeID here, because we don't want to create the
+    // device if it does not already exist.
+    os_unfair_lock_lock(&_deviceMapLock);
+    MTRDevice * device = self.nodeIDToDeviceMap[@(nodeID)];
+    os_unfair_lock_unlock(&_deviceMapLock);
+
+    if (device == nil) {
+        return;
+    }
+
+    ChipLogProgress(Controller, "Notifying device about node 0x" ChipLogFormatX64 " advertising", ChipLogValueX64(nodeID));
+    [device nodeMayBeAdvertisingOperational];
 }
 
 @end

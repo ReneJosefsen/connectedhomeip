@@ -139,16 +139,6 @@ void MatterProxyConfigurationPluginServerInitCallback() {}
 void MatterFanControlPluginServerInitCallback() {}
 
 // ****************************************
-// This function is called by the application when the stack goes down,
-// such as after a leave network. This allows zcl utils to clear state
-// that should not be kept when changing networks
-// ****************************************
-void emberAfStackDown()
-{
-    emberAfRegistrationAbortCallback();
-}
-
-// ****************************************
 // Print out information about each cluster
 // ****************************************
 
@@ -171,21 +161,6 @@ void emberAfCopyInt16u(uint8_t * data, uint16_t index, uint16_t x)
 {
     data[index]     = (uint8_t)(((x)) & 0xFF);
     data[index + 1] = (uint8_t)(((x) >> 8) & 0xFF);
-}
-
-void emberAfCopyInt24u(uint8_t * data, uint16_t index, uint32_t x)
-{
-    data[index]     = (uint8_t)(((x)) & 0xFF);
-    data[index + 1] = (uint8_t)(((x) >> 8) & 0xFF);
-    data[index + 2] = (uint8_t)(((x) >> 16) & 0xFF);
-}
-
-void emberAfCopyInt32u(uint8_t * data, uint16_t index, uint32_t x)
-{
-    data[index]     = (uint8_t)(((x)) & 0xFF);
-    data[index + 1] = (uint8_t)(((x) >> 8) & 0xFF);
-    data[index + 2] = (uint8_t)(((x) >> 16) & 0xFF);
-    data[index + 3] = (uint8_t)(((x) >> 24) & 0xFF);
 }
 
 void emberAfCopyString(uint8_t * dest, const uint8_t * src, size_t size)

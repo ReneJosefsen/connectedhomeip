@@ -4,28 +4,17 @@ WeakEnums:
     - BarrierControlBarrierPosition
     - BarrierControlMovingState
     - ColorControlOptions
-    - ColorLoopAction
-    - ColorLoopDirection
     - ColorMode
-    - ContentLaunchStatus
-    - ContentLaunchStreamingType
     - EnhancedColorMode
-    - HardwareFaultEnum
-    - HueDirection
-    - HueMoveMode
-    - HueStepMode
     - IdentifyEffectIdentifier
     - IdentifyEffectVariant
     - IdentifyIdentifyType
     - InterfaceTypeEnum
-    - LevelControlOptions
     - MoveMode
     - NetworkFaultEnum
     - PHYRateEnum
     - RadioFaultEnum
     - RoutingRole
-    - SaturationMoveMode
-    - SaturationStepMode
     - StepMode
 
 DefineBitmaps:
@@ -33,8 +22,6 @@ DefineBitmaps:
     # The goal is to drive this down to 0.
     - BarrierControlCapabilities
     - BarrierControlSafetyStatus
-    - ColorLoopUpdateFlags
-    - LevelControlFeature
 
 # We need a more configurable way of deciding which clusters have which init functions....
 # See https://github.com/project-chip/connectedhomeip/issues/4369

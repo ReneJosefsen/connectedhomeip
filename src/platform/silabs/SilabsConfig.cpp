@@ -33,17 +33,18 @@
 #include "nvm3.h"
 #include "nvm3_default.h"
 #include "nvm3_hal_flash.h"
+#include <nvm3_lock.h>
 
+#ifndef BRD4325A // TODO: fix semaphore usage in nvm3_lock for siwx917. use weak implementation for that board instead
 // Substitute the GSDK weak nvm3_lockBegin and nvm3_lockEnd
 // for an application controlled re-entrance protection
-#define SILABS_SEM_TIMEOUT_ms 5
 static SemaphoreHandle_t nvm3_Sem;
 static StaticSemaphore_t nvm3_SemStruct;
 
 void nvm3_lockBegin(void)
 {
     VerifyOrDie(nvm3_Sem != NULL);
-    xSemaphoreTake(nvm3_Sem, SILABS_SEM_TIMEOUT_ms);
+    xSemaphoreTake(nvm3_Sem, portMAX_DELAY);
 }
 
 void nvm3_lockEnd(void)
@@ -51,6 +52,7 @@ void nvm3_lockEnd(void)
     VerifyOrDie(nvm3_Sem != NULL);
     xSemaphoreGive(nvm3_Sem);
 }
+#endif // not BRD4325A
 
 namespace chip {
 namespace DeviceLayer {
@@ -63,19 +65,23 @@ namespace Internal {
 
 CHIP_ERROR SilabsConfig::Init()
 {
+#ifndef BRD4325A // TODO: fix semaphore usage in nvm3_lock for siwx917. use weak implementation for that board instead
     nvm3_Sem = xSemaphoreCreateBinaryStatic(&nvm3_SemStruct);
 
     if (nvm3_Sem == NULL)
     {
         return CHIP_ERROR_NO_MEMORY;
     }
-
+    xSemaphoreGive(nvm3_Sem);
+#endif // not BRD4325A
     return MapNvm3Error(nvm3_open(nvm3_defaultHandle, nvm3_defaultInit));
 }
 
 void SilabsConfig::DeInit()
 {
+#ifndef BRD4325A // TODO: fix semaphore usage in nvm3_lock for siwx917. use weak implementation for that board instead
     vSemaphoreDelete(nvm3_Sem);
+#endif // not BRD4325A
     nvm3_close(nvm3_defaultHandle);
 }
 

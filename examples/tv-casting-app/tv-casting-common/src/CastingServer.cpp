@@ -145,13 +145,36 @@ CHIP_ERROR CastingServer::SendUserDirectedCommissioningRequest(chip::Transport::
     return Server::GetInstance().SendUserDirectedCommissioningRequest(commissioner);
 }
 
+chip::Inet::IPAddress * CastingServer::getIpAddressForUDCRequest(chip::Inet::IPAddress ipAddresses[], const size_t numIPs)
+{
+    size_t ipIndexToUse = 0;
+    for (size_t i = 0; i < numIPs; i++)
+    {
+        if (ipAddresses[i].IsIPv4())
+        {
+            ipIndexToUse = i;
+            ChipLogProgress(AppServer, "Found IPv4 address at index: %lu - prioritizing use of IPv4",
+                            static_cast<long>(ipIndexToUse));
+            break;
+        }
+
+        if (i == (numIPs - 1))
+        {
+            ChipLogProgress(AppServer, "Could not find an IPv4 address, defaulting to the first address in IP list");
+        }
+    }
+
+    return &ipAddresses[ipIndexToUse];
+}
+
 CHIP_ERROR CastingServer::SendUserDirectedCommissioningRequest(Dnssd::DiscoveredNodeData * selectedCommissioner)
 {
     mUdcInProgress = true;
     // Send User Directed commissioning request
+    chip::Inet::IPAddress * ipAddressToUse =
+        getIpAddressForUDCRequest(selectedCommissioner->resolutionData.ipAddress, selectedCommissioner->resolutionData.numIPs);
     ReturnErrorOnFailure(SendUserDirectedCommissioningRequest(chip::Transport::PeerAddress::UDP(
-        selectedCommissioner->resolutionData.ipAddress[0], selectedCommissioner->resolutionData.port,
-        selectedCommissioner->resolutionData.interfaceId)));
+        *ipAddressToUse, selectedCommissioner->resolutionData.port, selectedCommissioner->resolutionData.interfaceId)));
     mTargetVideoPlayerVendorId   = selectedCommissioner->commissionData.vendorId;
     mTargetVideoPlayerProductId  = selectedCommissioner->commissionData.productId;
     mTargetVideoPlayerDeviceType = selectedCommissioner->commissionData.deviceType;
@@ -162,6 +185,8 @@ CHIP_ERROR CastingServer::SendUserDirectedCommissioningRequest(Dnssd::Discovered
     }
     chip::Platform::CopyString(mTargetVideoPlayerDeviceName, chip::Dnssd::kMaxDeviceNameLen + 1,
                                selectedCommissioner->commissionData.deviceName);
+    chip::Platform::CopyString(mTargetVideoPlayerHostName, chip::Dnssd::kHostNameMaxLength + 1,
+                               selectedCommissioner->resolutionData.hostName);
     return CHIP_NO_ERROR;
 }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
@@ -293,11 +318,22 @@ TargetVideoPlayerInfo * CastingServer::ReadCachedTargetVideoPlayerInfos()
     return mCachedTargetVideoPlayerInfo;
 }
 
+void CastingServer::LogCachedVideoPlayers()
+{
+    ChipLogProgress(AppServer, "CastingServer:LogCachedVideoPlayers dumping any/all cached video players.");
+    for (size_t i = 0; i < kMaxCachedVideoPlayers && mCachedTargetVideoPlayerInfo[i].IsInitialized(); i++)
+    {
+        mCachedTargetVideoPlayerInfo[i].PrintInfo();
+    }
+}
+
 CHIP_ERROR CastingServer::VerifyOrEstablishConnection(TargetVideoPlayerInfo & targetVideoPlayerInfo,
                                                       std::function<void(TargetVideoPlayerInfo *)> onConnectionSuccess,
                                                       std::function<void(CHIP_ERROR)> onConnectionFailure,
                                                       std::function<void(TargetEndpointInfo *)> onNewOrUpdatedEndpoint)
 {
+    LogCachedVideoPlayers();
+
     if (!targetVideoPlayerInfo.IsInitialized())
     {
         return CHIP_ERROR_INVALID_ARGUMENT;
@@ -314,7 +350,8 @@ CHIP_ERROR CastingServer::VerifyOrEstablishConnection(TargetVideoPlayerInfo & ta
         prevDeviceProxy->Disconnect();
     }
 
-    return targetVideoPlayerInfo.FindOrEstablishCASESession(
+    CastingServer::GetInstance()->mActiveTargetVideoPlayerInfo = targetVideoPlayerInfo;
+    return CastingServer::GetInstance()->mActiveTargetVideoPlayerInfo.FindOrEstablishCASESession(
         [](TargetVideoPlayerInfo * videoPlayer) {
             ChipLogProgress(AppServer, "CastingServer::OnConnectionSuccess lambda called");
             CastingServer::GetInstance()->mActiveTargetVideoPlayerInfo = *videoPlayer;
@@ -323,7 +360,7 @@ CHIP_ERROR CastingServer::VerifyOrEstablishConnection(TargetVideoPlayerInfo & ta
         onConnectionFailure);
 }
 
-CHIP_ERROR CastingServer::PurgeVideoPlayerCache()
+CHIP_ERROR CastingServer::PurgeCache()
 {
     return mPersistenceManager.PurgeVideoPlayerCache();
 }
@@ -345,7 +382,8 @@ void CastingServer::DeviceEventCallback(const DeviceLayer::ChipDeviceEvent * eve
     if (event->Type == DeviceLayer::DeviceEventType::kBindingsChangedViaCluster)
     {
         ChipLogProgress(AppServer, "CastingServer::DeviceEventCallback kBindingsChangedViaCluster received");
-        if (CastingServer::GetInstance()->GetActiveTargetVideoPlayer()->IsInitialized())
+        if (CastingServer::GetInstance()->GetActiveTargetVideoPlayer()->IsInitialized() &&
+            CastingServer::GetInstance()->GetActiveTargetVideoPlayer()->GetOperationalDeviceProxy() != nullptr)
         {
             ChipLogProgress(AppServer,
                             "CastingServer::DeviceEventCallback already connected to video player, reading server clusters");
@@ -355,40 +393,40 @@ void CastingServer::DeviceEventCallback(const DeviceLayer::ChipDeviceEvent * eve
         else if (CastingServer::GetInstance()->mUdcInProgress)
         {
             ChipLogProgress(AppServer,
-                            "CastingServer::DeviceEventCallback UDC is in progress while handling kBindingsChangedViaCluster");
+                            "CastingServer::DeviceEventCallback UDC is in progress while handling kBindingsChangedViaCluster with "
+                            "fabricIndex: %d",
+                            event->BindingsChanged.fabricIndex);
             CastingServer::GetInstance()->mUdcInProgress = false;
-            if (CastingServer::GetInstance()->mTargetVideoPlayerNumIPs > 0)
+
+            // find targetPeerNodeId from binding table by matching the binding's fabricIndex with the accessing fabricIndex
+            // received in BindingsChanged event
+            for (const auto & binding : BindingTable::GetInstance())
             {
-                TargetVideoPlayerInfo * connectableVideoPlayerList =
-                    CastingServer::GetInstance()->ReadCachedTargetVideoPlayerInfos();
-                if (connectableVideoPlayerList == nullptr || !connectableVideoPlayerList[0].IsInitialized())
+                ChipLogProgress(
+                    AppServer,
+                    "CastingServer::DeviceEventCallback Read cached binding type=%d fabrixIndex=%d nodeId=0x" ChipLogFormatX64
+                    " groupId=%d local endpoint=%d remote endpoint=%d cluster=" ChipLogFormatMEI,
+                    binding.type, binding.fabricIndex, ChipLogValueX64(binding.nodeId), binding.groupId, binding.local,
+                    binding.remote, ChipLogValueMEI(binding.clusterId.ValueOr(0)));
+                if (binding.type == EMBER_UNICAST_BINDING && event->BindingsChanged.fabricIndex == binding.fabricIndex)
                 {
-                    ChipLogError(AppServer, "CastingServer::DeviceEventCallback No cached video players found");
-                    CastingServer::GetInstance()->mCommissioningCompleteCallback(CHIP_ERROR_INCORRECT_STATE);
-                    return;
+                    ChipLogProgress(
+                        NotSpecified,
+                        "CastingServer::DeviceEventCallback Matched accessingFabricIndex with nodeId=0x" ChipLogFormatX64,
+                        ChipLogValueX64(binding.nodeId));
+                    targetPeerNodeId     = binding.nodeId;
+                    targetFabricIndex    = binding.fabricIndex;
+                    runPostCommissioning = true;
+                    break;
                 }
+            }
 
-                for (size_t i = 0; i < kMaxCachedVideoPlayers && connectableVideoPlayerList[i].IsInitialized(); i++)
-                {
-                    if (connectableVideoPlayerList[i].IsSameAs(CastingServer::GetInstance()->mTargetVideoPlayerDeviceName,
-                                                               CastingServer::GetInstance()->mTargetVideoPlayerNumIPs,
-                                                               CastingServer::GetInstance()->mTargetVideoPlayerIpAddress))
-                    {
-                        ChipLogProgress(AppServer,
-                                        "CastingServer::DeviceEventCallback found the video player to initialize/connect to");
-                        targetPeerNodeId     = connectableVideoPlayerList[i].GetNodeId();
-                        targetFabricIndex    = connectableVideoPlayerList[i].GetFabricIndex();
-                        runPostCommissioning = true;
-                    }
-                }
-
-                if (targetPeerNodeId == 0 && runPostCommissioning == false)
-                {
-                    ChipLogError(AppServer,
-                                 "CastingServer::DeviceEventCallback did NOT find the video player to initialize/connect to");
-                    CastingServer::GetInstance()->mCommissioningCompleteCallback(CHIP_ERROR_INCORRECT_STATE);
-                    return;
-                }
+            if (targetPeerNodeId == 0 && runPostCommissioning == false)
+            {
+                ChipLogError(AppServer, "CastingServer::DeviceEventCallback accessingFabricIndex: %d did not match bindings",
+                             event->BindingsChanged.fabricIndex);
+                CastingServer::GetInstance()->mCommissioningCompleteCallback(CHIP_ERROR_INCORRECT_STATE);
+                return;
             }
         }
     }
@@ -411,7 +449,8 @@ void CastingServer::DeviceEventCallback(const DeviceLayer::ChipDeviceEvent * eve
             CastingServer::GetInstance()->mOnConnectionFailureClientCallback,
             CastingServer::GetInstance()->mTargetVideoPlayerVendorId, CastingServer::GetInstance()->mTargetVideoPlayerProductId,
             CastingServer::GetInstance()->mTargetVideoPlayerDeviceType, CastingServer::GetInstance()->mTargetVideoPlayerDeviceName,
-            CastingServer::GetInstance()->mTargetVideoPlayerNumIPs, CastingServer::GetInstance()->mTargetVideoPlayerIpAddress);
+            CastingServer::GetInstance()->mTargetVideoPlayerHostName, CastingServer::GetInstance()->mTargetVideoPlayerNumIPs,
+            CastingServer::GetInstance()->mTargetVideoPlayerIpAddress);
 
         if (err != CHIP_NO_ERROR)
         {
