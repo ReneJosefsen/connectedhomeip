@@ -128,6 +128,17 @@ struct ControllerInitParams
     //
     bool enableServerInteractions = false;
 
+    /**
+     * Controls whether shutdown of the controller removes the corresponding
+     * entry from the fabric table.  For now the removal is just from the
+     * in-memory table, not from storage, which means that after controller
+     * shutdown the storage and the in-memory fabric table will be out of sync.
+     * This is acceptable for implementations that don't actually store any of
+     * the fabric table information, but if someone wants a true removal at some
+     * point another option will need to be added here.
+     */
+    bool removeFromFabricTableOnShutdown = true;
+
     chip::VendorId controllerVendorId;
 };
 
@@ -330,6 +341,8 @@ protected:
 
     FabricIndex mFabricIndex = kUndefinedFabricIndex;
 
+    bool mRemoveFromFabricTableOnShutdown = true;
+
     // TODO(cecille): Make this configuarable.
     static constexpr int kMaxCommissionableNodes = 10;
     Dnssd::DiscoveredNodeData mCommissionableNodes[kMaxCommissionableNodes];
@@ -430,6 +443,7 @@ public:
      * @param[in] rendezvousParams      The Rendezvous connection parameters
      */
     CHIP_ERROR PairDevice(NodeId remoteDeviceId, RendezvousParameters & rendezvousParams);
+
     /**
      * @overload
      * @param[in] remoteDeviceId        The remote device Id.

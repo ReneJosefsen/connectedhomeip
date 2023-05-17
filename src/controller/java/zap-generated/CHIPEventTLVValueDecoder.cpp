@@ -1420,8 +1420,8 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
             else
             {
                 jobject value_nameInsideOptional;
-                value_nameInsideOptional =
-                    env->NewStringUTF(std::string(cppValue.name.Value().data(), cppValue.name.Value().size()).c_str());
+                LogErrorOnFailure(
+                    chip::JniReferences::GetInstance().CharToStringUTF(cppValue.name.Value(), value_nameInsideOptional));
                 chip::JniReferences::GetInstance().CreateOptional(value_nameInsideOptional, value_name);
             }
 
@@ -2191,8 +2191,148 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
         }
         break;
     }
+    case app::Clusters::IcdManagement::Id: {
+        using namespace app::Clusters::IcdManagement;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
     case app::Clusters::ModeSelect::Id: {
         using namespace app::Clusters::ModeSelect;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::AirQuality::Id: {
+        using namespace app::Clusters::AirQuality;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::HepaFilterMonitoring::Id: {
+        using namespace app::Clusters::HepaFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::ActivatedCarbonFilterMonitoring::Id: {
+        using namespace app::Clusters::ActivatedCarbonFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::CeramicFilterMonitoring::Id: {
+        using namespace app::Clusters::CeramicFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::ElectrostaticFilterMonitoring::Id: {
+        using namespace app::Clusters::ElectrostaticFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::UvFilterMonitoring::Id: {
+        using namespace app::Clusters::UvFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::IonizingFilterMonitoring::Id: {
+        using namespace app::Clusters::IonizingFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::ZeoliteFilterMonitoring::Id: {
+        using namespace app::Clusters::ZeoliteFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::OzoneFilterMonitoring::Id: {
+        using namespace app::Clusters::OzoneFilterMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::WaterTankMonitoring::Id: {
+        using namespace app::Clusters::WaterTankMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::FuelTankMonitoring::Id: {
+        using namespace app::Clusters::FuelTankMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::InkCartridgeMonitoring::Id: {
+        using namespace app::Clusters::InkCartridgeMonitoring;
+        switch (aPath.mEventId)
+        {
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::TonerCartridgeMonitoring::Id: {
+        using namespace app::Clusters::TonerCartridgeMonitoring;
         switch (aPath.mEventId)
         {
         default:
@@ -3436,16 +3576,6 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
         }
         break;
     }
-    case app::Clusters::ClientMonitoring::Id: {
-        using namespace app::Clusters::ClientMonitoring;
-        switch (aPath.mEventId)
-        {
-        default:
-            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
-            break;
-        }
-        break;
-    }
     case app::Clusters::UnitTesting::Id: {
         using namespace app::Clusters::UnitTesting;
         switch (aPath.mEventId)
@@ -3498,7 +3628,7 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
                                     reinterpret_cast<const jbyte *>(cppValue.arg4.d.data()));
             value_arg4_d = value_arg4_dByteArray;
             jobject value_arg4_e;
-            value_arg4_e = env->NewStringUTF(std::string(cppValue.arg4.e.data(), cppValue.arg4.e.size()).c_str());
+            LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF(cppValue.arg4.e, value_arg4_e));
             jobject value_arg4_f;
             std::string value_arg4_fClassName     = "java/lang/Integer";
             std::string value_arg4_fCtorSignature = "(I)V";
@@ -3566,7 +3696,7 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
                                         reinterpret_cast<const jbyte *>(entry_0.d.data()));
                 newElement_0_d = newElement_0_dByteArray;
                 jobject newElement_0_e;
-                newElement_0_e = env->NewStringUTF(std::string(entry_0.e.data(), entry_0.e.size()).c_str());
+                LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF(entry_0.e, newElement_0_e));
                 jobject newElement_0_f;
                 std::string newElement_0_fClassName     = "java/lang/Integer";
                 std::string newElement_0_fCtorSignature = "(I)V";

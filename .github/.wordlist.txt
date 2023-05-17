@@ -88,6 +88,7 @@ armv
 ASAN
 asdk
 AssertionError
+ASR
 AST
 ASYNC
 atomics
@@ -434,6 +435,7 @@ Dnsmasq
 dnsmasqd
 DNSSD
 DNSStubListener
+docbuild
 Dockerfile
 Dockerfiles
 Don'ts
@@ -605,6 +607,7 @@ GroupKeyManagement
 groupKeySecurityPolicy
 groupKeySetID
 groupsettings
+gsdk
 gtk
 GUA
 Gv
@@ -984,6 +987,7 @@ otatesting
 otaURL
 OTBR
 otcli
+outform
 outgoingCommands
 OxygenConcentrationMeasurement
 OzoneConcentrationMeasurement
@@ -1023,6 +1027,7 @@ Pigweed
 PinCode
 pinrequest
 pkgconfig
+PKI
 plaintext
 PlatformManager
 PlatformManagerImpl
@@ -1179,6 +1184,7 @@ sdkconfig
 SDKs
 SDKTARGETSYSROOT
 sdl
+SecureCertDACProvider
 SED
 SEGGER
 semver
@@ -1235,6 +1241,7 @@ softwareVersionStr
 SoftwareVersionString
 softwareVersionValid
 sphinxcontrib
+SparkFun
 SPI
 spiflash
 spinel

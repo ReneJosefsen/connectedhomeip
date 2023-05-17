@@ -37,7 +37,7 @@
 #endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 
-#include "EFR32DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -52,6 +52,8 @@
 #include <platform/ThreadStackManager.h>
 #include <platform/silabs/ThreadStackManagerImpl.h>
 #endif // CHIP_ENABLE_OPENTHREAD
+
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 
 #ifdef SL_WIFI
 #include "wfx_host_events.h"
@@ -73,14 +75,13 @@
 #define EXAMPLE_VENDOR_ID 0xcafe
 
 #if defined(ENABLE_WSTK_LEDS) && defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)
-#define SYSTEM_STATE_LED &sl_led_led0
+#define SYSTEM_STATE_LED 0
 #endif // ENABLE_WSTK_LEDS
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
-#define APP_FUNCTION_BUTTON &sl_button_btn0
-#endif
+#define APP_FUNCTION_BUTTON 0
 
 using namespace chip;
 using namespace ::chip::DeviceLayer;
+using namespace ::chip::DeviceLayer::Silabs;
 
 namespace {
 
@@ -173,12 +174,15 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     SILABS_LOG("APP: Wait WiFi Init");
     while (!wfx_hw_ready())
     {
-        vTaskDelay(10);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     SILABS_LOG("APP: Done WiFi Init");
     /* We will init server when we get IP */
 
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
     sWiFiNetworkCommissioningInstance.Init();
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
 #endif
 
     // Create FreeRTOS sw timer for Function Selection.
@@ -221,7 +225,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
     chip::MutableCharSpan QRCode(qrCodeBuffer);
 
-    if (EFR32::EFR32DeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
+    if (Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
     {
         // Print setup info on LCD if available
 #ifdef QR_CODE_ENABLED
@@ -394,7 +398,7 @@ void BaseApplication::LightEventHandler()
     sStatusLED.Animate();
 #endif // ENABLE_WSTK_LEDS
 }
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
+
 void BaseApplication::ButtonHandler(AppEvent * aEvent)
 {
     // To trigger software update: press the APP_FUNCTION_BUTTON button briefly (<
@@ -404,7 +408,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
     // FACTORY_RESET_TRIGGER_TIMEOUT to signal factory reset has been initiated.
     // To cancel factory reset: release the APP_FUNCTION_BUTTON once all LEDs
     // start blinking within the FACTORY_RESET_CANCEL_WINDOW_TIMEOUT
-    if (aEvent->ButtonEvent.Action == SL_SIMPLE_BUTTON_PRESSED)
+    if (aEvent->ButtonEvent.Action == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
         if (!mFunctionTimerActive && mFunction == kFunction_NoneSelected)
         {
@@ -441,10 +445,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
                     SILABS_LOG("Failed to open the Basic Commissioning Window");
                 }
             }
-            else
-            {
-                SILABS_LOG("Network is already provisioned, Ble advertissement not enabled");
-            }
+            else { SILABS_LOG("Network is already provisioned, Ble advertissement not enabled"); }
         }
         else if (mFunctionTimerActive && mFunction == kFunction_FactoryReset)
         {
@@ -461,7 +462,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
         }
     }
 }
-#endif
+
 void BaseApplication::CancelFunctionTimer()
 {
     if (xTimerStop(sFunctionTimer, pdMS_TO_TICKS(0)) == pdFAIL)

@@ -30,9 +30,6 @@
 #include "BaseApplication.h"
 #include "FreeRTOS.h"
 #include "LightingManager.h"
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
-#include "sl_simple_button_instances.h"
-#endif
 #include "timers.h" // provides FreeRTOS timer support
 #include <app/clusters/identify-server/identify-server.h>
 #include <ble/BLEEndPoint.h>
@@ -71,7 +68,7 @@ public:
     static void AppTaskMain(void * pvParameter);
 
     CHIP_ERROR StartAppTask();
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
+
     /**
      * @brief Event handler when a button is pressed
      * Function posts an event for button processing
@@ -80,8 +77,8 @@ public:
      * @param btnAction button action - SL_SIMPLE_BUTTON_PRESSED,
      *                  SL_SIMPLE_BUTTON_RELEASED or SL_SIMPLE_BUTTON_DISABLED
      */
-    void ButtonEventHandler(const sl_button_t * buttonHandle, uint8_t btnAction) override;
-#endif
+    static void ButtonEventHandler(uint8_t button, uint8_t btnAction);
+
     /**
      * @brief Callback called by the identify-server when an identify command is received
      *

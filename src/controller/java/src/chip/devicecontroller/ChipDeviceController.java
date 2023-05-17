@@ -175,6 +175,35 @@ public class ChipDeviceController {
         deviceControllerPtr, deviceId, address, port, discriminator, pinCode, csrNonce);
   }
 
+  /**
+   * Pair a device connected using the scanned QR code or manual entry code.
+   *
+   * @param deviceId the node ID to assign to the device
+   * @param setupCode the scanned QR code or manual entry code
+   * @param discoverOnce the flag to enable/disable PASE auto retry mechanism
+   * @param useOnlyOnNetworkDiscovery the flag to indicate the commissionable device is available on
+   *     the network
+   * @param csrNonce the 32-byte CSR nonce to use, or null if we want to use an internally randomly
+   *     generated CSR nonce.
+   * @param networkCredentials the credentials (Wi-Fi or Thread) to be provisioned
+   */
+  public void pairDeviceWithCode(
+      long deviceId,
+      String setupCode,
+      boolean discoverOnce,
+      boolean useOnlyOnNetworkDiscovery,
+      @Nullable byte[] csrNonce,
+      @Nullable NetworkCredentials networkCredentials) {
+    pairDeviceWithCode(
+        deviceControllerPtr,
+        deviceId,
+        setupCode,
+        discoverOnce,
+        useOnlyOnNetworkDiscovery,
+        csrNonce,
+        networkCredentials);
+  }
+
   public void establishPaseConnection(long deviceId, int connId, long setupPincode) {
     if (connectionId == 0) {
       connectionId = connId;
@@ -578,7 +607,8 @@ public class ChipDeviceController {
         maxInterval,
         false,
         false,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
   }
 
   /**
@@ -616,7 +646,33 @@ public class ChipDeviceController {
         maxInterval,
         false,
         false,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
+  }
+
+  public void subscribeToEventPath(
+      SubscriptionEstablishedCallback subscriptionEstablishedCallback,
+      ReportCallback reportCallback,
+      long devicePtr,
+      List<ChipEventPath> eventPaths,
+      int minInterval,
+      int maxInterval,
+      int imTimeoutMs,
+      @Nullable Long eventMin) {
+    ReportCallbackJni jniCallback =
+        new ReportCallbackJni(subscriptionEstablishedCallback, reportCallback, null);
+    subscribe(
+        deviceControllerPtr,
+        jniCallback.getCallbackHandle(),
+        devicePtr,
+        null,
+        eventPaths,
+        minInterval,
+        maxInterval,
+        false,
+        false,
+        imTimeoutMs,
+        eventMin);
   }
 
   /**
@@ -664,7 +720,39 @@ public class ChipDeviceController {
         maxInterval,
         keepSubscriptions,
         isFabricFiltered,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
+  }
+
+  public void subscribeToPath(
+      SubscriptionEstablishedCallback subscriptionEstablishedCallback,
+      ResubscriptionAttemptCallback resubscriptionAttemptCallback,
+      ReportCallback reportCallback,
+      long devicePtr,
+      List<ChipAttributePath> attributePaths,
+      List<ChipEventPath> eventPaths,
+      int minInterval,
+      int maxInterval,
+      boolean keepSubscriptions,
+      boolean isFabricFiltered,
+      int imTimeoutMs,
+      @Nullable Long eventMin) {
+    // TODO: pass resubscriptionAttemptCallback to ReportCallbackJni since jni layer is not ready
+    // for auto-resubscribe
+    ReportCallbackJni jniCallback =
+        new ReportCallbackJni(subscriptionEstablishedCallback, reportCallback, null);
+    subscribe(
+        deviceControllerPtr,
+        jniCallback.getCallbackHandle(),
+        devicePtr,
+        attributePaths,
+        eventPaths,
+        minInterval,
+        maxInterval,
+        keepSubscriptions,
+        isFabricFiltered,
+        imTimeoutMs,
+        eventMin);
   }
 
   /**
@@ -689,7 +777,8 @@ public class ChipDeviceController {
         attributePaths,
         null,
         true,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
   }
 
   /**
@@ -711,7 +800,27 @@ public class ChipDeviceController {
         null,
         eventPaths,
         true,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
+  }
+
+  /** Read the given event path. */
+  public void readEventPath(
+      ReportCallback callback,
+      long devicePtr,
+      List<ChipEventPath> eventPaths,
+      int imTimeoutMs,
+      @Nullable Long eventMin) {
+    ReportCallbackJni jniCallback = new ReportCallbackJni(null, callback, null);
+    read(
+        deviceControllerPtr,
+        jniCallback.getCallbackHandle(),
+        devicePtr,
+        null,
+        eventPaths,
+        true,
+        imTimeoutMs,
+        eventMin);
   }
 
   /**
@@ -739,7 +848,29 @@ public class ChipDeviceController {
         attributePaths,
         eventPaths,
         isFabricFiltered,
-        imTimeoutMs);
+        imTimeoutMs,
+        null);
+  }
+
+  /** Read the given attribute/event path with isFabricFiltered flag. */
+  public void readPath(
+      ReportCallback callback,
+      long devicePtr,
+      List<ChipAttributePath> attributePaths,
+      List<ChipEventPath> eventPaths,
+      boolean isFabricFiltered,
+      int imTimeoutMs,
+      @Nullable Long eventMin) {
+    ReportCallbackJni jniCallback = new ReportCallbackJni(null, callback, null);
+    read(
+        deviceControllerPtr,
+        jniCallback.getCallbackHandle(),
+        devicePtr,
+        attributePaths,
+        eventPaths,
+        isFabricFiltered,
+        imTimeoutMs,
+        eventMin);
   }
 
   /**
@@ -840,7 +971,8 @@ public class ChipDeviceController {
       int maxInterval,
       boolean keepSubscriptions,
       boolean isFabricFiltered,
-      int imTimeoutMs);
+      int imTimeoutMs,
+      @Nullable Long eventMin);
 
   private native void read(
       long deviceControllerPtr,
@@ -849,7 +981,8 @@ public class ChipDeviceController {
       List<ChipAttributePath> attributePaths,
       List<ChipEventPath> eventPaths,
       boolean isFabricFiltered,
-      int imTimeoutMs);
+      int imTimeoutMs,
+      @Nullable Long eventMin);
 
   private native void write(
       long deviceControllerPtr,
@@ -891,6 +1024,15 @@ public class ChipDeviceController {
       int discriminator,
       long pinCode,
       @Nullable byte[] csrNonce);
+
+  private native void pairDeviceWithCode(
+      long deviceControllerPtr,
+      long deviceId,
+      String setupCode,
+      boolean discoverOnce,
+      boolean useOnlyOnNetworkDiscovery,
+      @Nullable byte[] csrNonce,
+      @Nullable NetworkCredentials networkCredentials);
 
   private native void establishPaseConnection(
       long deviceControllerPtr, long deviceId, int connId, long setupPincode);

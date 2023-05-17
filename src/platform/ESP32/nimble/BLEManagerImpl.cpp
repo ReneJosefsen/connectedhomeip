@@ -683,7 +683,7 @@ CHIP_ERROR BLEManagerImpl::MapBLEError(int bleErr)
     case ESP_OK:
         return CHIP_NO_ERROR;
     case BLE_HS_EMSGSIZE:
-        return CHIP_ERROR_INVALID_MESSAGE_LENGTH;
+        return CHIP_ERROR_BUFFER_TOO_SMALL;
     case BLE_HS_ENOMEM:
     case ESP_ERR_NO_MEM:
         return CHIP_ERROR_NO_MEMORY;
@@ -692,7 +692,7 @@ CHIP_ERROR BLEManagerImpl::MapBLEError(int bleErr)
     case BLE_HS_ENOTSUP:
         return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
     case BLE_HS_EAPP:
-        return CHIP_ERROR_READ_FAILED;
+        return CHIP_ERROR_INCORRECT_STATE;
     case BLE_HS_EBADDATA:
         return CHIP_ERROR_DATA_NOT_ALIGNED;
     case BLE_HS_ETIMEOUT:
@@ -1653,6 +1653,7 @@ void BLEManagerImpl::OnDeviceScanned(const struct ble_hs_adv_fields & fields, co
     {
         if (!mBLEScanConfig.mDiscriminator.MatchesLongDiscriminator(info.GetDeviceDiscriminator()))
         {
+            printf("Discriminator didi not match \n");
             return;
         }
         ChipLogProgress(Ble, "Device Discriminator match. Attempting to connect");
@@ -1667,7 +1668,10 @@ void BLEManagerImpl::OnDeviceScanned(const struct ble_hs_adv_fields & fields, co
     }
 
     mBLEScanConfig.mBleScanState = BleScanState::kConnecting;
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
     DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds16(kConnectTimeout), HandleConnectTimeout, nullptr);
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
     mDeviceScanner.StopScan();
 
     ConnectDevice(addr, kConnectTimeout);

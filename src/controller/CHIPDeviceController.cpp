@@ -143,6 +143,8 @@ CHIP_ERROR DeviceController::Init(ControllerInitParams params)
     mSystemState = params.systemState->Retain();
     mState       = State::Initialized;
 
+    mRemoveFromFabricTableOnShutdown = params.removeFromFabricTableOnShutdown;
+
     if (GetFabricIndex() != kUndefinedFabricIndex)
     {
         ChipLogProgress(Controller,
@@ -348,10 +350,13 @@ void DeviceController::Shutdown()
         // existing sessions too?
         mSystemState->SessionMgr()->ExpireAllSessionsForFabric(mFabricIndex);
 
-        FabricTable * fabricTable = mSystemState->Fabrics();
-        if (fabricTable != nullptr)
+        if (mRemoveFromFabricTableOnShutdown)
         {
-            fabricTable->Forget(mFabricIndex);
+            FabricTable * fabricTable = mSystemState->Fabrics();
+            if (fabricTable != nullptr)
+            {
+                fabricTable->Forget(mFabricIndex);
+            }
         }
     }
 
@@ -585,6 +590,7 @@ CHIP_ERROR DeviceCommissioner::PairDevice(NodeId remoteDeviceId, const char * se
                                           DiscoveryType discoveryType)
 {
     MATTER_TRACE_EVENT_SCOPE("PairDevice", "DeviceCommissioner");
+
     if (mDefaultCommissioner == nullptr)
     {
         ChipLogError(Controller, "No default commissioner is specified");
@@ -787,6 +793,13 @@ void DeviceCommissioner::OnDiscoveredDeviceOverBleError(void * appState, CHIP_ER
     {
         self->ReleaseCommissioneeDevice(device);
         self->mRendezvousParametersForDeviceDiscoveredOverBle = RendezvousParameters();
+
+        // Callback is required when BLE discovery fails, otherwise the caller will always be in a suspended state
+        // A better way to handle it should define a new error code
+        if (self->mPairingDelegate != nullptr)
+        {
+            self->mPairingDelegate->OnPairingComplete(err);
+        }
     }
 }
 #endif // CONFIG_NETWORK_LAYER_BLE

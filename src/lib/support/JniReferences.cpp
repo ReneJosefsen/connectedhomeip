@@ -290,7 +290,7 @@ CHIP_ERROR JniReferences::CallSubscriptionEstablished(jobject javaCallback, long
                                                         &subscriptionEstablishedMethod);
     VerifyOrReturnError(err == CHIP_NO_ERROR, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
 
-    env->CallVoidMethod(javaCallback, subscriptionEstablishedMethod, subscriptionId);
+    env->CallVoidMethod(javaCallback, subscriptionEstablishedMethod, static_cast<jlong>(subscriptionId));
     VerifyOrReturnError(!env->ExceptionCheck(), CHIP_JNI_ERROR_EXCEPTION_THROWN);
 
     return err;
@@ -386,6 +386,36 @@ CHIP_ERROR JniReferences::GetObjectField(jobject objectToRead, const char * name
 
     outObject = env->GetObjectField(objectToRead, field);
     return err;
+}
+
+CHIP_ERROR JniReferences::CharToStringUTF(const chip::CharSpan & charSpan, jobject & outStr)
+{
+    JNIEnv * env        = GetEnvForCurrentThread();
+    jobject jbyteBuffer = env->NewDirectByteBuffer((void *) charSpan.data(), static_cast<jlong>(charSpan.size()));
+
+    jclass charSetClass = env->FindClass("java/nio/charset/Charset");
+    jmethodID charsetForNameMethod =
+        env->GetStaticMethodID(charSetClass, "forName", "(Ljava/lang/String;)Ljava/nio/charset/Charset;");
+    jobject charsetObject = env->CallStaticObjectMethod(charSetClass, charsetForNameMethod, env->NewStringUTF("UTF-8"));
+
+    jclass charSetDocoderClass = env->FindClass("java/nio/charset/CharsetDecoder");
+    jmethodID newDocoderMethod = env->GetMethodID(charSetClass, "newDecoder", "()Ljava/nio/charset/CharsetDecoder;");
+    jobject decoderObject      = env->CallObjectMethod(charsetObject, newDocoderMethod);
+
+    jmethodID charSetDecodeMethod = env->GetMethodID(charSetDocoderClass, "decode", "(Ljava/nio/ByteBuffer;)Ljava/nio/CharBuffer;");
+    jobject decodeObject          = env->CallObjectMethod(decoderObject, charSetDecodeMethod, jbyteBuffer);
+    env->DeleteLocalRef(jbyteBuffer);
+
+    // If decode exception occur, outStr will be set null.
+    outStr = nullptr;
+
+    VerifyOrReturnError(!env->ExceptionCheck(), CHIP_JNI_ERROR_EXCEPTION_THROWN);
+
+    jclass charBufferClass       = env->FindClass("java/nio/CharBuffer");
+    jmethodID charBufferToString = env->GetMethodID(charBufferClass, "toString", "()Ljava/lang/String;");
+    outStr                       = static_cast<jstring>(env->CallObjectMethod(decodeObject, charBufferToString));
+
+    return CHIP_NO_ERROR;
 }
 
 } // namespace chip

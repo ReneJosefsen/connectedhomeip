@@ -19,13 +19,10 @@
 
 #pragma once
 
+#include "silabs_utils.h"
+
 // ---- Window Example App Config ----
 #define APP_TASK_NAME "APP"
-
-// EFR Logging
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define LCD_SIZE 128
 #define LCD_MARGIN_SIZE 1
@@ -35,7 +32,7 @@ extern "C" {
 #define LIFT_OPEN_LIMIT 0
 #define LIFT_CLOSED_LIMIT (LCD_COVER_SIZE - 1)
 #define LIFT_DELTA 1000 // 10%
-#define TILT_OPEN_LIMIT 1
+#define TILT_OPEN_LIMIT 0
 #define TILT_CLOSED_LIMIT (LCD_COVER_SIZE / 10 - 1)
 #define TILT_DELTA 1000 // 10%
 
@@ -55,16 +52,4 @@ extern "C" {
 
 #ifndef COVER_LIFT_TILT_TIMEOUT
 #define COVER_LIFT_TILT_TIMEOUT 500
-#endif
-
-void silabsInitLog(void);
-
-void efr32Log(const char * aFormat, ...);
-#define SILABS_LOG(...) efr32Log(__VA_ARGS__);
-
-#ifdef __cplusplus
-}
-
-#include <lib/core/CHIPError.h>
-void appError(CHIP_ERROR error);
 #endif

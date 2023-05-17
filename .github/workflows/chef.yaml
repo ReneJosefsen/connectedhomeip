@@ -23,6 +23,11 @@ concurrency:
     group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
     cancel-in-progress: true
 
+env:
+    CHIP_NO_LOG_TIMESTAMPS: true
+    # XXX: Workaround for https://github.com/actions/cache/issues/1141
+    SEGMENT_DOWNLOAD_TIMEOUT_MINS: 3
+
 jobs:
     chef_linux:
         name: Chef - Linux CI Examples
@@ -30,7 +35,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build:0.6.47
+            image: connectedhomeip/chip-build:0.7.3
             options: --user root
 
         steps:
@@ -43,7 +48,7 @@ jobs:
                   attempt_limit: 3
                   attempt_delay: 2000
             - name: Checkout submodules
-              run: scripts/checkout_submodules.py --shallow --platform linux
+              run: scripts/checkout_submodules.py --allow-changing-global-git-config --shallow --platform linux
             - name: Bootstrap cache
               uses: actions/cache@v3
               timeout-minutes: 10
@@ -54,7 +59,7 @@ jobs:
                       build_overrides/pigweed_environment.gni
             - name: Bootstrap
               timeout-minutes: 10
-              run: scripts/build/gn_bootstrap.sh
+              run: bash scripts/bootstrap.sh
             - name: CI Examples Linux
               shell: bash
               run: |
@@ -66,7 +71,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build-esp32:0.6.47
+            image: connectedhomeip/chip-build-esp32:0.7.3
             options: --user root
 
         steps:
@@ -79,7 +84,7 @@ jobs:
                   attempt_limit: 3
                   attempt_delay: 2000
             - name: Checkout submodules
-              run: scripts/checkout_submodules.py --shallow --platform esp32
+              run: scripts/checkout_submodules.py --allow-changing-global-git-config --shallow --platform esp32
             - name: Bootstrap cache
               uses: actions/cache@v3
               timeout-minutes: 10
@@ -90,7 +95,7 @@ jobs:
                       build_overrides/pigweed_environment.gni
             - name: Bootstrap
               timeout-minutes: 10
-              run: scripts/build/gn_bootstrap.sh
+              run: bash scripts/bootstrap.sh
             - name: CI Examples ESP32
               shell: bash
               run: |
@@ -102,7 +107,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build-nrf-platform:0.6.47
+            image: connectedhomeip/chip-build-nrf-platform:0.7.3
             options: --user root
 
         steps:
@@ -115,7 +120,7 @@ jobs:
                   attempt_limit: 3
                   attempt_delay: 2000
             - name: Checkout submodules
-              run: scripts/checkout_submodules.py --shallow --platform nrfconnect
+              run: scripts/checkout_submodules.py --allow-changing-global-git-config --shallow --platform nrfconnect
             - name: Bootstrap cache
               uses: actions/cache@v3
               timeout-minutes: 10
@@ -126,7 +131,7 @@ jobs:
                       build_overrides/pigweed_environment.gni
             - name: Bootstrap
               timeout-minutes: 10
-              run: scripts/build/gn_bootstrap.sh
+              run: bash scripts/bootstrap.sh
             - name: CI Examples NRFConnect
               shell: bash
               run: |

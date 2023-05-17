@@ -44,8 +44,24 @@ NS_ASSUME_NONNULL_BEGIN
  * If fabricID is not nil, it will be included in the subject DN of the
  * certificate.  In this case it must be a valid Matter fabric id.
  *
+ * validityPeriod specifies when the certificate will be valid. Note that
+ * there is currently no mechanism available in Matter to update or rotate
+ * the root certificate of a fabric installed on a device. A certificate with
+ * no expiration time can be created by specifying [NSDate distantFuture] for
+ * the end of the period.
+ *
  * On failure returns nil and if "error" is not null sets *error to the relevant
  * error.
+ */
++ (MTRCertificateDERBytes _Nullable)createRootCertificate:(id<MTRKeypair>)keypair
+                                                 issuerID:(NSNumber * _Nullable)issuerID
+                                                 fabricID:(NSNumber * _Nullable)fabricID
+                                           validityPeriod:(NSDateInterval *)validityPeriod
+                                                    error:(NSError * __autoreleasing _Nullable * _Nullable)error
+    MTR_NEWLY_AVAILABLE;
+
+/**
+ * As above, but defaults to no expiration time.
  */
 + (MTRCertificateDERBytes _Nullable)createRootCertificate:(id<MTRKeypair>)keypair
                                                  issuerID:(NSNumber * _Nullable)issuerID
@@ -66,8 +82,24 @@ NS_ASSUME_NONNULL_BEGIN
  * If fabricID is not nil, it will be included in the subject DN of the
  * certificate.  In this case it must be a valid Matter fabric id.
  *
+ * validityPeriod specifies when the certificate will be valid. A certificate
+ * with no expiration time can be created by specifying [NSDate distantFuture]
+ * for the end of the period.
+ *
  * On failure returns nil and if "error" is not null sets *error to the relevant
  * error.
+ */
++ (MTRCertificateDERBytes _Nullable)createIntermediateCertificate:(id<MTRKeypair>)rootKeypair
+                                                  rootCertificate:(MTRCertificateDERBytes)rootCertificate
+                                            intermediatePublicKey:(SecKeyRef)intermediatePublicKey
+                                                         issuerID:(NSNumber * _Nullable)issuerID
+                                                         fabricID:(NSNumber * _Nullable)fabricID
+                                                   validityPeriod:(NSDateInterval *)validityPeriod
+                                                            error:(NSError * __autoreleasing _Nullable * _Nullable)error
+    MTR_NEWLY_AVAILABLE;
+
+/**
+ * As above, but defaults to no expiration time.
  */
 + (MTRCertificateDERBytes _Nullable)createIntermediateCertificate:(id<MTRKeypair>)rootKeypair
                                                   rootCertificate:(MTRCertificateDERBytes)rootCertificate
@@ -91,12 +123,29 @@ NS_ASSUME_NONNULL_BEGIN
  * fabricID must be a valid Matter fabric id.
  *
  * caseAuthenticatedTags may be nil to indicate no CASE Authenticated Tags
- * should be used.  If caseAuthenticatedTags is not nil, it must have length at
- * most 3 and the values in the array are expected to be 32-bit unsigned Case
- * Authenticated Tag values.
+ * should be used.  If caseAuthenticatedTags is not nil, it must contain at most
+ * 3 numbers, which are expected to be 32-bit unsigned Case Authenticated Tag
+ * values.
+ *
+ * validityPeriod specifies when the certificate will be valid. A certificate
+ * with no expiration time can be created by specifying [NSDate distantFuture]
+ * for the end of the period.
  *
  * On failure returns nil and if "error" is not null sets *error to the relevant
  * error.
+ */
++ (MTRCertificateDERBytes _Nullable)createOperationalCertificate:(id<MTRKeypair>)signingKeypair
+                                              signingCertificate:(MTRCertificateDERBytes)signingCertificate
+                                            operationalPublicKey:(SecKeyRef)operationalPublicKey
+                                                        fabricID:(NSNumber *)fabricID
+                                                          nodeID:(NSNumber *)nodeID
+                                           caseAuthenticatedTags:(NSSet<NSNumber *> * _Nullable)caseAuthenticatedTags
+                                                  validityPeriod:(NSDateInterval *)validityPeriod
+                                                           error:(NSError * __autoreleasing _Nullable * _Nullable)error
+    MTR_NEWLY_AVAILABLE;
+
+/**
+ * As above, but defaults to no expiration time.
  */
 + (MTRCertificateDERBytes _Nullable)createOperationalCertificate:(id<MTRKeypair>)signingKeypair
                                               signingCertificate:(MTRCertificateDERBytes)signingCertificate

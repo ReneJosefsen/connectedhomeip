@@ -133,7 +133,11 @@ def _GetInDevelopmentTests() -> Set[str]:
        Currently this is empty and returns an empty set, but this is kept around in case
        there are tests that are a work in progress.
     """
-    return set()
+    return {
+        "Test_AddNewFabricFromExistingFabric.yaml",     # chip-repl does not support GetCommissionerRootCertificate and IssueNocChain command
+        "TestEqualities.yaml",              # chip-repl does not support pseudo-cluster commands that return a value
+        "TestClientMonitoringCluster.yaml"  # Client Monitoring Tests need a rework after the XML update
+    }
 
 
 def _AllYamlTests():

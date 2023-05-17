@@ -24,9 +24,7 @@
 #include "EventHandlerLibShell.h"
 #endif // ENABLE_CHIP_SHELL
 
-#ifdef ENABLE_WSTK_LEDS
 #include "LEDWidget.h"
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
@@ -51,11 +49,11 @@
 
 #include <lib/support/CodeUtils.h>
 
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
+
 #include <platform/CHIPDeviceLayer.h>
 
-#ifdef ENABLE_WSTK_LEDS
 #define LOCK_STATE_LED 1
-#endif // ENABLE_WSTK_LEDS
 
 using chip::app::Clusters::DoorLock::DlLockState;
 using chip::app::Clusters::DoorLock::OperationErrorEnum;
@@ -63,13 +61,12 @@ using chip::app::Clusters::DoorLock::OperationSourceEnum;
 
 using namespace chip;
 using namespace ::chip::DeviceLayer;
+using namespace ::chip::DeviceLayer::Silabs;
 using namespace ::chip::DeviceLayer::Internal;
 using namespace SI917DoorLock::LockInitParams;
 
 namespace {
-#ifdef ENABLE_WSTK_LEDS
 LEDWidget sLockLED;
-#endif // ENABLE_WSTK_LEDS
 
 EmberAfIdentifyEffectIdentifier sIdentifyEffect = EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT;
 } // namespace
@@ -143,6 +140,8 @@ AppTask AppTask::sAppTask;
 CHIP_ERROR AppTask::Init()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+
+    chip::DeviceLayer::Silabs::GetPlatform().SetButtonsCb(AppTask::ButtonEventHandler);
 
 #ifdef DISPLAY_ENABLED
     GetLCD().Init((uint8_t *) "Lock-App", true);
@@ -238,11 +237,8 @@ CHIP_ERROR AppTask::Init()
 
     LockMgr().SetCallbacks(ActionInitiated, ActionCompleted);
 
-#ifdef ENABLE_WSTK_LEDS
-    // Initialize LEDs
     sLockLED.Init(LOCK_STATE_LED);
     sLockLED.Set(state.Value() == DlLockState::kUnlocked);
-#endif // ENABLE_WSTK_LEDS
 
     chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
 
@@ -353,12 +349,12 @@ void AppTask::ButtonEventHandler(uint8_t button, uint8_t btnAction)
     button_event.Type               = AppEvent::kEventType_Button;
     button_event.ButtonEvent.Action = btnAction;
 
-    if (button == SIWx917_BTN1 && btnAction == SL_SIMPLE_BUTTON_PRESSED)
+    if (button == SIWx917_BTN1 && btnAction == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
         button_event.Handler = LockActionEventHandler;
         sAppTask.PostEvent(&button_event);
     }
-    else if (button == SIWx917_BTN0)
+    else if (button == SIWx917_BTN0 && btnAction == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
         button_event.Handler = BaseApplication::ButtonHandler;
         sAppTask.PostEvent(&button_event);
@@ -371,9 +367,7 @@ void AppTask::ActionInitiated(LockManager::Action_t aAction, int32_t aActor)
     {
         bool locked = (aAction == LockManager::LOCK_ACTION);
         SILABS_LOG("%s Action has been initiated", (locked) ? "Lock" : "Unlock");
-#ifdef ENABLE_WSTK_LEDS
         sLockLED.Set(!locked);
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef DISPLAY_ENABLED
         sAppTask.GetLCD().WriteDemoUI(locked);

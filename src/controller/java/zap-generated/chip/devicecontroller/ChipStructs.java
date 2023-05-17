@@ -350,6 +350,31 @@ public class ChipStructs {
     }
   }
 
+  public static class BasicInformationClusterProductAppearanceStruct {
+    public Integer finish;
+    public @Nullable Integer primaryColor;
+
+    public BasicInformationClusterProductAppearanceStruct(
+        Integer finish, @Nullable Integer primaryColor) {
+      this.finish = finish;
+      this.primaryColor = primaryColor;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder output = new StringBuilder();
+      output.append("BasicInformationClusterProductAppearanceStruct {\n");
+      output.append("\tfinish: ");
+      output.append(finish);
+      output.append("\n");
+      output.append("\tprimaryColor: ");
+      output.append(primaryColor);
+      output.append("\n");
+      output.append("}\n");
+      return output.toString();
+    }
+  }
+
   public static class OtaSoftwareUpdateRequestorClusterProviderLocation {
     public Long providerNodeID;
     public Integer endpoint;
@@ -1004,6 +1029,31 @@ public class ChipStructs {
     }
   }
 
+  public static class BridgedDeviceBasicInformationClusterProductAppearanceStruct {
+    public Integer finish;
+    public @Nullable Integer primaryColor;
+
+    public BridgedDeviceBasicInformationClusterProductAppearanceStruct(
+        Integer finish, @Nullable Integer primaryColor) {
+      this.finish = finish;
+      this.primaryColor = primaryColor;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder output = new StringBuilder();
+      output.append("BridgedDeviceBasicInformationClusterProductAppearanceStruct {\n");
+      output.append("\tfinish: ");
+      output.append(finish);
+      output.append("\n");
+      output.append("\tprimaryColor: ");
+      output.append(primaryColor);
+      output.append("\n");
+      output.append("}\n");
+      return output.toString();
+    }
+  }
+
   public static class OperationalCredentialsClusterFabricDescriptorStruct {
     public byte[] rootPublicKey;
     public Integer vendorID;
@@ -1256,6 +1306,41 @@ public class ChipStructs {
       output.append("\n");
       output.append("\tvalue: ");
       output.append(value);
+      output.append("\n");
+      output.append("}\n");
+      return output.toString();
+    }
+  }
+
+  public static class IcdManagementClusterMonitoringRegistrationStruct {
+    public Long checkInNodeID;
+    public Long monitoredSubject;
+    public byte[] key;
+    public Integer fabricIndex;
+
+    public IcdManagementClusterMonitoringRegistrationStruct(
+        Long checkInNodeID, Long monitoredSubject, byte[] key, Integer fabricIndex) {
+      this.checkInNodeID = checkInNodeID;
+      this.monitoredSubject = monitoredSubject;
+      this.key = key;
+      this.fabricIndex = fabricIndex;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder output = new StringBuilder();
+      output.append("IcdManagementClusterMonitoringRegistrationStruct {\n");
+      output.append("\tcheckInNodeID: ");
+      output.append(checkInNodeID);
+      output.append("\n");
+      output.append("\tmonitoredSubject: ");
+      output.append(monitoredSubject);
+      output.append("\n");
+      output.append("\tkey: ");
+      output.append(Arrays.toString(key));
+      output.append("\n");
+      output.append("\tfabricIndex: ");
+      output.append(fabricIndex);
       output.append("\n");
       output.append("}\n");
       return output.toString();
@@ -1824,36 +1909,6 @@ public class ChipStructs {
       output.append("\n");
       output.append("\tapplicationID: ");
       output.append(applicationID);
-      output.append("\n");
-      output.append("}\n");
-      return output.toString();
-    }
-  }
-
-  public static class ClientMonitoringClusterMonitoringRegistration {
-    public Long clientNodeId;
-    public Long ICid;
-    public Integer fabricIndex;
-
-    public ClientMonitoringClusterMonitoringRegistration(
-        Long clientNodeId, Long ICid, Integer fabricIndex) {
-      this.clientNodeId = clientNodeId;
-      this.ICid = ICid;
-      this.fabricIndex = fabricIndex;
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder output = new StringBuilder();
-      output.append("ClientMonitoringClusterMonitoringRegistration {\n");
-      output.append("\tclientNodeId: ");
-      output.append(clientNodeId);
-      output.append("\n");
-      output.append("\tICid: ");
-      output.append(ICid);
-      output.append("\n");
-      output.append("\tfabricIndex: ");
-      output.append(fabricIndex);
       output.append("\n");
       output.append("}\n");
       return output.toString();

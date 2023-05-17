@@ -49,9 +49,6 @@
 
 #include <array>
 
-// Includes for ieee802154 switchings
-#include <drivers/ieee802154/b91.h>
-
 using namespace ::chip;
 using namespace ::chip::Ble;
 using namespace ::chip::System;
@@ -148,14 +145,10 @@ CHIP_ERROR InitRandomStaticAddress()
 
 BLEManagerImpl BLEManagerImpl::sInstance;
 
-bool ThreadConnectivityReady;
-bool BLERadioInitialized;
-
 CHIP_ERROR BLEManagerImpl::_Init(void)
 {
-    ThreadConnectivityReady = false;
-    BLERadioInitialized     = false;
-    mconId                  = NULL;
+    mBLERadioInitialized = false;
+    mconId               = NULL;
 
     mServiceMode = ConnectivityManager::kCHIPoBLEServiceMode_Enabled;
     mFlags.ClearAll().Set(Flags::kAdvertisingEnabled, CHIP_DEVICE_CONFIG_CHIPOBLE_ENABLE_ADVERTISING_AUTOSTART);
@@ -280,17 +273,6 @@ inline CHIP_ERROR BLEManagerImpl::PrepareAdvertisingRequest(void)
     mAdvertisingRequest.advertisingData  = Span<bt_data>(advertisingData);
     mAdvertisingRequest.scanResponseData = nameSize ? Span<bt_data>(scanResponseData) : Span<bt_data>{};
 
-    mAdvertisingRequest.onStarted = [](int rc) {
-        if (rc == 0)
-        {
-            ChipLogProgress(DeviceLayer, "CHIPoBLE advertising started");
-        }
-        else
-        {
-            ChipLogError(DeviceLayer, "Failed to start CHIPoBLE advertising: %d", rc);
-        }
-    };
-
     return CHIP_NO_ERROR;
 }
 
@@ -305,21 +287,20 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    if (!BLERadioInitialized)
+    if (!mBLERadioInitialized)
     {
         char bt_dev_name[CONFIG_BT_DEVICE_NAME_MAX];
         strncpy(bt_dev_name, bt_get_name(), sizeof(bt_dev_name));
-        /* Block IEEE802154 */
-        /* @todo: move to RadioSwitch module*/
-        const struct device * radio_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
-        __ASSERT(radio_dev != NULL, "Get radio_dev fail");
-        b91_deinit(radio_dev);
+
+        /* Switch off Thread */
+        ThreadStackMgrImpl().SetThreadEnabled(false);
+        ThreadStackMgrImpl().SetRadioBlocked(true);
 
         /* Init BLE stack */
         err = bt_enable(NULL);
         VerifyOrReturnError(err == 0, MapErrorZephyr(err));
         (void) bt_set_name(bt_dev_name);
-        BLERadioInitialized = true;
+        mBLERadioInitialized = true;
 #if defined(CONFIG_PM) && !defined(CONFIG_CHIP_ENABLE_PM_DURING_BLE)
         pm_policy_state_lock_get(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
 #endif
@@ -347,7 +328,13 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
 #endif
 
     // Request advertising
-    ReturnErrorOnFailure(BLEAdvertisingArbiter::InsertRequest(mAdvertisingRequest));
+    ReturnErrorOnFailure(System::MapErrorZephyr(bt_le_adv_stop()));
+    const bt_le_adv_param params = BT_LE_ADV_PARAM_INIT(mAdvertisingRequest.options, mAdvertisingRequest.minInterval,
+                                                        mAdvertisingRequest.maxInterval, nullptr);
+    ReturnErrorOnFailure(System::MapErrorZephyr(
+        bt_le_adv_start(&params, mAdvertisingRequest.advertisingData.data(), mAdvertisingRequest.advertisingData.size(),
+                        mAdvertisingRequest.scanResponseData.data(), mAdvertisingRequest.scanResponseData.size())));
+    ChipLogProgress(DeviceLayer, "CHIPoBLE advertising started");
 
     // Transition to the Advertising state...
     if (!mFlags.Has(Flags::kAdvertising))
@@ -383,7 +370,7 @@ CHIP_ERROR BLEManagerImpl::StopAdvertising(void)
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    BLEAdvertisingArbiter::CancelRequest(mAdvertisingRequest);
+    ReturnErrorOnFailure(System::MapErrorZephyr(bt_le_adv_stop()));
 
     // Transition to the not Advertising state...
     if (mFlags.Has(Flags::kAdvertising))
@@ -931,9 +918,6 @@ CHIP_ERROR BLEManagerImpl::HandleThreadStateChange(const ChipDeviceEvent * event
 
         error = PlatformMgr().PostEvent(&attachEvent);
         VerifyOrExit(error == CHIP_NO_ERROR, ChipLogError(DeviceLayer, "PostEvent err: %" CHIP_ERROR_FORMAT, error.Format()));
-
-        ChipLogDetail(DeviceLayer, "Thread Connectivity Ready");
-        ThreadConnectivityReady = true;
     }
 
 exit:
@@ -942,8 +926,7 @@ exit:
 
 CHIP_ERROR BLEManagerImpl::HandleBleConnectionClosed(const ChipDeviceEvent * event)
 {
-    /* It is time to swich to IEEE802154 radio if it is provisioned */
-    if (ThreadConnectivityReady)
+    if (ThreadStackMgrImpl().IsReadyToAttach())
     {
         SwitchToIeee802154();
     }
@@ -954,28 +937,19 @@ CHIP_ERROR BLEManagerImpl::HandleBleConnectionClosed(const ChipDeviceEvent * eve
 /* @todo: move to RadioSwitch module */
 void BLEManagerImpl::SwitchToIeee802154(void)
 {
-    int result = 0;
-
     ChipLogProgress(DeviceLayer, "SwitchToIeee802154");
-
-    /* Stop BLE */
-    StopAdvertising();
 
     /* Deinit BLE stack */
     bt_disable();
-    // irq_disable(IRQ1_SYSTIMER);
-    BLERadioInitialized = false;
+    mBLERadioInitialized = false;
 
 #if defined(CONFIG_PM) && !defined(CONFIG_CHIP_ENABLE_PM_DURING_BLE)
     pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
 #endif
 
-    const struct device * radio_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
-    __ASSERT(radio_dev != NULL, "Get radio_dev fail");
-
     /* Init IEEE802154 */
-    result = b91_init(radio_dev);
-    __ASSERT(result == 0, "Init IEEE802154 err: %d", result);
+    ThreadStackMgrImpl().SetRadioBlocked(false);
+    ThreadStackMgrImpl().SetThreadEnabled(true);
 }
 
 } // namespace Internal

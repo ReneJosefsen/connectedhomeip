@@ -33,6 +33,7 @@ IGNORE: Set[str] = {
     '/Test',
     '/tests/',
     '/tools/',
+    r'/lib/assign/ValueAssign\.h',
 
     # Platforms can opt in or out.
     '/darwin/',
@@ -51,6 +52,7 @@ IGNORE: Set[str] = {
     '/platform/bouffalolab/BL602',
     '/platform/webos/',
     '/platform/mt793x/',
+    '/platform/ASR/',
     r'POSIX\.h$',
 }
 

@@ -19,11 +19,13 @@
 
 #pragma once
 
-#include "siwx917_utils.h"
+#include "silabs_utils.h"
 
 // ---- Lighting Example App Config ----
 
 #define APP_TASK_NAME "Lit"
+
+#define BLE_DEV_NAME "SiLabs-Light"
 
 // Time it takes in ms for the simulated actuator to move from one
 // state to another.

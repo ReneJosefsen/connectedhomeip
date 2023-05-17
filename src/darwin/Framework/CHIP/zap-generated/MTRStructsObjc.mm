@@ -565,6 +565,37 @@ NS_ASSUME_NONNULL_BEGIN
 @implementation MTRBasicClusterCapabilityMinimaStruct : MTRBasicInformationClusterCapabilityMinimaStruct
 @end
 
+@implementation MTRBasicInformationClusterProductAppearanceStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _finish = @(0);
+
+        _primaryColor = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRBasicInformationClusterProductAppearanceStruct alloc] init];
+
+    other.finish = self.finish;
+    other.primaryColor = self.primaryColor;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString =
+        [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
+    return descriptionString;
+}
+
+@end
+
 @implementation MTRBasicInformationClusterStartUpEvent
 - (instancetype)init
 {
@@ -1820,7 +1851,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _validStarting = @(0);
 
-        _validUntil = @(0);
+        _validUntil = nil;
     }
     return self;
 }
@@ -1883,6 +1914,37 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation MTRTimeSynchronizationClusterTimeZoneType : MTRTimeSynchronizationClusterTimeZoneStruct
+@end
+
+@implementation MTRBridgedDeviceBasicInformationClusterProductAppearanceStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _finish = @(0);
+
+        _primaryColor = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRBridgedDeviceBasicInformationClusterProductAppearanceStruct alloc] init];
+
+    other.finish = self.finish;
+    other.primaryColor = self.primaryColor;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString =
+        [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
+    return descriptionString;
+}
+
 @end
 
 @implementation MTRBridgedDeviceBasicInformationClusterStartUpEvent
@@ -2532,6 +2594,44 @@ NS_ASSUME_NONNULL_BEGIN
 {
     NSString * descriptionString =
         [NSString stringWithFormat:@"<%@: stateValue:%@; >", NSStringFromClass([self class]), _stateValue];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRICDManagementClusterMonitoringRegistrationStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _checkInNodeID = @(0);
+
+        _monitoredSubject = @(0);
+
+        _key = [NSData data];
+
+        _fabricIndex = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRICDManagementClusterMonitoringRegistrationStruct alloc] init];
+
+    other.checkInNodeID = self.checkInNodeID;
+    other.monitoredSubject = self.monitoredSubject;
+    other.key = self.key;
+    other.fabricIndex = self.fabricIndex;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString
+        stringWithFormat:@"<%@: checkInNodeID:%@; monitoredSubject:%@; key:%@; fabricIndex:%@; >", NSStringFromClass([self class]),
+        _checkInNodeID, _monitoredSubject, [_key base64EncodedStringWithOptions:0], _fabricIndex];
     return descriptionString;
 }
 

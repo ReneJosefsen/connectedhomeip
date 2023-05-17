@@ -25,9 +25,7 @@
 #include "AppEvent.h"
 #include "AppTask.h"
 
-#ifdef ENABLE_WSTK_LEDS
 #include "LEDWidget.h"
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
@@ -36,10 +34,10 @@
 #endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 
-#include "SiWx917DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
 #include "rsi_board.h"
 #include "rsi_chip.h"
-#include "siwx917_utils.h"
+#include "silabs_utils.h"
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -48,6 +46,8 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
+
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 
 #ifdef SL_WIFI
 #include "wfx_host_events.h"
@@ -68,12 +68,11 @@
 #define APP_TASK_PRIORITY 2
 #define APP_EVENT_QUEUE_SIZE 10
 #define EXAMPLE_VENDOR_ID 0xcafe
-#ifdef ENABLE_WSTK_LEDS
 #define APP_STATE_LED 0
-#endif // ENABLE_WSTK_LEDS
 
 using namespace chip;
 using namespace ::chip::DeviceLayer;
+using namespace ::chip::DeviceLayer::Silabs;
 
 namespace {
 
@@ -87,9 +86,7 @@ TimerHandle_t sLightTimer;
 TaskHandle_t sAppTaskHandle;
 QueueHandle_t sAppEventQueue;
 
-#ifdef ENABLE_WSTK_LEDS
 LEDWidget sStatusLED;
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef SL_WIFI
 app::Clusters::NetworkCommissioning::Instance
@@ -172,7 +169,10 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     SILABS_LOG("APP: Done WiFi Init");
     /* We will init server when we get IP */
 
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
     sWiFiNetworkCommissioningInstance.Init();
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
 #endif
 
     // Create FreeRTOS sw timer for Function Selection.
@@ -204,9 +204,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     SILABS_LOG("Current Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
     SILABS_LOG("Current Software Version: %d", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
 
-#ifdef ENABLE_WSTK_LEDS
     sStatusLED.Init(APP_STATE_LED);
-#endif // ENABLE_WSTK_LEDS
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -214,7 +212,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
     chip::MutableCharSpan QRCode(qrCodeBuffer);
 
-    if (SIWx917::SIWx917DeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
+    if (Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
     {
         // Print setup info on LCD if available
 #ifdef QR_CODE_ENABLED
@@ -302,7 +300,6 @@ void BaseApplication::LightEventHandler()
     // the LEDs at an even rate of 100ms.
     //
     // Otherwise, blink the LED ON for a very short time.
-#ifdef ENABLE_WSTK_LEDS
     if (mFunction != kFunction_FactoryReset)
     {
         if ((gIdentifyptr != nullptr) && (gIdentifyptr->mActive))
@@ -348,7 +345,6 @@ void BaseApplication::LightEventHandler()
     }
 
     sStatusLED.Animate();
-#endif // ENABLE_WSTK_LEDS
 }
 
 void BaseApplication::ButtonHandler(AppEvent * aEvent)
@@ -362,7 +358,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
     // FACTORY_RESET_TRIGGER_TIMEOUT to signal factory reset has been initiated.
     // To cancel factory reset: release the APP_FUNCTION_BUTTON once all LEDs
     // start blinking within the FACTORY_RESET_CANCEL_WINDOW_TIMEOUT
-    if (aEvent->ButtonEvent.Action == SL_SIMPLE_BUTTON_PRESSED)
+    if (aEvent->ButtonEvent.Action == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
         if ((!mFunctionTimerActive) && (mFunction == kFunction_NoneSelected))
         {
@@ -382,13 +378,10 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
             break;
         }
 
-#ifdef ENABLE_WSTK_LEDS
         // Turn off status LED before starting blink to make sure blink is
         // co-ordinated.
         sStatusLED.Set(false);
         sStatusLED.Blink(500);
-#endif // ENABLE_WSTK_LEDS
-
         SILABS_LOG("Factory reset triggering in %d sec release button to cancel", count--);
 
         // Delay of 1sec before checking the button status again
@@ -397,9 +390,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
 
     if (count > 0)
     {
-#ifdef ENABLE_WSTK_LEDS
         sStatusLED.Set(false);
-#endif
         SILABS_LOG("Factory Reset has been Canceled"); // button held past Timeout wait till button is released
     }
 
@@ -467,9 +458,7 @@ void BaseApplication::StartStatusLEDTimer()
 
 void BaseApplication::StopStatusLEDTimer()
 {
-#ifdef ENABLE_WSTK_LEDS
     sStatusLED.Set(false);
-#endif // ENABLE_WSTK_LEDS
 
     if (xTimerStop(sLightTimer, pdMS_TO_TICKS(100)) != pdPASS)
     {

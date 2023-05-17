@@ -14,6 +14,7 @@
 
 from builders.ameba import AmebaApp, AmebaBoard, AmebaBuilder
 from builders.android import AndroidApp, AndroidBoard, AndroidBuilder, AndroidProfile
+from builders.asr import ASRApp, ASRBoard, ASRBuilder
 from builders.bouffalolab import BouffalolabApp, BouffalolabBoard, BouffalolabBuilder
 from builders.cc13x2x7_26x2x7 import cc13x2x7_26x2x7App, cc13x2x7_26x2x7Builder
 from builders.cc32xx import cc32xxApp, cc32xxBuilder
@@ -21,7 +22,7 @@ from builders.cyw30739 import Cyw30739App, Cyw30739Board, Cyw30739Builder
 from builders.efr32 import Efr32App, Efr32Board, Efr32Builder
 from builders.esp32 import Esp32App, Esp32Board, Esp32Builder
 from builders.genio import GenioApp, GenioBuilder
-from builders.host import HostApp, HostBoard, HostBuilder, HostCryptoLibrary
+from builders.host import HostApp, HostBoard, HostBuilder, HostCryptoLibrary, HostFuzzingType
 from builders.imx import IMXApp, IMXBuilder
 from builders.infineon import InfineonApp, InfineonBoard, InfineonBuilder
 from builders.k32w import K32WApp, K32WBuilder
@@ -68,7 +69,8 @@ def BuildHostFakeTarget():
     target.AppendModifier("asan", use_asan=True).ExceptIfRe("-tsan")
     target.AppendModifier("tsan", use_tsan=True).ExceptIfRe("-asan")
     target.AppendModifier("ubsan", use_ubsan=True)
-    target.AppendModifier("libfuzzer", use_tsan=True).OnlyIfRe("-clang")
+    target.AppendModifier("libfuzzer", fuzzing_type=HostFuzzingType.LIB_FUZZER).OnlyIfRe("-clang").ExceptIfRe('-ossfuzz')
+    target.AppendModifier("ossfuzz", fuzzing_type=HostFuzzingType.OSS_FUZZ).OnlyIfRe("-clang").ExceptIfRe('-libfuzzer')
     target.AppendModifier('coverage', use_coverage=True).OnlyIfRe('-(chip-tool|all-clusters)')
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -140,7 +142,8 @@ def BuildHostTarget():
     target.AppendModifier("asan", use_asan=True).ExceptIfRe("-tsan")
     target.AppendModifier("tsan", use_tsan=True).ExceptIfRe("-asan")
     target.AppendModifier("ubsan", use_ubsan=True)
-    target.AppendModifier("libfuzzer", use_tsan=True).OnlyIfRe("-clang")
+    target.AppendModifier("libfuzzer", fuzzing_type=HostFuzzingType.LIB_FUZZER).OnlyIfRe("-clang").ExceptIfRe('-ossfuzz')
+    target.AppendModifier("ossfuzz", fuzzing_type=HostFuzzingType.OSS_FUZZ).OnlyIfRe("-clang").ExceptIfRe('-libfuzzer')
     target.AppendModifier('coverage', use_coverage=True).OnlyIfRe('-(chip-tool|all-clusters)')
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -369,6 +372,28 @@ def BuildAmebaTarget():
     return target
 
 
+def BuildASRTarget():
+    target = BuildTarget('asr', ASRBuilder)
+
+    # board
+    target.AppendFixedTargets([
+        TargetPart('asr582x', board=ASRBoard.ASR582X),
+        TargetPart('asr595x', board=ASRBoard.ASR595X),
+    ])
+
+    # apps
+    target.AppendFixedTargets([
+        TargetPart('lighting', app=ASRApp.LIGHT),
+    ])
+
+    # modifiers
+    target.AppendModifier('ota', enable_ota_requestor=True)
+    target.AppendModifier('shell', chip_build_libshell=True)
+    target.AppendModifier('no_logging', chip_logging=False)
+
+    return target
+
+
 def BuildK32WTarget():
     target = BuildTarget('k32w', K32WBuilder)
 
@@ -432,11 +457,10 @@ def BuildCyw30739Target():
     # apps
     target.AppendFixedTargets([
         TargetPart('light', app=Cyw30739App.LIGHT),
-        TargetPart('lock',  app=Cyw30739App.LOCK),
-        TargetPart('ota-requestor',  app=Cyw30739App.OTA_REQUESTOR),
+        TargetPart('lock', app=Cyw30739App.LOCK),
+        TargetPart('ota-requestor', app=Cyw30739App.OTA_REQUESTOR),
+        TargetPart('switch', app=Cyw30739App.SWITCH),
     ])
-
-    target.AppendModifier(name="no-progress-logging", progress_logging=False)
 
     return target
 
@@ -477,10 +501,11 @@ def BuildTizenTarget():
         TargetPart('tests', app=TizenApp.TESTS),
     ])
 
-    target.AppendModifier(name="no-ble", enable_ble=False)
-    target.AppendModifier(name="no-wifi", enable_wifi=False)
-    target.AppendModifier(name="asan", use_asan=True)
-    target.AppendModifier(name="ubsan", use_ubsan=True)
+    target.AppendModifier("no-ble", enable_ble=False)
+    target.AppendModifier("no-thread", enable_thread=False)
+    target.AppendModifier("no-wifi", enable_wifi=False)
+    target.AppendModifier("asan", use_asan=True)
+    target.AppendModifier("ubsan", use_ubsan=True)
 
     return target
 
@@ -547,6 +572,7 @@ def BuildTelinkTarget():
     target.AppendFixedTargets([
         TargetPart('all-clusters', app=TelinkApp.ALL_CLUSTERS),
         TargetPart('all-clusters-minimal', app=TelinkApp.ALL_CLUSTERS_MINIMAL),
+        TargetPart('bridge', app=TelinkApp.BRIDGE),
         TargetPart('contact-sensor', app=TelinkApp.CONTACT_SENSOR),
         TargetPart('light', app=TelinkApp.LIGHT),
         TargetPart('light-switch', app=TelinkApp.SWITCH),
@@ -578,6 +604,7 @@ def BuildOpenIotSdkTargets():
 
 BUILD_TARGETS = [
     BuildAmebaTarget(),
+    BuildASRTarget(),
     BuildAndroidTarget(),
     BuildBouffalolabTarget(),
     Buildcc13x2x7_26x2x7Target(),
