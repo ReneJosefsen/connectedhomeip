@@ -35,7 +35,7 @@
 #include <platform/PlatformManager.h>
 
 #ifdef EMBER_AF_PLUGIN_SCENES
-#include <app/clusters/scenes/scenes.h>
+#include <app/clusters/scenes-server/scenes-server.h>
 #endif // EMBER_AF_PLUGIN_SCENES
 
 #ifdef EMBER_AF_PLUGIN_ON_OFF
@@ -283,7 +283,7 @@ void emberAfLevelControlClusterServerTickCallback(EndpointId endpoint)
     // The level has changed, so the scene is no longer valid.
     if (emberAfContainsServer(endpoint, Scenes::Id))
     {
-        emberAfScenesClusterMakeInvalidCallback(endpoint);
+        Scenes::ScenesServer::Instance().MakeSceneInvalid(endpoint);
     }
 #endif // EMBER_AF_PLUGIN_SCENES
 
@@ -1223,7 +1223,7 @@ void emberAfLevelControlClusterServerInitCallback(EndpointId endpoint)
     Attributes::MinLevel::Get(endpoint, &state->minLevel);
     Attributes::MaxLevel::Get(endpoint, &state->maxLevel);
 
-    if (LevelControlHasFeature(endpoint, LevelControlFeature::kLighting))
+    if (LevelControlHasFeature(endpoint, Feature::kLighting))
     {
         if (state->minLevel < LEVEL_CONTROL_LIGHTING_MIN_LEVEL)
         {
@@ -1322,7 +1322,7 @@ static bool areStartUpLevelControlServerAttributesNonVolatile(EndpointId endpoin
 
 void emberAfPluginLevelControlClusterServerPostInitCallback(EndpointId endpoint) {}
 
-bool LevelControlHasFeature(EndpointId endpoint, LevelControlFeature feature)
+bool LevelControlHasFeature(EndpointId endpoint, Feature feature)
 {
     bool success;
     uint32_t featureMap;

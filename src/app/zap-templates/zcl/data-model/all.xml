@@ -17,6 +17,7 @@
    <xi:include href="chip/chip-types.xml" />
    <xi:include href="chip/clusters-extensions.xml" />
    <xi:include href="chip/color-control-cluster.xml" />
+   <xi:include href="chip/concentration-measurement-cluster.xml" />
    <xi:include href="chip/content-launch-cluster.xml" />
    <xi:include href="chip/descriptor-cluster.xml" />
    <xi:include href="chip/diagnostic-logs-cluster.xml" />
@@ -45,6 +46,7 @@
    <xi:include href="chip/occupancy-sensing-cluster.xml" />
    <xi:include href="chip/onoff-cluster.xml" />
    <xi:include href="chip/operational-credentials-cluster.xml" />
+   <xi:include href="chip/operational-state-cluster.xml" />
    <xi:include href="chip/pressure-measurement-cluster.xml" />
    <xi:include href="chip/power-source-cluster.xml" />
    <xi:include href="chip/power-source-configuration-cluster.xml" />
@@ -56,6 +58,7 @@
    <xi:include href="chip/relative-humidity-measurement-cluster.xml" />
    <xi:include href="chip/replacable-monitoring-cluster.xml.xml" />
    <xi:include href="chip/scene.xml" />
+   <xi:include href="chip/smoke-co-alarm-cluster.xml" />
    <xi:include href="chip/software-diagnostics-cluster.xml" />
    <xi:include href="chip/switch-cluster.xml" />
    <xi:include href="chip/target-navigator-cluster.xml" />
@@ -72,6 +75,8 @@
    <xi:include href="chip/wake-on-lan-cluster.xml" />
    <xi:include href="chip/wifi-network-diagnostics-cluster.xml" />
    <xi:include href="chip/window-covering.xml" />
+   <xi:include href="chip/temperature-control-cluster.xml" />
+   <xi:include href="chip/refrigerator-alarm.xml" />
    <xi:include href="chip/matter-devices.xml" />
    <xi:include href="draft/barrier-control.xml" />
    <xi:include href="draft/electrical-measurement-cluster.xml" />

@@ -31,6 +31,7 @@
         "channel-cluster.xml",
         "clusters-extensions.xml",
         "color-control-cluster.xml",
+        "concentration-measurement-cluster.xml",
         "content-launch-cluster.xml",
         "descriptor-cluster.xml",
         "diagnostic-logs-cluster.xml",
@@ -63,6 +64,7 @@
         "onoff-cluster.xml",
         "onoff-switch-configuration-cluster.xml",
         "operational-credentials-cluster.xml",
+        "operational-state-cluster.xml",
         "pressure-measurement-cluster.xml",
         "power-source-cluster.xml",
         "power-source-configuration-cluster.xml",
@@ -71,12 +73,15 @@
         "proxy-valid-cluster.xml",
         "pump-configuration-and-control-cluster.xml",
         "pwm-cluster.xml",
+        "refrigerator-alarm.xml",
         "relative-humidity-measurement-cluster.xml",
         "replacable-monitoring-cluster.xml",
         "scene.xml",
+        "smoke-co-alarm-cluster.xml",
         "software-diagnostics-cluster.xml",
         "switch-cluster.xml",
         "target-navigator-cluster.xml",
+        "temperature-control-cluster.xml",
         "temperature-measurement-cluster.xml",
         "test-cluster.xml",
         "thermostat-cluster.xml",
@@ -191,6 +196,7 @@
             "FeatureMap",
             "ThreadMetrics"
         ],
+        "Scenes": ["SceneCount", "RemainingCapacity"],
         "Unit Testing": [
             "struct_attr",
             "nullable_struct",
@@ -285,7 +291,9 @@
             "DSTOffset",
             "UTCTime",
             "LocalTime"
-        ]
+        ],
+        "Temperature Control": ["SupportedTemperatureLevels"],
+        "Operational State": ["OperationalState", "OperationalError"]
     },
     "defaultReportingPolicy": "mandatory",
     "ZCLDataTypes": ["ARRAY", "BITMAP", "ENUM", "NUMBER", "STRING", "STRUCT"],

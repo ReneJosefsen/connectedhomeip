@@ -1379,8 +1379,8 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 /**
  * @brief The minimum number of scenes to support according to spec
  */
-#ifndef CHIP_CONFIG_SCENES_MAX_NUMBER
-#define CHIP_CONFIG_SCENES_MAX_NUMBER 16
+#ifndef CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT
+#define CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT 16
 #endif
 
 /**
@@ -1394,7 +1394,7 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
  * @brief The maximum number of scenes allowed on a single fabric
  */
 #ifndef CHIP_CONFIG_SCENES_MAX_PER_FABRIC
-#define CHIP_CONFIG_SCENES_MAX_PER_FABRIC (CHIP_CONFIG_SCENES_MAX_NUMBER / 2)
+#define CHIP_CONFIG_SCENES_MAX_PER_FABRIC (CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT / 2)
 #endif
 
 /**
@@ -1421,6 +1421,20 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
  */
 #ifndef CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS
 #define CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS 2
+#endif
+
+/**
+ * @def CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+ *
+ * @brief Controls whether core data model code will try to include app-specific generated headers.
+ *
+ * If this is set to true, data model code will be compiled with no client or
+ * server clusters enabled and all required access control levels set to their
+ * defaults: (view for all attribute/event reads, operate for all writes and
+ * invokes).
+ */
+#ifndef CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+#define CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES 0
 #endif
 
 /**

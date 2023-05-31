@@ -166,11 +166,17 @@ def _CppType(field: Field, context: TypeLookupContext) -> str:
 def DecodableJniType(field: Field, context: TypeLookupContext) -> str:
     actual = _CppType(field, context)
 
+    needsConstRef = False
     if field.is_list:
-        return f"const chip::app::DataModel::DecodableList<{actual}> &"
+        needsConstRef = True
+        actual = f"chip::app::DataModel::DecodableList<{actual}>"
 
     if field.is_nullable:
-        return f"const chip::app::DataModel::Nullable<{actual}> &"
+        needsConstRef = True
+        actual = f"chip::app::DataModel::Nullable<{actual}>"
+
+    if needsConstRef:
+        actual = f"const {actual} &"
 
     return actual
 
@@ -381,7 +387,11 @@ class EncodableValue:
 
     @property
     def is_bitmap(self):
-        self.context.is_bitmap_type(self.data_type.name)
+        return self.context.is_bitmap_type(self.data_type.name)
+
+    @property
+    def is_untyped_bitmap(self):
+        return self.context.is_untyped_bitmap_type(self.data_type.name)
 
     def clone(self):
         return EncodableValue(self.context, self.data_type, self.attrs)
@@ -667,6 +677,15 @@ class JavaClassGenerator(__JavaCodeGenerator):
         self.internal_render_one_output(
             template_path="ClusterWriteMapping.jinja",
             output_file_name="java/chip/devicecontroller/ClusterWriteMapping.java",
+            vars={
+                'idl': self.idl,
+                'clientClusters': clientClusters,
+            }
+        )
+
+        self.internal_render_one_output(
+            template_path="ClusterIDMapping.jinja",
+            output_file_name="java/chip/devicecontroller/ClusterIDMapping.java",
             vars={
                 'idl': self.idl,
                 'clientClusters': clientClusters,

@@ -114,10 +114,21 @@ bool DoorLockServer::SetLockState(chip::EndpointId endpointId, DlLockState newLo
     // DlLockState::kNotFullyLocked has no appropriate event to send. Also it is unclear whether
     // it should schedule auto-relocking. So skip it here. Check for supported states explicitly
     // to handle possible enum extending in future.
-    VerifyOrReturnError(DlLockState::kLocked == newLockState || DlLockState::kUnlocked == newLockState, success);
+    VerifyOrReturnError(DlLockState::kLocked == newLockState || DlLockState::kUnlocked == newLockState ||
+                            DlLockState::kUnlatched == newLockState,
+                        success);
 
     // Send LockOperation event
-    auto opType = (DlLockState::kLocked == newLockState) ? LockOperationTypeEnum::kLock : LockOperationTypeEnum::kUnlock;
+    auto opType = LockOperationTypeEnum::kUnlock;
+
+    if (DlLockState::kLocked == newLockState)
+    {
+        opType = LockOperationTypeEnum::kLock;
+    }
+    else if (DlLockState::kUnlatched == newLockState)
+    {
+        opType = LockOperationTypeEnum::kUnlatch;
+    }
 
     SendLockOperationEvent(endpointId, opType, opSource, OperationErrorEnum::kUnspecified, userIndex, Nullable<chip::FabricIndex>(),
                            Nullable<chip::NodeId>(), credentials, success);
@@ -1313,9 +1324,9 @@ void DoorLockServer::clearYearDayScheduleCommandHandler(chip::app::CommandHandle
     commandObj->AddStatus(commandPath, Status::Success);
 }
 
-chip::BitFlags<DoorLockFeature> DoorLockServer::GetFeatures(chip::EndpointId endpointId)
+chip::BitFlags<Feature> DoorLockServer::GetFeatures(chip::EndpointId endpointId)
 {
-    chip::BitFlags<DoorLockFeature> featureMap;
+    chip::BitFlags<Feature> featureMap;
     if (!GetAttribute(endpointId, Attributes::FeatureMap::Id, Attributes::FeatureMap::Get, *featureMap.RawStorage()))
     {
         ChipLogError(Zcl, "Unable to get the door lock feature map: attribute read error");
@@ -1367,18 +1378,29 @@ chip::FabricIndex DoorLockServer::getFabricIndex(const chip::app::CommandHandler
 
 chip::NodeId DoorLockServer::getNodeId(const chip::app::CommandHandler * commandObj)
 {
+    // TODO: Why are we doing all these checks?  At all the callsites we have
+    // just received a command, so we better have a handler, exchange, session,
+    // etc.  The only thing we should be checking is that it's a CASE session.
     if (nullptr == commandObj || nullptr == commandObj->GetExchangeContext())
     {
         ChipLogError(Zcl, "Cannot access ExchangeContext of Command Object for Node ID");
         return kUndefinedNodeId;
     }
 
-    auto secureSession = commandObj->GetExchangeContext()->GetSessionHandle()->AsSecureSession();
-    if (nullptr == secureSession)
+    if (!commandObj->GetExchangeContext()->HasSessionHandle())
     {
-        ChipLogError(Zcl, "Cannot access Secure session handle of Command Object for Node ID");
+        ChipLogError(Zcl, "Cannot access session of Command Object for Node ID");
+        return kUndefinedNodeId;
     }
-    return secureSession->GetPeerNodeId();
+
+    auto descriptor = commandObj->GetExchangeContext()->GetSessionHandle()->GetSubjectDescriptor();
+    if (descriptor.authMode != Access::AuthMode::kCase)
+    {
+        ChipLogError(Zcl, "Cannot get Node ID from non-CASE session of Command Object");
+        return kUndefinedNodeId;
+    }
+
+    return descriptor.subject;
 }
 
 bool DoorLockServer::userIndexValid(chip::EndpointId endpointId, uint16_t userIndex)
@@ -3285,7 +3307,8 @@ bool DoorLockServer::HandleRemoteLockOperation(chip::app::CommandHandler * comma
                                                const chip::app::ConcreteCommandPath & commandPath, LockOperationTypeEnum opType,
                                                RemoteLockOpHandler opHandler, const Optional<ByteSpan> & pinCode)
 {
-    VerifyOrDie(LockOperationTypeEnum::kLock == opType || LockOperationTypeEnum::kUnlock == opType);
+    VerifyOrDie(LockOperationTypeEnum::kLock == opType || LockOperationTypeEnum::kUnlock == opType ||
+                LockOperationTypeEnum::kUnlatch == opType);
     VerifyOrDie(nullptr != opHandler);
 
     EndpointId endpoint       = commandPath.mEndpointId;
@@ -3410,9 +3433,27 @@ exit:
         credentials.SetNonNull(foundCred);
     }
 
+    // Failed Unlatch requests SHALL generate only a LockOperationError event with LockOperationType set to Unlock
+    if (LockOperationTypeEnum::kUnlatch == opType && !success)
+    {
+        opType = LockOperationTypeEnum::kUnlock;
+    }
+
     SendLockOperationEvent(endpoint, opType, OperationSourceEnum::kRemote, reason, pinUserIdx,
                            Nullable<chip::FabricIndex>(getFabricIndex(commandObj)), Nullable<chip::NodeId>(getNodeId(commandObj)),
                            credentials, success);
+
+    // SHALL generate a LockOperation event with LockOperationType set to Unlatch when the unlatched state is reached and a
+    // LockOperation event with LockOperationType set to Unlock when the lock successfully completes the unlock. But as the current
+    // implementation here is sending LockOperation events immediately we're sending both events immediately.
+    // https://github.com/project-chip/connectedhomeip/issues/26925
+    if (LockOperationTypeEnum::kUnlatch == opType && success)
+    {
+        SendLockOperationEvent(endpoint, LockOperationTypeEnum::kUnlock, OperationSourceEnum::kRemote, reason, pinUserIdx,
+                               Nullable<chip::FabricIndex>(getFabricIndex(commandObj)),
+                               Nullable<chip::NodeId>(getNodeId(commandObj)), credentials, success);
+    }
+
     return success;
 }
 
@@ -3514,7 +3555,14 @@ bool emberAfDoorLockClusterUnlockDoorCallback(
 {
     emberAfDoorLockClusterPrintln("Received command: UnlockDoor");
 
-    if (DoorLockServer::Instance().HandleRemoteLockOperation(commandObj, commandPath, LockOperationTypeEnum::kUnlock,
+    LockOperationTypeEnum lockOp = LockOperationTypeEnum::kUnlock;
+
+    if (DoorLockServer::Instance().SupportsUnbolt(commandPath.mEndpointId))
+    {
+        lockOp = LockOperationTypeEnum::kUnlatch;
+    }
+
+    if (DoorLockServer::Instance().HandleRemoteLockOperation(commandObj, commandPath, lockOp,
                                                              emberAfPluginDoorLockOnDoorUnlockCommand, commandData.PINCode))
     {
         // appclusters.pdf 5.3.3.25:
@@ -3536,7 +3584,14 @@ bool emberAfDoorLockClusterUnlockWithTimeoutCallback(
 {
     emberAfDoorLockClusterPrintln("Received command: UnlockWithTimeout");
 
-    if (DoorLockServer::Instance().HandleRemoteLockOperation(commandObj, commandPath, LockOperationTypeEnum::kUnlock,
+    LockOperationTypeEnum lockOp = LockOperationTypeEnum::kUnlock;
+
+    if (DoorLockServer::Instance().SupportsUnbolt(commandPath.mEndpointId))
+    {
+        lockOp = LockOperationTypeEnum::kUnlatch;
+    }
+
+    if (DoorLockServer::Instance().HandleRemoteLockOperation(commandObj, commandPath, lockOp,
                                                              emberAfPluginDoorLockOnDoorUnlockCommand, commandData.PINCode))
     {
         // appclusters.pdf 5.3.4.3:
@@ -3547,6 +3602,28 @@ bool emberAfDoorLockClusterUnlockWithTimeoutCallback(
 
         VerifyOrReturnError(0 != timeout, true);
         DoorLockServer::Instance().ScheduleAutoRelock(commandPath.mEndpointId, timeout);
+    }
+
+    return true;
+}
+
+bool emberAfDoorLockClusterUnboltDoorCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::DoorLock::Commands::UnboltDoor::DecodableType & commandData)
+{
+    emberAfDoorLockClusterPrintln("Received command: UnboltDoor");
+
+    if (DoorLockServer::Instance().HandleRemoteLockOperation(commandObj, commandPath, LockOperationTypeEnum::kUnlock,
+                                                             emberAfPluginDoorLockOnDoorUnboltCommand, commandData.PINCode))
+    {
+        // appclusters.pdf 5.3.3.25:
+        // The number of seconds to wait after unlocking a lock before it automatically locks again. 0=disabled. If set, unlock
+        // operations from any source will be timed. For one time unlock with timeout use the specific command.
+        uint32_t autoRelockTime = 0;
+
+        VerifyOrReturnError(DoorLockServer::Instance().GetAutoRelockTime(commandPath.mEndpointId, autoRelockTime), true);
+        VerifyOrReturnError(0 != autoRelockTime, true);
+        DoorLockServer::Instance().ScheduleAutoRelock(commandPath.mEndpointId, autoRelockTime);
     }
 
     return true;
