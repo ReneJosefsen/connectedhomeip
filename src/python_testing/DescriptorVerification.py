@@ -32,7 +32,7 @@ from rich.console import Console
 
 console = None
 
-class DescriptorTest(MatterBaseTest):
+class DescriptorVerificationTest(MatterBaseTest):
     @async_test_body
     async def test_descriptor(self):
 
@@ -64,7 +64,7 @@ class DescriptorTest(MatterBaseTest):
         await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
         # DBEUG REVERT END
         '''
-        
+
         deviceAttributeResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [('*')])
         #console.print(deviceAttributeResponse)
 
@@ -78,7 +78,7 @@ class DescriptorTest(MatterBaseTest):
         
         acl = deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
     
-        acl[0].targets = [ Clusters.AccessControl.Structs.Target(cluster = 31) ]
+        acl[0].targets = [ Clusters.AccessControl.Structs.AccessControlTargetStruct(cluster = 31) ]
         #console.print(acl)
 
         for endpoint in deviceAttributeResponse:
@@ -151,7 +151,7 @@ class DescriptorTest(MatterBaseTest):
                     #console.log("No commands in cluster, moving on")
                     continue
 
-                console.log(commandInClusterList)
+                #console.log(commandInClusterList)
 
                 for command in commandInClusterList:    
                     commandClass = getattr(server.Commands, f"{command}")

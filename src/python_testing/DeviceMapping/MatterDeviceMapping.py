@@ -220,9 +220,9 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
             generatedCommandListPicsList = []
 
             clusterClass = getattr(Clusters, devCtrl.GetClusterHandler().GetClusterInfoById(server)['clusterName'])
-            cluserID = f"0x{server:04x}"
-            clusterName = clusterInfoDict[cluserID]['Name']
-            clusterPICS = f"{clusterInfoDict[cluserID]['PICS_Code']}{serverTag}"
+            clusterID = f"0x{server:04x}"
+            clusterName = clusterInfoDict[clusterID]['Name']
+            clusterPICS = f"{clusterInfoDict[clusterID]['PICS_Code']}{serverTag}"
 
             print(f"{clusterName} - {clusterPICS}")
 
@@ -295,9 +295,9 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
         clientList = clientListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.ClientList]
 
         for client in clientList:
-            cluserID = f"0x{client:04x}"
-            clusterName = clusterInfoDict[cluserID]['Name']
-            clusterPICS = f"{clusterInfoDict[cluserID]['PICS_Code']}{clientTag}"
+            clusterID = f"0x{client:04x}"
+            clusterName = clusterInfoDict[clusterID]['Name']
+            clusterPICS = f"{clusterInfoDict[clusterID]['PICS_Code']}{clientTag}"
 
             print(f"{clusterName} - {clusterPICS}")
 
