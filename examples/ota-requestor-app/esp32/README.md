@@ -28,7 +28,7 @@ After commissioning is successful, announce OTA provider's presence using
 chip-tool. On receiving this command OTA requestor will query for OTA image.
 
 ```
-./out/debug/chip-tool otasoftwareupdaterequestor announce-ota-provider <PROVIDER NODE ID> 0 0 0 <REQUESTOR NODE ID> 0
+./out/debug/chip-tool otasoftwareupdaterequestor announce-otaprovider <PROVIDER NODE ID> 0 0 0 <REQUESTOR NODE ID> 0
 ```
 
 Once the transfer is complete, OTA requestor sends ApplyUpdateRequest command to
@@ -49,3 +49,9 @@ application of OTA image.
 ```
 ./out/debug/chip-tool pairing onnetwork 12345 20202021
 ```
+
+### Note
+
+While trying out example ota-requestor-app bump the software version from
+`CMakeList.txt` and not from `idf.py menuconfig`. And software version of the
+image which is being ota should be greater than current software version.

@@ -17,6 +17,7 @@
  */
 
 #pragma once
+#include <app-common/zap-generated/cluster-objects.h>
 #include <app/OperationalSessionSetup.h>
 #include <controller/CommissioneeDeviceProxy.h>
 #include <credentials/attestation_verifier/DeviceAttestationDelegate.h>
@@ -32,26 +33,28 @@ class DeviceCommissioner;
 enum CommissioningStage : uint8_t
 {
     kError,
-    kSecurePairing,             ///< Establish a PASE session with the device
-    kReadCommissioningInfo,     ///< Query General Commissioning Attributes and Network Features
-    kArmFailsafe,               ///< Send ArmFailSafe (0x30:0) command to the device
-    kConfigRegulatory,          ///< Send SetRegulatoryConfig (0x30:2) command to the device
-    kSendPAICertificateRequest, ///< Send PAI CertificateChainRequest (0x3E:2) command to the device
-    kSendDACCertificateRequest, ///< Send DAC CertificateChainRequest (0x3E:2) command to the device
-    kSendAttestationRequest,    ///< Send AttestationRequest (0x3E:0) command to the device
-    kAttestationVerification,   ///< Verify AttestationResponse (0x3E:1) validity
-    kSendOpCertSigningRequest,  ///< Send CSRRequest (0x3E:4) command to the device
-    kValidateCSR,               ///< Verify CSRResponse (0x3E:5) validity
-    kGenerateNOCChain,          ///< TLV encode Node Operational Credentials (NOC) chain certs
-    kSendTrustedRootCert,       ///< Send AddTrustedRootCertificate (0x3E:11) command to the device
-    kSendNOC,                   ///< Send AddNOC (0x3E:6) command to the device
-    kWiFiNetworkSetup,          ///< Send AddOrUpdateWiFiNetwork (0x31:2) command to the device
-    kThreadNetworkSetup,        ///< Send AddOrUpdateThreadNetwork (0x31:3) command to the device
-    kWiFiNetworkEnable,         ///< Send ConnectNetwork (0x31:6) command to the device for the WiFi network
-    kThreadNetworkEnable,       ///< Send ConnectNetwork (0x31:6) command to the device for the Thread network
-    kFindOperational,           ///< Perform operational discovery and establish a CASE session with the device
-    kSendComplete,              ///< Send CommissioningComplete (0x30:4) command to the device
-    kCleanup,                   ///< Call delegates with status, free memory, clear timers and state
+    kSecurePairing,              ///< Establish a PASE session with the device
+    kReadCommissioningInfo,      ///< Query General Commissioning Attributes and Network Features
+    kArmFailsafe,                ///< Send ArmFailSafe (0x30:0) command to the device
+    kConfigRegulatory,           ///< Send SetRegulatoryConfig (0x30:2) command to the device
+    kSendPAICertificateRequest,  ///< Send PAI CertificateChainRequest (0x3E:2) command to the device
+    kSendDACCertificateRequest,  ///< Send DAC CertificateChainRequest (0x3E:2) command to the device
+    kSendAttestationRequest,     ///< Send AttestationRequest (0x3E:0) command to the device
+    kAttestationVerification,    ///< Verify AttestationResponse (0x3E:1) validity
+    kSendOpCertSigningRequest,   ///< Send CSRRequest (0x3E:4) command to the device
+    kValidateCSR,                ///< Verify CSRResponse (0x3E:5) validity
+    kGenerateNOCChain,           ///< TLV encode Node Operational Credentials (NOC) chain certs
+    kSendTrustedRootCert,        ///< Send AddTrustedRootCertificate (0x3E:11) command to the device
+    kSendNOC,                    ///< Send AddNOC (0x3E:6) command to the device
+    kWiFiNetworkSetup,           ///< Send AddOrUpdateWiFiNetwork (0x31:2) command to the device
+    kThreadNetworkSetup,         ///< Send AddOrUpdateThreadNetwork (0x31:3) command to the device
+    kFailsafeBeforeWiFiEnable,   ///< Extend the fail-safe before doing kWiFiNetworkEnable
+    kFailsafeBeforeThreadEnable, ///< Extend the fail-safe before doing kThreadNetworkEnable
+    kWiFiNetworkEnable,          ///< Send ConnectNetwork (0x31:6) command to the device for the WiFi network
+    kThreadNetworkEnable,        ///< Send ConnectNetwork (0x31:6) command to the device for the Thread network
+    kFindOperational,            ///< Perform operational discovery and establish a CASE session with the device
+    kSendComplete,               ///< Send CommissioningComplete (0x30:4) command to the device
+    kCleanup,                    ///< Call delegates with status, free memory, clear timers and state
     /// Send ScanNetworks (0x31:0) command to the device.
     /// ScanNetworks can happen anytime after kArmFailsafe.
     /// However, the cirque tests fail if it is earlier in the list
@@ -83,8 +86,8 @@ struct CompletionStatus
     CHIP_ERROR err;
     Optional<CommissioningStage> failedStage;
     Optional<Credentials::AttestationVerificationResult> attestationResult;
-    Optional<app::Clusters::GeneralCommissioning::CommissioningError> commissioningError;
-    Optional<app::Clusters::NetworkCommissioning::NetworkCommissioningStatus> networkCommissioningStatus;
+    Optional<app::Clusters::GeneralCommissioning::CommissioningErrorEnum> commissioningError;
+    Optional<app::Clusters::NetworkCommissioning::NetworkCommissioningStatusEnum> networkCommissioningStatus;
 };
 
 constexpr uint16_t kDefaultFailsafeTimeout = 60;
@@ -123,7 +126,7 @@ public:
     // (from GetLocationCapability - see below). If the regulatory location is not supplied, this will fall back to the location in
     // GetDefaultRegulatoryLocation and then to Outdoor (most restrictive).
     // This value should be set before calling PerformCommissioningStep for the kConfigRegulatory step.
-    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> GetDeviceRegulatoryLocation() const
+    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> GetDeviceRegulatoryLocation() const
     {
         return mDeviceRegulatoryLocation;
     }
@@ -226,7 +229,7 @@ public:
     // Default regulatory location set by the node, as read from the GeneralCommissioning cluster. In the AutoCommissioner, this is
     // automatically set from report from the kReadCommissioningInfo stage.
     // This should be set before calling PerformCommissioningStep for the kConfigRegulatory step.
-    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> GetDefaultRegulatoryLocation() const
+    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> GetDefaultRegulatoryLocation() const
     {
         return mDefaultRegulatoryLocation;
     }
@@ -234,7 +237,7 @@ public:
     // Location capabilities of the node, as read from the GeneralCommissioning cluster. In the AutoCommissioner, this is
     // automatically set from report from the kReadCommissioningInfo stage.
     // This should be set before calling PerformCommissioningStep for the kConfigRegulatory step.
-    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> GetLocationCapability() const
+    const Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> GetLocationCapability() const
     {
         return mLocationCapability;
     }
@@ -255,7 +258,7 @@ public:
         return *this;
     }
 
-    CommissioningParameters & SetDeviceRegulatoryLocation(app::Clusters::GeneralCommissioning::RegulatoryLocationType location)
+    CommissioningParameters & SetDeviceRegulatoryLocation(app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum location)
     {
         mDeviceRegulatoryLocation.SetValue(location);
         return *this;
@@ -366,12 +369,12 @@ public:
         mRemoteProductId = MakeOptional(id);
         return *this;
     }
-    CommissioningParameters & SetDefaultRegulatoryLocation(app::Clusters::GeneralCommissioning::RegulatoryLocationType location)
+    CommissioningParameters & SetDefaultRegulatoryLocation(app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum location)
     {
         mDefaultRegulatoryLocation = MakeOptional(location);
         return *this;
     }
-    CommissioningParameters & SetLocationCapability(app::Clusters::GeneralCommissioning::RegulatoryLocationType capability)
+    CommissioningParameters & SetLocationCapability(app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum capability)
     {
         mLocationCapability = MakeOptional(capability);
         return *this;
@@ -449,7 +452,7 @@ private:
     // Items that can be set by the commissioner
     Optional<uint16_t> mFailsafeTimerSeconds;
     Optional<uint16_t> mCASEFailsafeTimerSeconds;
-    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> mDeviceRegulatoryLocation;
+    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> mDeviceRegulatoryLocation;
     Optional<ByteSpan> mCSRNonce;
     Optional<ByteSpan> mAttestationNonce;
     Optional<WiFiCredentials> mWiFiCreds;
@@ -469,8 +472,8 @@ private:
     Optional<NodeId> mRemoteNodeId;
     Optional<VendorId> mRemoteVendorId;
     Optional<uint16_t> mRemoteProductId;
-    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> mDefaultRegulatoryLocation;
-    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> mLocationCapability;
+    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> mDefaultRegulatoryLocation;
+    Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> mLocationCapability;
     CompletionStatus completionStatus;
     Credentials::DeviceAttestationDelegate * mDeviceAttestationDelegate =
         nullptr; // Delegate to handle device attestation failures during commissioning
@@ -540,10 +543,10 @@ struct GeneralCommissioningInfo
 {
     uint64_t breadcrumb          = 0;
     uint16_t recommendedFailsafe = 0;
-    app::Clusters::GeneralCommissioning::RegulatoryLocationType currentRegulatoryLocation =
-        app::Clusters::GeneralCommissioning::RegulatoryLocationType::kIndoorOutdoor;
-    app::Clusters::GeneralCommissioning::RegulatoryLocationType locationCapability =
-        app::Clusters::GeneralCommissioning::RegulatoryLocationType::kIndoorOutdoor;
+    app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum currentRegulatoryLocation =
+        app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum::kIndoorOutdoor;
+    app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum locationCapability =
+        app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum::kIndoorOutdoor;
     ;
 };
 
@@ -563,16 +566,16 @@ struct AttestationErrorInfo
 
 struct CommissioningErrorInfo
 {
-    CommissioningErrorInfo(app::Clusters::GeneralCommissioning::CommissioningError result) : commissioningError(result) {}
-    app::Clusters::GeneralCommissioning::CommissioningError commissioningError;
+    CommissioningErrorInfo(app::Clusters::GeneralCommissioning::CommissioningErrorEnum result) : commissioningError(result) {}
+    app::Clusters::GeneralCommissioning::CommissioningErrorEnum commissioningError;
 };
 
 struct NetworkCommissioningStatusInfo
 {
-    NetworkCommissioningStatusInfo(app::Clusters::NetworkCommissioning::NetworkCommissioningStatus result) :
+    NetworkCommissioningStatusInfo(app::Clusters::NetworkCommissioning::NetworkCommissioningStatusEnum result) :
         networkCommissioningStatus(result)
     {}
-    app::Clusters::NetworkCommissioning::NetworkCommissioningStatus networkCommissioningStatus;
+    app::Clusters::NetworkCommissioning::NetworkCommissioningStatusEnum networkCommissioningStatus;
 };
 
 class CommissioningDelegate

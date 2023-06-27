@@ -596,6 +596,23 @@ struct LwIPEvent;
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME
 
 /**
+ *  @def CHIP_SYSTEM_CONFIG_USE_LWIP_SKIP_INIT
+ *
+ *  @brief
+ *      Skip LwIP initalization during network setup.
+ *
+ *  The platform can provide its own LwIP initialization.
+ *  This option allows skipping initialization steps in network setup e.g. in unit tests.
+ *
+ *  This configuration is overridden if CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT is set.
+ */
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
+#ifndef CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT
+#define CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT 0
+#endif // CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT
+#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
+
+/**
  *  @def CHIP_SYSTEM_CONFIG_VALID_REAL_TIME_THRESHOLD
  *
  *  @brief
@@ -698,3 +715,51 @@ struct LwIPEvent;
 #define CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+ *
+ *  @brief
+ *      Use Zephyr socket API.
+ *
+ *  Defaults to enabled on Zephyr platforms that do not enable Zephyr POSIX layer.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && __ZEPHYR__ && CONFIG_NET_SOCKETS_POSIX_NAMES
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+ *
+ *  @brief
+ *      Use POSIX socket API.
+ *
+ *  Defaults to enabled on platforms that use sockets other than Zephyr sockets.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && !CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+#define CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
+ *
+ *  @brief
+ *      Use Zephyr eventfd API.
+ *
+ *  Defaults to enabled on Zephyr platforms that enable CONFIG_EVENTFD.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
+#if __ZEPHYR__ && CONFIG_EVENTFD
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD

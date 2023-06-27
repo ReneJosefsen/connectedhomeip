@@ -38,13 +38,14 @@ CHIP_ERROR GenericFaultTestEventTriggerDelegate::HandleEventTrigger(uint64_t eve
         // Fault injection
         GeneralFaults<kMaxHardwareFaults> hwFaultsPrevious;
         GeneralFaults<kMaxHardwareFaults> hwFaultsCurrent;
-        ReturnErrorOnFailure(hwFaultsPrevious.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_RADIO));
-        ReturnErrorOnFailure(hwFaultsPrevious.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_POWER_SOURCE));
+        using app::Clusters::GeneralDiagnostics::HardwareFaultEnum;
+        ReturnErrorOnFailure(hwFaultsPrevious.add(to_underlying(HardwareFaultEnum::kRadio)));
+        ReturnErrorOnFailure(hwFaultsPrevious.add(to_underlying(HardwareFaultEnum::kPowerSource)));
 
-        ReturnErrorOnFailure(hwFaultsCurrent.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_RADIO));
-        ReturnErrorOnFailure(hwFaultsCurrent.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_SENSOR));
-        ReturnErrorOnFailure(hwFaultsCurrent.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_POWER_SOURCE));
-        ReturnErrorOnFailure(hwFaultsCurrent.add(EMBER_ZCL_HARDWARE_FAULT_ENUM_USER_INTERFACE_FAULT));
+        ReturnErrorOnFailure(hwFaultsCurrent.add(to_underlying(HardwareFaultEnum::kRadio)));
+        ReturnErrorOnFailure(hwFaultsCurrent.add(to_underlying(HardwareFaultEnum::kSensor)));
+        ReturnErrorOnFailure(hwFaultsCurrent.add(to_underlying(HardwareFaultEnum::kPowerSource)));
+        ReturnErrorOnFailure(hwFaultsCurrent.add(to_underlying(HardwareFaultEnum::kUserInterfaceFault)));
 
         app::Clusters::GeneralDiagnosticsServer::Instance().OnHardwareFaultsDetect(hwFaultsPrevious, hwFaultsCurrent);
 
@@ -66,12 +67,13 @@ CHIP_ERROR GenericFaultTestEventTriggerDelegate::HandleEventTrigger(uint64_t eve
         GeneralFaults<kMaxNetworkFaults> networkFaultsCurrent;
 
         // Network faults injections
-        ReturnErrorOnFailure(networkFaultsPrevious.add(EMBER_ZCL_NETWORK_FAULT_ENUM_HARDWARE_FAILURE));
-        ReturnErrorOnFailure(networkFaultsPrevious.add(EMBER_ZCL_NETWORK_FAULT_ENUM_NETWORK_JAMMED));
+        using app::Clusters::GeneralDiagnostics::NetworkFaultEnum;
+        ReturnErrorOnFailure(networkFaultsPrevious.add(to_underlying(NetworkFaultEnum::kHardwareFailure)));
+        ReturnErrorOnFailure(networkFaultsPrevious.add(to_underlying(NetworkFaultEnum::kNetworkJammed)));
 
-        ReturnErrorOnFailure(networkFaultsCurrent.add(EMBER_ZCL_NETWORK_FAULT_ENUM_HARDWARE_FAILURE));
-        ReturnErrorOnFailure(networkFaultsCurrent.add(EMBER_ZCL_NETWORK_FAULT_ENUM_NETWORK_JAMMED));
-        ReturnErrorOnFailure(networkFaultsCurrent.add(EMBER_ZCL_NETWORK_FAULT_ENUM_CONNECTION_FAILED));
+        ReturnErrorOnFailure(networkFaultsCurrent.add(to_underlying(NetworkFaultEnum::kHardwareFailure)));
+        ReturnErrorOnFailure(networkFaultsCurrent.add(to_underlying(NetworkFaultEnum::kNetworkJammed)));
+        ReturnErrorOnFailure(networkFaultsCurrent.add(to_underlying(NetworkFaultEnum::kConnectionFailed)));
 
         app::Clusters::GeneralDiagnosticsServer::Instance().OnNetworkFaultsDetect(networkFaultsPrevious, networkFaultsCurrent);
     }

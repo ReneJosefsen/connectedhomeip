@@ -16,6 +16,38 @@
 
 cmake_minimum_required(VERSION 3.21)
 
+# Declare Open IoT SDK startup target
+add_library(openiotsdk-startup
+    OBJECT
+        openiotsdk_startup_gcc.cpp
+)
+
+target_link_libraries(openiotsdk-startup
+    PUBLIC
+        # iotsdk-serial-retarget contains the UART but we don't need the retarget part 
+        $<FILTER:$<TARGET_OBJECTS:iotsdk-serial-retarget>,EXCLUDE,.*gcc_retarget.*>
+        cmsis-rtos-api
+        mcu-driver-hal
+)
+
+target_link_options(openiotsdk-startup
+    PUBLIC
+        "-Wl,--wrap,__malloc_lock"
+        "-Wl,--wrap,__malloc_unlock" 
+)
+
+if(TFM_SUPPORT)
+    target_compile_definitions(openiotsdk-startup
+        PUBLIC
+            TFM_SUPPORT
+    )
+
+    target_link_libraries(openiotsdk-startup
+        PUBLIC
+            tfm-ns-interface
+    )    
+endif()
+
 # Declare Open IoT SDK app interface target
 add_library(openiotsdk-app
     openiotsdk_platform.cpp
@@ -30,8 +62,7 @@ target_include_directories(openiotsdk-app
 
 target_link_libraries(openiotsdk-app 
     PUBLIC
-        openiotsdk-chip
-        $<TARGET_OBJECTS:iotsdk-serial-retarget>
+        chip
 )
 
 if(TFM_SUPPORT)

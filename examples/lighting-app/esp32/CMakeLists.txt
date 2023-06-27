@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2021 Project CHIP Authors
+#    Copyright (c) 2021-2023 Project CHIP Authors
 #    All rights reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,19 @@ set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/QRCode"
 )
 
+if(${IDF_TARGET} STREQUAL "esp32")
+    list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/m5stack-tft/repo/components/tft"
+                                     "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/m5stack-tft/repo/components/spidriver"
+                                     "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/screen-framework")
+endif()
+
 project(chip-lighting-app)
+
+# WARNING: This is just an example for using key for decrypting the encrypted OTA image
+# Please do not use it as is.
+if(CONFIG_ENABLE_ENCRYPTED_OTA)
+    target_add_binary_data(chip-lighting-app.elf "esp_image_encryption_key.pem" TEXT)
+endif()
 
 # C++17 is required for RPC build.
 idf_build_set_property(CXX_COMPILE_OPTIONS "-std=gnu++17;-Os;-DCHIP_HAVE_CONFIG_H" APPEND)
@@ -46,6 +58,8 @@ idf_build_set_property(COMPILE_OPTIONS "-Wno-error=maybe-uninitialized" APPEND)
 
 #For the H2, -Werror=uninitialized will cause an error in "src/lib/support/LambdaBridge.h"
 idf_build_set_property(COMPILE_OPTIONS "-Wno-error=uninitialized" APPEND)
+#For ESP32-C6, -Werror=array-bounds will cause an error in 'third_party/nlfaultinjection/repo/src/nlfaultinjection.cpp'
+idf_build_set_property(COMPILE_OPTIONS "-Wno-error=array-bounds" APPEND)
 
 flashing_script()
 

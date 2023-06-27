@@ -32,6 +32,7 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: Sources"
+      PICS: PSCFG.C.AM-READ
       wait: "readAttribute"
       attribute: "Sources"
 
@@ -46,7 +47,7 @@ tests:
 
           ./chip-tool powersourceconfiguration read attribute-list 1 0
 
-          Verify the ReadRequestMessage the TH (all-cluster-minimal-app) log:
+          Verify the attribute-list response the TH (all-cluster-minimal-app) log:
 
           [1663147271.622589][2750:2750] CHIP:IM: Received Read request
           [1663147271.622666][2750:2750] CHIP:DMG: ReadRequestMessage =
@@ -68,6 +69,28 @@ tests:
           [1663147271.623168][2750:2750] CHIP:DMG: IM RH moving to [GeneratingReports]
           [1663147271.623246][2750:2750] CHIP:DMG: Building Reports for ReadHandler with LastReportGeneration = 0 DirtyGeneration = 0
           [1663147271.623274][2750:2750] CHIP:DMG: <RE:Run> Cluster 2e, Attribute fffb is dirty
+
+          ./chip-tool powersourceconfiguration read feature-map 1 0
+
+          Verify the feature-map response  the TH (all-cluster-minimal-app) log:
+
+          [1676551043.650050][58234:58234] CHIP:IM: Received Read request
+          [1676551043.650118][58234:58234] CHIP:DMG: ReadRequestMessage =
+          [1676551043.650132][58234:58234] CHIP:DMG: {
+          [1676551043.650139][58234:58234] CHIP:DMG:         AttributePathIBs =
+          [1676551043.650148][58234:58234] CHIP:DMG:         [
+          [1676551043.650155][58234:58234] CHIP:DMG:                 AttributePathIB =
+          [1676551043.650164][58234:58234] CHIP:DMG:                 {
+          [1676551043.650174][58234:58234] CHIP:DMG:                         Endpoint = 0x0,
+          [1676551043.650183][58234:58234] CHIP:DMG:                         Cluster = 0x2e,
+          [1676551043.650193][58234:58234] CHIP:DMG:                         Attribute = 0x0000_FFFC,
+          [1676551043.650203][58234:58234] CHIP:DMG:                 }
+          [1676551043.650218][58234:58234] CHIP:DMG:
+          [1676551043.650227][58234:58234] CHIP:DMG:         ],
+          [1676551043.650241][58234:58234] CHIP:DMG:
+          [1676551043.650251][58234:58234] CHIP:DMG:         isFabricFiltered = true,
+          [1676551043.650261][58234:58234] CHIP:DMG:         InteractionModelRevision = 1
+          [1676551043.650269][58234:58234] CHIP:DMG: },
 
 
           ./chip-tool powersourceconfiguration read sources 1 0

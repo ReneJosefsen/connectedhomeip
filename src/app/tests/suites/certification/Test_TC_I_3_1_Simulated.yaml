@@ -16,6 +16,10 @@ name: 59.3.1. [TC-I-3.1] Attributes with Client as DUT
 
 PICS:
     - I.C
+    - I.C.AM-READ
+    - I.C.AO-READ
+    - I.C.AM-WRITE
+    - I.C.AO-WRITE
 
 config:
     nodeId: 0x12344321
@@ -28,22 +32,26 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: IdentifyTime"
+      PICS: I.C.AM-READ
       wait: "readAttribute"
       attribute: "IdentifyTime"
 
+    - label: "Read attribute: identifytype"
+      PICS: I.C.AM-READ
+      wait: "readAttribute"
+      attribute: "IdentifyType"
+
     - label: "write attribute: IdentifyTime"
+      PICS: I.C.AM-WRITE
       wait: "writeAttribute"
       attribute: "IdentifyTime"
       arguments:
           value:
 
     - label: "Readback attribute: IdentifyTime"
+      PICS: I.C.AM-READ
       wait: "readAttribute"
       attribute: "IdentifyTime"
-
-    - label: "Read attribute: identifytype"
-      wait: "readAttribute"
-      attribute: "IdentifyType"
 
     - label:
           "Configure TH such that it implements mandatory and none of the
@@ -54,6 +62,7 @@ tests:
           Product maker needs to provide instructions for how to trigger the command on the DUT. For comparison, the DUT behavior for this test step can be simulated using chip-tool (when DUT is a commissioner/Client)
 
           ./chip-tool identify read feature-map 1 1
+
           Verify none of the optional feature of the server-side of the cluster is listed  on TH(all-clusters-minnimal-app) Log
 
           [1667198019.683786][11390:11390] CHIP:EM: Handling via exchange: 36421r, Delegate: 0xaaaaad555148
@@ -126,6 +135,7 @@ tests:
           [1667198019.690159][11390:11390] CHIP:DMG:                 },
 
           ./chip-tool identify read attribute-list 1 1
+
           Verify none of the optional attribute of the server-side of the cluster is listed  on TH(all-clusters-minnimal-app) Log
 
           [1667198224.933982][11390:11390] CHIP:EM: Handling via exchange: 27925r, Delegate: 0xaaaaad555148
@@ -328,6 +338,7 @@ tests:
 
 
           ./chip-tool identify read identify-time 1 1
+
           Verify DUT receives  identify-time attribute response on theTH(all-clusters-minimal-app)
 
           [1667198339.074575][11390:11390] CHIP:EM: Handling via exchange: 6451r, Delegate: 0xaaaaad555148
@@ -402,6 +413,7 @@ tests:
 
 
           ./chip-tool identify  read   identify-type 1 1
+
           Verify DUT receives  identify-type attribute response on theTH(all-clusters-minimal-app)
 
           [1667198289.735862][11390:11390] CHIP:EM: Handling via exchange: 64741r, Delegate: 0xaaaaad555148

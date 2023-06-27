@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 3.2.4. [TC-OO-2.4] Startup functionality with server as DUT
+name: 4.2.4. [TC-OO-2.4] Startup functionality with server as DUT
 
 PICS:
     - OO.S
@@ -237,6 +237,13 @@ tests:
     - label: "TH sends Off command to DUT"
       PICS: OO.S.C00.Rsp
       command: "Off"
+
+    - label: "TH reads the OnOff attribute from the DUT"
+      PICS: OO.S.A0000
+      command: "readAttribute"
+      attribute: "OnOff"
+      response:
+          value: 0
 
     - label: "Reboot target device"
       PICS: PICS_SDK_CI_ONLY

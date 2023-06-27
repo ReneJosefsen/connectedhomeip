@@ -14,6 +14,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import asyncio
 import atexit
 import logging
 import os
@@ -22,7 +23,9 @@ import traceback
 
 # isort: off
 
-from chip import ChipDeviceCtrl  # Needed before chip.FabricAdmin
+# F401 is "Module imported but unused" line will be ignored by linter
+# ChipDeviceCtrl is not used directly in this file but it is needed
+from chip import ChipDeviceCtrl  # noqa: F401 # Needed before chip.FabricAdmin
 import chip.FabricAdmin  # Needed before chip.CertificateAuthority
 
 # isort: on
@@ -30,7 +33,7 @@ import chip.FabricAdmin  # Needed before chip.CertificateAuthority
 # ensure matter IDL is availale for import, otherwise set relative paths
 try:
     from matter_idl import matter_idl_types
-except:
+except ImportError:
     SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     import sys
 
@@ -39,11 +42,13 @@ except:
 
     from matter_idl import matter_idl_types
 
+    __ALL__ = (matter_idl_types)
+
 
 import chip.CertificateAuthority
 import chip.native
 import click
-from chip.ChipStack import *
+from chip.ChipStack import ChipStack
 from chip.yaml.runner import ReplTestRunner
 from matter_yamltests.definitions import SpecDefinitionsFromPaths
 from matter_yamltests.parser import PostProcessCheckStatus, TestParser, TestParserConfig
@@ -53,10 +58,30 @@ _DEFAULT_CHIP_ROOT = os.path.abspath(
 _CLUSTER_XML_DIRECTORY_PATH = os.path.abspath(
     os.path.join(_DEFAULT_CHIP_ROOT, "src/app/zap-templates/zcl/data-model/"))
 
+certificateAuthorityManager = None
 
-def StackShutdown():
-    certificateAuthorityManager.Shutdown()
-    builtins.chipStack.Shutdown()
+
+async def execute_test(yaml, runner):
+    # Executing and validating test
+    for test_step in yaml.tests:
+        if not test_step.is_pics_enabled:
+            continue
+        test_action = runner.encode(test_step)
+        if test_action is None:
+            raise Exception(
+                f'Failed to encode test step {test_step.label}')
+
+        response = await runner.execute(test_action)
+        decoded_response = runner.decode(response)
+        post_processing_result = test_step.post_process_response(
+            decoded_response)
+        if not post_processing_result.is_success():
+            logging.warning(f"Test step failure in {test_step.label}")
+            for entry in post_processing_result.entries:
+                if entry.state == PostProcessCheckStatus.SUCCESS:
+                    continue
+                logging.warning("%s: %s", entry.state, entry.message)
+            raise Exception(f'Test step failed {test_step.label}')
 
 
 @click.command()
@@ -118,27 +143,8 @@ def main(setup_code, yaml_path, node_id, pics_file):
             runner = ReplTestRunner(
                 clusters_definitions, certificate_authority_manager, dev_ctrl)
 
-            # Executing and validating test
-            for test_step in yaml.tests:
-                if not test_step.is_pics_enabled:
-                    continue
-                test_action = runner.encode(test_step)
-                # TODO if test_action is None we should see if it is a pseudo cluster.
-                if test_action is None:
-                    raise Exception(
-                        f'Failed to encode test step {test_step.label}')
+            asyncio.run(execute_test(yaml, runner))
 
-                response = runner.execute(test_action)
-                decoded_response = runner.decode(response)
-                post_processing_result = test_step.post_process_response(
-                    decoded_response)
-                if not post_processing_result.is_success():
-                    logging.warning(f"Test step failure in 'test_step.label'")
-                    for entry in post_processing_result.entries:
-                        if entry.state == PostProcessCheckStatus.SUCCESS:
-                            continue
-                        logging.warning("%s: %s", entry.state, entry.message)
-                    raise Exception(f'Test step failed {test_step.label}')
         except Exception:
             print(traceback.format_exc())
             exit(-2)

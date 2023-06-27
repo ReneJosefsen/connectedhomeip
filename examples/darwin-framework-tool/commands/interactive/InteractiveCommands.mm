@@ -22,7 +22,7 @@
 
 #include <editline.h>
 
-constexpr const char * kInteractiveModePrompt = ">>> ";
+constexpr const char * kInteractiveModePrompt = "Stop and restart stack: [Ctrl+_] & [Ctrl+^] \nQuit Interactive: 'quit()'\n>>> ";
 constexpr const char * kInteractiveModeHistoryFilePath = "/tmp/darwin_framework_tool_history";
 constexpr const char * kInteractiveModeStopCommand = "quit()";
 
@@ -73,13 +73,18 @@ void ENFORCE_FORMAT(3, 0) LoggingCallback(const char * module, uint8_t category,
 }
 } // namespace
 
-char * GetCommand(char * command)
+char * GetCommand(const chip::Optional<char *> & mAdditionalPrompt, char * command)
 {
     if (command != nullptr) {
         free(command);
         command = nullptr;
     }
 
+    if (mAdditionalPrompt.HasValue()) {
+        ClearLine();
+        printf("%s\n", mAdditionalPrompt.Value());
+        ClearLine();
+    }
     command = readline(kInteractiveModePrompt);
 
     // Do not save empty lines
@@ -118,7 +123,7 @@ CHIP_ERROR InteractiveStartCommand::RunCommand()
 
     char * command = nullptr;
     while (YES) {
-        command = GetCommand(command);
+        command = GetCommand(mAdditionalPrompt, command);
         if (command != nullptr && !ParseCommand(command)) {
             break;
         }

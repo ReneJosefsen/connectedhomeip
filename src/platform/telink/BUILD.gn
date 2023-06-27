@@ -22,6 +22,8 @@ assert(chip_device_platform == "telink")
 static_library("telink") {
   sources = [
     "../SingletonConfigurationManager.cpp",
+    "../Zephyr/BLEAdvertisingArbiter.cpp",
+    "../Zephyr/BLEAdvertisingArbiter.h",
     "../Zephyr/ConfigurationManagerImpl.cpp",
     "../Zephyr/DiagnosticDataProviderImpl.cpp",
     "../Zephyr/DiagnosticDataProviderImpl.h",
@@ -41,6 +43,7 @@ static_library("telink") {
     "ConfigurationManagerImpl.h",
     "ConnectivityManagerImpl.cpp",
     "ConnectivityManagerImpl.h",
+    "ICDUtil.cpp",
     "InetPlatformConfig.h",
     "KeyValueStoreManagerImpl.h",
     "PlatformManagerImpl.h",
@@ -55,6 +58,8 @@ static_library("telink") {
 
   public_deps = [ "${chip_root}/src/platform:platform_base" ]
 
+  defines = [ "CHIP_ADDRESS_RESOLVE_IMPL_INCLUDE_HEADER=<lib/address_resolve/AddressResolve_DefaultImpl.h>" ]
+
   if (chip_enable_factory_data) {
     sources += [
       "FactoryDataParser.c",
@@ -67,12 +72,16 @@ static_library("telink") {
   if (chip_enable_openthread) {
     sources += [
       "../OpenThread/OpenThreadUtils.cpp",
-      "../Zephyr/ThreadStackManagerImpl.cpp",
+      "ThreadStackManagerImpl.cpp",
       "ThreadStackManagerImpl.h",
     ]
 
     if (chip_mdns == "platform") {
-      sources += [ "../OpenThread/DnssdImpl.cpp" ]
+      sources += [
+        "../OpenThread/DnssdImpl.cpp",
+        "../OpenThread/OpenThreadDnssdImpl.cpp",
+        "../OpenThread/OpenThreadDnssdImpl.h",
+      ]
       deps = [ "${chip_root}/src/lib/dnssd:platform_header" ]
     }
   }

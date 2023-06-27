@@ -40,10 +40,10 @@ constexpr char kWiFiCredentialsKeyName[] = "wifi-pass";
 
 CHIP_ERROR AmebaUtils::StartWiFi(void)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     // Ensure that the WiFi layer is started.
-    matter_wifi_on(RTW_MODE_STA);
-    return err;
+    int32_t error  = matter_wifi_on(RTW_MODE_STA);
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
+    return CHIP_NO_ERROR; // will fail if wifi is already initialized, let it pass
 }
 
 CHIP_ERROR AmebaUtils::IsStationEnabled(bool & staEnabled)
@@ -60,22 +60,23 @@ bool AmebaUtils::IsStationProvisioned(void)
 
 CHIP_ERROR AmebaUtils::IsStationConnected(bool & connected)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    connected      = (matter_wifi_is_connected_to_ap() == RTW_SUCCESS) ? 1 : 0;
+    int32_t error  = matter_wifi_is_connected_to_ap();
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
+    connected      = (err == CHIP_NO_ERROR) ? true : false;
     return err;
 }
 
 CHIP_ERROR AmebaUtils::EnableStationMode(void)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     // Ensure that station mode is enabled in the WiFi layer.
-    matter_wifi_set_mode(RTW_MODE_STA);
+    int32_t error  = matter_wifi_set_mode(RTW_MODE_STA);
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
     return err;
 }
 
 CHIP_ERROR AmebaUtils::SetWiFiConfig(rtw_wifi_config_t * config)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    CHIP_ERROR err;
     // don't store if ssid is null
     if (config->ssid[0] == 0)
     {
@@ -95,7 +96,7 @@ exit:
 
 CHIP_ERROR AmebaUtils::GetWiFiConfig(rtw_wifi_config_t * config)
 {
-    CHIP_ERROR err        = CHIP_NO_ERROR;
+    CHIP_ERROR err;
     size_t ssidLen        = 0;
     size_t credentialsLen = 0;
 
@@ -116,33 +117,136 @@ exit:
 
 CHIP_ERROR AmebaUtils::ClearWiFiConfig()
 {
-    // Clear Ameba WiFi station config
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    rtw_wifi_config_t wifiConfig;
-    memset(&wifiConfig, 0, sizeof(wifiConfig));
-    err = SetWiFiConfig(&wifiConfig);
+    /* Clear Wi-Fi Configurations in Storage */
+    CHIP_ERROR err;
+    err = PersistedStorage::KeyValueStoreMgr().Delete(kWiFiSSIDKeyName);
+    SuccessOrExit(err);
+
+    err = PersistedStorage::KeyValueStoreMgr().Delete(kWiFiCredentialsKeyName);
+    SuccessOrExit(err);
+
+exit:
     return err;
 }
 
 CHIP_ERROR AmebaUtils::WiFiDisconnect(void)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    ChipLogProgress(DeviceLayer, "matter_wifi_disconnect");
-    err = (matter_wifi_disconnect() == RTW_SUCCESS) ? CHIP_NO_ERROR : CHIP_ERROR_INTERNAL;
+    ChipLogProgress(DeviceLayer, "Disconnecting WiFi");
+    int32_t error  = matter_wifi_disconnect();
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
+    if (err == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(DeviceLayer, "matter_lwip_releaseip");
+        matter_lwip_releaseip();
+    }
     return err;
 }
 
-CHIP_ERROR AmebaUtils::WiFiConnect(void)
+CHIP_ERROR AmebaUtils::WiFiConnectProvisionedNetwork(void)
 {
-    CHIP_ERROR err             = CHIP_NO_ERROR;
     rtw_wifi_config_t * config = (rtw_wifi_config_t *) pvPortMalloc(sizeof(rtw_wifi_config_t));
     memset(config, 0, sizeof(rtw_wifi_config_t));
     GetWiFiConfig(config);
     ChipLogProgress(DeviceLayer, "Connecting to AP : [%s]", (char *) config->ssid);
-    int ameba_err = matter_wifi_connect((char *) config->ssid, RTW_SECURITY_WPA_WPA2_MIXED, (char *) config->password,
-                                        strlen((const char *) config->ssid), strlen((const char *) config->password), 0, NULL);
+    int32_t error  = matter_wifi_connect((char *) config->ssid, RTW_SECURITY_WPA_WPA2_MIXED, (char *) config->password,
+                                        strlen((const char *) config->ssid), strlen((const char *) config->password), 0, nullptr);
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
 
     vPortFree(config);
-    err = (ameba_err == RTW_SUCCESS) ? CHIP_NO_ERROR : CHIP_ERROR_INTERNAL;
     return err;
+}
+
+CHIP_ERROR AmebaUtils::WiFiConnect(const char * ssid, const char * password)
+{
+    ChipLogProgress(DeviceLayer, "Connecting to AP : [%s]", (char *) ssid);
+    int32_t error  = matter_wifi_connect((char *) ssid, RTW_SECURITY_WPA_WPA2_MIXED, (char *) password, strlen(ssid),
+                                        strlen(password), 0, nullptr);
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
+    return err;
+}
+
+CHIP_ERROR AmebaUtils::SetCurrentProvisionedNetwork()
+{
+    rtw_wifi_setting_t pSetting;
+    int32_t error  = matter_get_sta_wifi_info(&pSetting);
+    CHIP_ERROR err = MapError(error, AmebaErrorType::kWiFiError);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogProgress(DeviceLayer, "STA No Wi-Fi Info");
+        goto exit;
+    }
+    else
+    {
+        rtw_wifi_config_t config = { 0 };
+        GetWiFiConfig(&config);
+        if (!memcmp(config.ssid, pSetting.ssid, strlen((const char *) pSetting.ssid) + 1))
+        {
+            ChipLogProgress(DeviceLayer, "STA Wi-Fi Info exist, do nothing");
+            goto exit;
+        }
+        else
+        {
+            ChipLogProgress(DeviceLayer, "STA Wi-Fi Info ");
+
+            memcpy(config.ssid, pSetting.ssid, strlen((const char *) pSetting.ssid) + 1);
+            memcpy(config.password, pSetting.password, strlen((const char *) pSetting.password) + 1);
+            err = SetWiFiConfig(&config);
+            if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(DeviceLayer, "SetWiFiConfig() failed");
+                goto exit;
+            }
+        }
+    }
+exit:
+    return err;
+}
+
+CHIP_ERROR AmebaUtils::MapError(int32_t error, AmebaErrorType type)
+{
+    if (type == AmebaErrorType::kDctError)
+    {
+        return MapDctError(error);
+    }
+    if (type == AmebaErrorType::kFlashError)
+    {
+        return MapFlashError(error);
+    }
+    if (type == AmebaErrorType::kWiFiError)
+    {
+        return MapWiFiError(error);
+    }
+    return CHIP_ERROR_INTERNAL;
+}
+
+CHIP_ERROR AmebaUtils::MapDctError(int32_t error)
+{
+    if (error == DCT_SUCCESS)
+        return CHIP_NO_ERROR;
+    if (error == DCT_ERR_NO_MEMORY)
+        return CHIP_ERROR_NO_MEMORY;
+    if (error == DCT_ERR_NOT_FIND)
+        return CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND;
+    if (error == DCT_ERR_SIZE_OVER)
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    if (error == DCT_ERR_MODULE_BUSY)
+        return CHIP_ERROR_BUSY;
+
+    return CHIP_ERROR_INTERNAL;
+}
+
+CHIP_ERROR AmebaUtils::MapFlashError(int32_t error)
+{
+    if (error == 1)
+        return CHIP_NO_ERROR;
+
+    return CHIP_ERROR_INTERNAL;
+}
+
+CHIP_ERROR AmebaUtils::MapWiFiError(int32_t error)
+{
+    if (error == RTW_SUCCESS)
+        return CHIP_NO_ERROR;
+
+    return CHIP_ERROR_INTERNAL;
 }

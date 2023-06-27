@@ -36,8 +36,10 @@
 #include <messaging/ExchangeDelegate.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
+#include <messaging/ReliableMessageProtocolConfig.h>
 #include <platform/CHIPDeviceConfig.h>
 #include <protocols/secure_channel/CASESession.h>
+#include <system/SystemClock.h>
 #include <system/SystemLayer.h>
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
@@ -82,8 +84,6 @@ public:
     {}
     OperationalDeviceProxy() {}
 
-    // Recommended to use InteractionModelEngine::ShutdownSubscriptions directly.
-    void ShutdownSubscriptions() override { VerifyOrDie(false); } // Currently not implemented.
     void Disconnect() override
     {
         if (IsSecureConnected())
@@ -117,7 +117,19 @@ private:
  * implementations as an example.
  */
 typedef void (*OnDeviceConnected)(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
+
+/**
+ * Callback prototype when secure session establishment fails.
+ */
 typedef void (*OnDeviceConnectionFailure)(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
+
+/**
+ * Callback prototype when secure session establishement has failed and will be
+ * retried.  retryTimeout indicates how much time will pass before we know
+ * whether the retry has timed out waiting for a response to our Sigma1 message.
+ */
+typedef void (*OnDeviceConnectionRetry)(void * context, const ScopedNodeId & peerId, CHIP_ERROR error,
+                                        System::Clock::Seconds16 retryTimeout);
 
 /**
  * Object used to either establish a connection to peer or performing address lookup to a peer.
@@ -140,16 +152,13 @@ typedef void (*OnDeviceConnectionFailure)(void * context, const ScopedNodeId & p
  * It is possible to determine which of the two purposes the OperationalSessionSetup is for by calling
  * IsForAddressUpdate().
  */
-class DLL_EXPORT OperationalSessionSetup : public SessionDelegate,
-                                           public SessionEstablishmentDelegate,
-                                           public AddressResolve::NodeListener
+class DLL_EXPORT OperationalSessionSetup : public SessionEstablishmentDelegate, public AddressResolve::NodeListener
 {
 public:
     ~OperationalSessionSetup() override;
 
     OperationalSessionSetup(const CASEClientInitParams & params, CASEClientPoolDelegate * clientPool, ScopedNodeId peerId,
-                            OperationalSessionReleaseDelegate * releaseDelegate) :
-        mSecureSession(*this)
+                            OperationalSessionReleaseDelegate * releaseDelegate)
     {
         mInitParams = params;
         if (params.Validate() != CHIP_NO_ERROR || clientPool == nullptr || releaseDelegate == nullptr)
@@ -189,11 +198,6 @@ public:
     void OnSessionEstablished(const SessionHandle & session) override;
     void OnSessionEstablishmentError(CHIP_ERROR error) override;
 
-    //////////// SessionDelegate Implementation ///////////////
-
-    // Called when a connection is closing. The object releases all resources associated with the connection.
-    void OnSessionReleased() override;
-
     ScopedNodeId GetPeerId() const { return mPeerId; }
 
     static Transport::PeerAddress ToPeerAddress(const Dnssd::ResolvedNodeData & nodeData)
@@ -227,6 +231,9 @@ public:
 #if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     // Update our remaining attempt count to be at least the given value.
     void UpdateAttemptCount(uint8_t attemptCount);
+
+    // Add a retry handler for this session setup.
+    void AddRetryHandler(Callback::Callback<OnDeviceConnectionRetry> * onRetry);
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
 private:
@@ -238,6 +245,8 @@ private:
         HasAddress,       // Have an address, CASE handshake not started yet.
         Connecting,       // CASE handshake in progress.
         SecureConnected,  // CASE session established.
+        WaitingForRetry,  // No address known, but a retry is pending.  Added at
+                          // end to make logs easier to understand.
     };
 
     CASEClientInitParams mInitParams;
@@ -251,7 +260,7 @@ private:
 
     Transport::PeerAddress mDeviceAddress = Transport::PeerAddress::UDP(Inet::IPAddress::Any);
 
-    SessionHolderWithDelegate mSecureSession;
+    SessionHolder mSecureSession;
 
     Callback::CallbackDeque mConnectionSuccess;
     Callback::CallbackDeque mConnectionFailure;
@@ -268,6 +277,10 @@ private:
 #if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     uint8_t mRemainingAttempts = 0;
     uint8_t mAttemptsDone      = 0;
+
+    uint8_t mResolveAttemptsAllowed = 0;
+
+    Callback::CallbackDeque mConnectionRetry;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
     void MoveToState(State aTargetState);
@@ -301,6 +314,12 @@ private:
      */
     void DequeueConnectionCallbacks(CHIP_ERROR error);
 
+    /*
+     * Like DequeueConnectionCallbacks but does not release ourselves.  For use
+     * from our destructor.
+     */
+    void DequeueConnectionCallbacksWithoutReleasing(CHIP_ERROR error);
+
     /**
      * Triggers a DNSSD lookup to find a usable peer address.
      */
@@ -313,14 +332,34 @@ private:
 
 #if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     /**
-     * Schedule a setup reattempt, if possible.
+     * Schedule a setup reattempt, if possible.  The outparam indicates how long
+     * it will be before the reattempt happens.
      */
-    CHIP_ERROR ScheduleSessionSetupReattempt();
+    CHIP_ERROR ScheduleSessionSetupReattempt(System::Clock::Seconds16 & timerDelay);
+
+    /**
+     * Cancel a scheduled setup reattempt, if we can (i.e. if we still have
+     * access to the SystemLayer).
+     */
+    void CancelSessionSetupReattempt();
 
     /**
      * Helper for our backoff retry timer.
      */
     static void TrySetupAgain(System::Layer * systemLayer, void * state);
+
+    /**
+     * Helper to notify our retry callbacks that a setup error occurred and we
+     * will retry.
+     */
+    void NotifyRetryHandlers(CHIP_ERROR error, const ReliableMessageProtocolConfig & remoteMrpConfig,
+                             System::Clock::Seconds16 retryDelay);
+
+    /**
+     * A version of NotifyRetryHandlers that passes in a retry timeout estimate
+     * directly.
+     */
+    void NotifyRetryHandlers(CHIP_ERROR error, System::Clock::Seconds16 timeoutEstimate);
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 };
 

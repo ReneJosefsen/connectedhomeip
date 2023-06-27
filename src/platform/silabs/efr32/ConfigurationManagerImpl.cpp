@@ -292,6 +292,12 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 
     // Restart the system.
     ChipLogProgress(DeviceLayer, "System restarting");
+
+    // When called from an RPC, the following reset occurs before the RPC can respond,
+    // which breaks tests (because it looks like the RPC hasn't successfully completed).
+    // Block the task for 500 ms before the reset occurs to allow RPC response to be sent
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     NVIC_SystemReset();
 }
 

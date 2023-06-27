@@ -16,9 +16,9 @@
 
 import enum
 import io
+import json
 import logging
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -110,7 +110,15 @@ def _SetupReleaseZap(install_directory: str, zap_version: str):
     else:
         raise Exception('Unknown platform - do not know what zip file to download.')
 
-    url = f"https://github.com/project-chip/zap/releases/download/{zap_version}/zap-{zap_platform}.zip"
+    arch = os.uname().machine
+    if arch == 'arm64':
+        zap_arch = 'arm64'
+    elif arch == 'x86_64':
+        zap_arch = 'x64'
+    else:
+        raise Exception(f'Unknown architecture "${arch}" - do not know what zip file to download.')
+
+    url = f"https://github.com/project-chip/zap/releases/download/{zap_version}/zap-{zap_platform}-{zap_arch}.zip"
 
     logging.info("Fetching: %s", url)
 
@@ -141,19 +149,19 @@ def _GetZapVersionToUse(project_root):
     # This heuristic may be bad at times, however then you can also override the
     # version in command line parameters
 
-    match_re = re.compile(r'.*ENV\s+ZAP_VERSION=([^# ]*)')
+    zap_version = ""
+    zap_path = os.path.join(project_root, "scripts/setup/zap.json")
+    zap_json = json.load(open(zap_path))
+    for package in zap_json.get("packages", []):
+        for tag in package.get("tags", []):
+            if tag.startswith("version:2@"):
+                zap_version = tag.removeprefix("version:2@")
+                suffix_index = zap_version.rfind(".")
+                if suffix_index != -1:
+                    zap_version = zap_version[:suffix_index]
+                return zap_version
 
-    docker_path = os.path.join(project_root, "integrations/docker/images/chip-build/Dockerfile")
-
-    with open(docker_path, 'rt') as f:
-        for l in f.readlines():
-            l = l.strip()
-            m = match_re.match(l)
-            if not m:
-                continue
-            return m.group(1)
-
-    raise Exception(f"Failed to determine version from {docker_path}")
+    raise Exception(f"Failed to determine version from {zap_path}")
 
 
 @click.command()

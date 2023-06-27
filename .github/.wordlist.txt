@@ -87,6 +87,7 @@ ARMmbed
 armv
 ASAN
 asdk
+ASR
 AssertionError
 AST
 ASYNC
@@ -120,6 +121,7 @@ AXXXF
 AYNJV
 babaf
 backend
+backends
 backticks
 backtrace
 BallastConfiguration
@@ -355,6 +357,8 @@ DCONF
 DCONFIG
 debianutils
 debugText
+decrypt
+decrypted
 DEDEDEDE
 deepnote
 DefaultOTAProviders
@@ -434,6 +438,7 @@ Dnsmasq
 dnsmasqd
 DNSSD
 DNSStubListener
+docbuild
 Dockerfile
 Dockerfiles
 Don'ts
@@ -473,6 +478,7 @@ EEE
 eef
 ef
 EFR
+efuse
 eg
 EjQ
 elftools
@@ -562,6 +568,7 @@ FW
 gbl
 gcloud
 GDB
+gdbgui
 gdbserver
 GeneralCommissioning
 GeneralDiagnostics
@@ -605,6 +612,7 @@ GroupKeyManagement
 groupKeySecurityPolicy
 groupKeySetID
 groupsettings
+gsdk
 gtk
 GUA
 Gv
@@ -716,6 +724,7 @@ Jupyter
 jupyterlab
 KA
 kAdminister
+kbd
 kBusy
 kCase
 Kconfig
@@ -946,6 +955,7 @@ OnOffClusterTest
 OnOffSwitchConfiguration
 OnPlatformEvent
 OO
+openiotsdk
 openjdk
 OpenOCD
 OpenSSL
@@ -971,6 +981,7 @@ otaissues
 OTAProvider
 OTAProviderIpAddress
 OTAProviderNodeId
+otaproviders
 OTAProviderSerialPort
 OTARequesterImpl
 OTARequestorDriver
@@ -984,6 +995,7 @@ otatesting
 otaURL
 OTBR
 otcli
+outform
 outgoingCommands
 OxygenConcentrationMeasurement
 OzoneConcentrationMeasurement
@@ -1015,6 +1027,7 @@ peerNodeId
 peerSessionId
 pem
 percentageLiftValue
+perfetto
 periodicQueryTimeout
 pexpect
 pickString
@@ -1023,6 +1036,7 @@ Pigweed
 PinCode
 pinrequest
 pkgconfig
+PKI
 plaintext
 PlatformManager
 PlatformManagerImpl
@@ -1059,6 +1073,7 @@ ProxyDiscovery
 ProxyValid
 ProxyView
 PRs
+PSA
 PSCAN
 PSECT
 PSK
@@ -1143,6 +1158,7 @@ RPC
 RPCs
 RPi
 RPis
+RSA
 rsn
 RSSI
 RST
@@ -1179,6 +1195,7 @@ sdkconfig
 SDKs
 SDKTARGETSYSROOT
 sdl
+SecureCertDACProvider
 SED
 SEGGER
 semver
@@ -1205,6 +1222,7 @@ SHA
 ShadeConfiguration
 SHAs
 showDocumentation
+showsdks
 shubhamdp
 SIGINT
 SiLabs
@@ -1233,6 +1251,7 @@ SoftwareVersion
 softwareVersionStr
 SoftwareVersionString
 softwareVersionValid
+SparkFun
 sphinxcontrib
 SPI
 spiflash
@@ -1344,6 +1363,7 @@ TODO
 toJson
 tokenized
 tokenizer
+tokenization
 toolchain
 toolchains
 topologies
@@ -1480,6 +1500,7 @@ xbef
 xc
 xcd
 Xcode
+xcodebuild
 xcodeproj
 xcworkspace
 xd

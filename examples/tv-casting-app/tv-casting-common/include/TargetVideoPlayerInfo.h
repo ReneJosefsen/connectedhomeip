@@ -23,6 +23,8 @@
 #include <app/OperationalSessionSetup.h>
 #include <platform/CHIPDeviceLayer.h>
 
+#include <app-common/zap-generated/cluster-objects.h>
+
 constexpr size_t kMaxNumberOfEndpoints = 5;
 
 class TargetVideoPlayerInfo;
@@ -69,6 +71,7 @@ public:
     bool operator==(const TargetVideoPlayerInfo & other) { return this->mNodeId == other.mNodeId; }
 
     bool IsInitialized() { return mInitialized; }
+    void Reset();
     uint16_t GetVendorId() const { return mVendorId; }
     uint16_t GetProductId() const { return mProductId; }
     chip::DeviceTypeId GetDeviceType() const { return mDeviceType; }

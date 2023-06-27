@@ -119,6 +119,11 @@ private:
     void _OnWiFiScanDone();
     void _OnWiFiStationProvisionChange();
 
+#if CHIP_DEVICE_CONFIG_ENABLE_SED
+    CHIP_ERROR _GetSEDIntervalsConfig(ConnectivityManager::SEDIntervalsConfig & intervalsConfig);
+    CHIP_ERROR _SetSEDIntervalsConfig(const ConnectivityManager::SEDIntervalsConfig & intervalsConfig);
+    CHIP_ERROR _RequestSEDActiveMode(bool onOff, bool delayIdle = false);
+#endif
     // ===== Private members reserved for use by this class only.
 
     System::Clock::Timestamp mLastStationConnectFailTime;
@@ -161,7 +166,7 @@ private:
     void UpdateInternetConnectivityState(void);
     void OnStationIPv4AddressAvailable(const ip_event_got_ip_t & got_ip);
     void OnStationIPv4AddressLost(void);
-    void OnIPv6AddressAvailable(const ip_event_got_ip6_t & got_ip);
+    void OnStationIPv6AddressAvailable(const ip_event_got_ip6_t & got_ip);
 #endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI
 
     // ===== Members for internal use by the following friends.

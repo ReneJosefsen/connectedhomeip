@@ -33,30 +33,38 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AppConfig.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
-#ifdef SLEEP_ENABLED
-#include "sl_power_manager.h"
-#endif
-#include "AppConfig.h"
 
 #include "gpiointerrupt.h"
 
-#include "sl_spidrv_exp_config.h"
 #include "sl_wfx_board.h"
 #include "sl_wfx_host.h"
 #include "sl_wfx_task.h"
 #include "wfx_host_events.h"
 
-#if defined(EFR32MG24)
-#include "spi_multiplex.h"
-StaticSemaphore_t spi_sem_peripharal;
-SemaphoreHandle_t spi_sem_sync_hdl;
-peripheraltype_t pr_type = EXP_HDR;
+#if defined(SL_CATALOG_POWER_MANAGER_PRESENT)
+#include "sl_power_manager.h"
 #endif
+
+#if defined(EFR32MG12)
+#include "sl_spidrv_exp_config.h"
 extern SPIDRV_Handle_t sl_spidrv_exp_handle;
+#define SL_SPIDRV_HANDLE sl_spidrv_exp_handle
+#elif defined(EFR32MG24)
+#include "sl_spidrv_eusart_exp_config.h"
+#include "spi_multiplex.h"
+#else
+#error "Unknown platform"
+#endif
 
 #define USART SL_WFX_HOST_PINOUT_SPI_PERIPHERAL
+
+#if defined(EFR32MG24)
+StaticSemaphore_t spi_sem_peripheral;
+SemaphoreHandle_t spi_sem_sync_hdl;
+#endif /* EFR32MG24 */
 
 StaticSemaphore_t xEfrSpiSemaBuffer;
 static SemaphoreHandle_t spi_sem;
@@ -77,20 +85,13 @@ uint8_t wirq_irq_nb = SL_WFX_HOST_PINOUT_SPI_WIRQ_PIN; // SL_WFX_HOST_PINOUT_SPI
 #define PIN_OUT_SET 1
 #define PIN_OUT_CLEAR 0
 
-/****************************************************************************
- * @fn  sl_status_t sl_wfx_host_init_bus(void)
- * @brief
- *  Initialize SPI peripheral
- * @param[in] None
- * @return returns SL_STATUS_OK
- *****************************************************************************/
 sl_status_t sl_wfx_host_init_bus(void)
 {
     spi_enabled = true;
 
     /* Assign allocated DMA channel */
-    tx_dma_channel = sl_spidrv_exp_handle->txDMACh;
-    rx_dma_channel = sl_spidrv_exp_handle->rxDMACh;
+    tx_dma_channel = SL_SPIDRV_HANDLE->txDMACh;
+    rx_dma_channel = SL_SPIDRV_HANDLE->rxDMACh;
 
     /*
      * Route EUSART1 MOSI, MISO, and SCLK to the specified pins.  CS is
@@ -113,22 +114,22 @@ sl_status_t sl_wfx_host_init_bus(void)
     xSemaphoreGive(spi_sem);
 
 #if defined(EFR32MG24)
-    spi_sem_sync_hdl = xSemaphoreCreateBinaryStatic(&spi_sem_peripharal);
+    if (spi_sem_sync_hdl == NULL)
+    {
+        spi_sem_sync_hdl = xSemaphoreCreateBinaryStatic(&spi_sem_peripheral);
+    }
+    configASSERT(spi_sem_sync_hdl);
     xSemaphoreGive(spi_sem_sync_hdl);
-#endif
+#endif /* EFR32MG24 */
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn  sl_status_t sl_wfx_host_deinit_bus(void)
- * @brief
- *     De-initialize SPI peripheral and DMAs
- * @param[in] None
- * @return returns SL_STATUS_OK
- *****************************************************************************/
 sl_status_t sl_wfx_host_deinit_bus(void)
 {
     vSemaphoreDelete(spi_sem);
+#if defined(EFR32MG24)
+    vSemaphoreDelete(spi_sem_sync_hdl);
+#endif /* EFR32MG24 */
     // Stop DMAs.
     DMADRV_StopTransfer(rx_dma_channel);
     DMADRV_StopTransfer(tx_dma_channel);
@@ -139,34 +140,27 @@ sl_status_t sl_wfx_host_deinit_bus(void)
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn  sl_status_t sl_wfx_host_spi_cs_assert()
- * @brief
- *     Assert chip select.
- * @param[in] None
- * @return returns SL_STATUS_OK
- *****************************************************************************/
 sl_status_t sl_wfx_host_spi_cs_assert()
 {
+#if defined(EFR32MG24)
+    xSemaphoreTake(spi_sem_sync_hdl, portMAX_DELAY);
+    SPIDRV_SetBaudrate(SL_SPIDRV_EXP_BITRATE_MULTIPLEXED);
+#endif /* EFR32MG24 */
     GPIO_PinOutClear(SL_SPIDRV_EXP_CS_PORT, SL_SPIDRV_EXP_CS_PIN);
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn  sl_status_t sl_wfx_host_spi_cs_deassert()
- * @brief
- *     De-Assert chip select.
- * @param[in] None
- * @return returns SL_STATUS_OK
- *****************************************************************************/
 sl_status_t sl_wfx_host_spi_cs_deassert()
 {
     GPIO_PinOutSet(SL_SPIDRV_EXP_CS_PORT, SL_SPIDRV_EXP_CS_PIN);
+#if defined(EFR32MG24)
+    xSemaphoreGive(spi_sem_sync_hdl);
+#endif /* EFR32MG24 */
     return SL_STATUS_OK;
 }
 
 /****************************************************************************
- * @fn  static bool rx_dma_complete(unsigned int channel, unsigned int sequenceNo, void *userParam)
+ * @fn  static bool dma_complete(unsigned int channel, unsigned int sequenceNo, void *userParam)
  * @brief
  *     function called when the DMA complete
  * @param[in] channel:
@@ -175,7 +169,7 @@ sl_status_t sl_wfx_host_spi_cs_deassert()
  * @return returns true if suucessful,
  *          false otherwise
  *****************************************************************************/
-static bool rx_dma_complete(unsigned int channel, unsigned int sequenceNo, void * userParam)
+static bool dma_complete(unsigned int channel, unsigned int sequenceNo, void * userParam)
 {
     (void) channel;
     (void) sequenceNo;
@@ -184,6 +178,10 @@ static bool rx_dma_complete(unsigned int channel, unsigned int sequenceNo, void 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xSemaphoreGiveFromISR(spi_sem, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
+#if defined(SL_CATALOG_POWER_MANAGER_PRESENT)
+    sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
+#endif
 
     return true;
 }
@@ -198,9 +196,13 @@ static bool rx_dma_complete(unsigned int channel, unsigned int sequenceNo, void 
  *****************************************************************************/
 void receiveDMA(uint8_t * buffer, uint16_t buffer_length)
 {
+#if defined(SL_CATALOG_POWER_MANAGER_PRESENT)
+    sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+#endif
+
     // Start receive DMA.
     DMADRV_PeripheralMemory(rx_dma_channel, MY_USART_RX_SIGNAL, (void *) buffer, (void *) &(MY_USART->RXDATA), true, buffer_length,
-                            dmadrvDataSize1, rx_dma_complete, NULL);
+                            dmadrvDataSize1, dma_complete, NULL);
 
     // Start transmit DMA.
     DMADRV_MemoryPeripheral(tx_dma_channel, MY_USART_TX_SIGNAL, (void *) &(MY_USART->TXDATA), (void *) &(dummy_tx_data), false,
@@ -217,47 +219,22 @@ void receiveDMA(uint8_t * buffer, uint16_t buffer_length)
  *****************************************************************************/
 void transmitDMA(uint8_t * buffer, uint16_t buffer_length)
 {
+#if defined(SL_CATALOG_POWER_MANAGER_PRESENT)
+    sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+#endif
+
     // Receive DMA runs only to initiate callback
     // Start receive DMA.
     DMADRV_PeripheralMemory(rx_dma_channel, MY_USART_RX_SIGNAL, &dummy_rx_data, (void *) &(MY_USART->RXDATA), false, buffer_length,
-                            dmadrvDataSize1, rx_dma_complete, NULL);
+                            dmadrvDataSize1, dma_complete, NULL);
     // Start transmit DMA.
     DMADRV_MemoryPeripheral(tx_dma_channel, MY_USART_TX_SIGNAL, (void *) &(MY_USART->TXDATA), (void *) buffer, true, buffer_length,
                             dmadrvDataSize1, NULL, NULL);
 }
 
-/****************************************************************************
- * @fn  sl_status_t sl_wfx_host_spi_transfer_no_cs_assert(sl_wfx_host_bus_transfer_type_t type,
-                                                  uint8_t *header,
-                                                  uint16_t header_length,
-                                                  uint8_t *buffer,
-                                                  uint16_t buffer_length)
- * @brief
- * WFX SPI transfer implementation
- * @param[in] type:
- * @param[in] header:
- * @param[in] header_length:
- * @param[in] buffer:
- * @param[in] buffer_length:
- * @return  returns SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- *****************************************************************************/
 sl_status_t sl_wfx_host_spi_transfer_no_cs_assert(sl_wfx_host_bus_transfer_type_t type, uint8_t * header, uint16_t header_length,
                                                   uint8_t * buffer, uint16_t buffer_length)
 {
-    sl_status_t result = SL_STATUS_FAIL;
-#if defined(EFR32MG24)
-    if (pr_type != EXP_HDR)
-    {
-        pr_type = EXP_HDR;
-        set_spi_baudrate(pr_type);
-    }
-    if (xSemaphoreTake(spi_sem_sync_hdl, portMAX_DELAY) != pdTRUE)
-    {
-        return SL_STATUS_TIMEOUT;
-    }
-    sl_wfx_host_spi_cs_assert();
-#endif
     const bool is_read = (type == SL_WFX_BUS_READ);
 
     while (!(MY_USART->STATUS & USART_STATUS_TXBL))
@@ -285,115 +262,56 @@ sl_status_t sl_wfx_host_spi_transfer_no_cs_assert(sl_wfx_host_bus_transfer_type_
     if (buffer_length > 0)
     {
         MY_USART->CMD = USART_CMD_CLEARRX | USART_CMD_CLEARTX;
-        if (xSemaphoreTake(spi_sem, portMAX_DELAY) == pdTRUE)
+        // Reset the semaphore
+        configASSERT(spi_sem);
+        xSemaphoreTake(spi_sem, portMAX_DELAY);
+        if (is_read)
         {
-            if (is_read)
-            {
-                receiveDMA(buffer, buffer_length);
-                result = SL_STATUS_OK;
-            }
-            else
-            {
-                transmitDMA(buffer, buffer_length);
-                result = SL_STATUS_OK;
-            }
-
-            if (xSemaphoreTake(spi_sem, portMAX_DELAY) == pdTRUE)
-            {
-                xSemaphoreGive(spi_sem);
-            }
+            receiveDMA(buffer, buffer_length);
         }
         else
         {
-            result = SL_STATUS_TIMEOUT;
+            transmitDMA(buffer, buffer_length);
         }
+        // wait for dma_complete by using the same spi_semaphore
+        xSemaphoreTake(spi_sem, portMAX_DELAY);
+        xSemaphoreGive(spi_sem);
     }
-#if defined(EFR32MG24)
-    sl_wfx_host_spi_cs_deassert();
-    xSemaphoreGive(spi_sem_sync_hdl);
-#endif
-    return result;
+    return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn   void sl_wfx_host_start_platform_interrupt(void)
- * @brief
- * Enable WFX interrupt
- * @param[in]  none
- * @return None
- *****************************************************************************/
 void sl_wfx_host_start_platform_interrupt(void)
 {
     // Enable (and clear) the bus interrupt
     GPIO_ExtIntConfig(SL_WFX_HOST_PINOUT_SPI_WIRQ_PORT, SL_WFX_HOST_PINOUT_SPI_WIRQ_PIN, wirq_irq_nb, true, false, true);
 }
 
-/****************************************************************************
- * @fn   sl_status_t sl_wfx_host_disable_platform_interrupt(void)
- * @brief
- * Disable WFX interrupt
- * @param[in]  None
- * @return  returns SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- *****************************************************************************/
 sl_status_t sl_wfx_host_disable_platform_interrupt(void)
 {
     GPIO_IntDisable(1 << wirq_irq_nb);
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn   sl_status_t sl_wfx_host_enable_platform_interrupt(void)
- * @brief
- *      enable the platform interrupt
- * @param[in]  None
- * @return  returns SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- *****************************************************************************/
 sl_status_t sl_wfx_host_enable_platform_interrupt(void)
 {
     GPIO_IntEnable(1 << wirq_irq_nb);
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn   sl_status_t sl_wfx_host_enable_spi(void)
- * @brief
- *       enable spi
- * @param[in]  None
- * @return  returns SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- *****************************************************************************/
 sl_status_t sl_wfx_host_enable_spi(void)
 {
     if (spi_enabled == false)
     {
-#ifdef SLEEP_ENABLED
-        // Prevent the host to use lower EM than EM1
-        sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
-#endif
         spi_enabled = true;
     }
     return SL_STATUS_OK;
 }
 
-/****************************************************************************
- * @fn   sl_status_t sl_wfx_host_disable_spi(void)
- * @brief
- *       disable spi
- * @param[in]  None
- * @return  returns SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- *****************************************************************************/
 sl_status_t sl_wfx_host_disable_spi(void)
 {
     if (spi_enabled == true)
     {
         spi_enabled = false;
-#ifdef SLEEP_ENABLED
-        // Allow the host to use the lowest allowed EM
-        sl_power_manager_remove_em_requirement(SL_POWER_MANAGER_EM1);
-#endif
     }
     return SL_STATUS_OK;
 }
@@ -424,7 +342,6 @@ static void sl_wfx_spi_wakeup_irq_callback(uint8_t irqNumber)
  *****************************************************************************/
 void sl_wfx_host_gpio_init(void)
 {
-    SILABS_LOG("WIFI: GPIO Init:IRQ=%d", wirq_irq_nb);
     // Enable GPIO clock.
     CMU_ClockEnable(cmuClock_GPIO, true);
 
@@ -453,3 +370,101 @@ void sl_wfx_host_gpio_init(void)
     NVIC_SetPriority(GPIO_EVEN_IRQn, 5);
     NVIC_SetPriority(GPIO_ODD_IRQn, 5);
 }
+
+#if defined(EFR32MG24)
+
+void SPIDRV_SetBaudrate(uint32_t baudrate)
+{
+    if (USART_BaudrateGet(MY_USART) == baudrate)
+    {
+        // USART synced to baudrate already
+        return;
+    }
+    // USART is used in MG24 + WF200 combination
+    USART_InitSync_TypeDef usartInit = USART_INITSYNC_DEFAULT;
+    usartInit.msbf                   = true;
+    usartInit.clockMode              = usartClockMode0;
+    usartInit.baudrate               = baudrate;
+    uint32_t databits                = SL_SPIDRV_FRAME_LENGTH - 4U + _USART_FRAME_DATABITS_FOUR;
+    usartInit.databits               = (USART_Databits_TypeDef) databits;
+    usartInit.autoCsEnable           = true;
+
+    USART_InitSync(MY_USART, &usartInit);
+}
+
+sl_status_t sl_wfx_host_spiflash_cs_assert(void)
+{
+    GPIO_PinOutClear(SL_MX25_FLASH_SHUTDOWN_CS_PORT, SL_MX25_FLASH_SHUTDOWN_CS_PIN);
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_spiflash_cs_deassert(void)
+{
+    GPIO_PinOutSet(SL_MX25_FLASH_SHUTDOWN_CS_PORT, SL_MX25_FLASH_SHUTDOWN_CS_PIN);
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_pre_bootloader_spi_transfer(void)
+{
+    xSemaphoreTake(spi_sem_sync_hdl, portMAX_DELAY);
+    /*
+     * Assert CS pin for EXT SPI Flash
+     */
+    SPIDRV_SetBaudrate(SL_SPIDRV_MX25_FLASH_BITRATE);
+    sl_wfx_host_spiflash_cs_assert();
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_post_bootloader_spi_transfer(void)
+{
+    /*
+     * De-Assert CS pin for EXT SPI Flash
+     */
+    sl_wfx_host_spiflash_cs_deassert();
+    xSemaphoreGive(spi_sem_sync_hdl);
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_pre_lcd_spi_transfer(void)
+{
+    xSemaphoreTake(spi_sem_sync_hdl, portMAX_DELAY);
+    SPIDRV_SetBaudrate(SL_SPIDRV_LCD_BITRATE);
+    /*LCD CS is handled as part of LCD gsdk*/
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_post_lcd_spi_transfer(void)
+{
+    xSemaphoreGive(spi_sem_sync_hdl);
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_pre_uart_transfer(void)
+{
+    if (spi_sem_sync_hdl == NULL)
+    {
+        // UART is initialized before host SPI interface
+        // spi_sem_sync_hdl will not be initalized during execution
+        GPIO_PinModeSet(gpioPortA, 8, gpioModePushPull, 1);
+        return SL_STATUS_OK;
+    }
+    sl_wfx_disable_irq();
+    sl_wfx_host_disable_platform_interrupt();
+    xSemaphoreTake(spi_sem_sync_hdl, portMAX_DELAY);
+    GPIO_PinModeSet(gpioPortA, 8, gpioModePushPull, 1);
+    return SL_STATUS_OK;
+}
+
+sl_status_t sl_wfx_host_post_uart_transfer(void)
+{
+    if (spi_sem_sync_hdl == NULL)
+    {
+        return SL_STATUS_OK;
+    }
+    GPIO_PinModeSet(gpioPortA, 8, gpioModeInputPull, 1);
+    xSemaphoreGive(spi_sem_sync_hdl);
+    sl_wfx_host_enable_platform_interrupt();
+    sl_wfx_enable_irq();
+    return SL_STATUS_OK;
+}
+#endif /* EFR32MG24 */

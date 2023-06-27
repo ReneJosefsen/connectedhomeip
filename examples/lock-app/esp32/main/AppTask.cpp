@@ -59,7 +59,6 @@ StackType_t appStack[APP_TASK_STACK_SIZE / sizeof(StackType_t)];
 
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::System;
-// using namespace ESP32DoorLock::LockInitParams;
 
 AppTask AppTask::sAppTask;
 
@@ -86,6 +85,8 @@ CHIP_ERROR AppTask::Init()
                                   (void *) this,    // init timer id = app task obj context
                                   TimerEventHandler // timer callback handler
     );
+
+    chip::DeviceLayer::StackLock lock;
     CHIP_ERROR err = BoltLockMgr().InitLockState();
 
     BoltLockMgr().SetCallbacks(ActionInitiated, ActionCompleted);
@@ -420,6 +421,11 @@ void AppTask::ActionCompleted(BoltLockManager::Action_t aAction)
         ESP_LOGI(TAG, "Unlock Action has been completed");
 
         sLockLED.Set(false);
+    }
+    if (sAppTask.mSyncClusterToButtonAction)
+    {
+        chip::DeviceLayer::SystemLayer().ScheduleWork(UpdateClusterState, nullptr);
+        sAppTask.mSyncClusterToButtonAction = false;
     }
 }
 

@@ -104,6 +104,16 @@
 #endif // CHIP_DEVICE_LAYER_OTA_REBOOT_DELAY
 
 /**
+ * @def CONFIG_CHIP_K32W0_OTA_FACTORY_DATA_PROCESSOR
+ *
+ * Enables default OTA TLV factory data processor.
+ * Disabled by default.
+ */
+#ifndef CONFIG_CHIP_K32W0_OTA_FACTORY_DATA_PROCESSOR
+#define CONFIG_CHIP_K32W0_OTA_FACTORY_DATA_PROCESSOR 0
+#endif // CONFIG_CHIP_K32W0_OTA_FACTORY_DATA_PROCESSOR
+
+/**
  * @def CHIP_DEVICE_LAYER_ENABLE_PDM_LOGS
  *
  * Flag to enable PDM events logging. Disabled by default.

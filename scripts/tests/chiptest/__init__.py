@@ -84,10 +84,12 @@ def _GetManualTests() -> Set[str]:
 
 
 def _GetFlakyTests() -> Set[str]:
-    """List of flaky tests, ideally this list should become empty."""
-    return {
-        "Test_TC_OO_2_4.yaml"
-    }
+    """List of flaky tests.
+
+    While this list is empty, it remains here in case we need to quickly add a new test
+    that is flaky.
+    """
+    return set()
 
 
 def _GetSlowTests() -> Set[str]:
@@ -126,12 +128,17 @@ def _GetSlowTests() -> Set[str]:
 
 
 def _GetInDevelopmentTests() -> Set[str]:
-    """Tests that fail in YAML for some reason.
-
-       Currently this is empty and returns an empty set, but this is kept around in case
-       there are tests that are a work in progress.
-    """
-    return set()
+    """Tests that fail in YAML for some reason."""
+    return {
+        "Test_AddNewFabricFromExistingFabric.yaml",     # chip-repl does not support GetCommissionerRootCertificate and IssueNocChain command
+        "TestEqualities.yaml",              # chip-repl does not support pseudo-cluster commands that return a value
+        "TestExampleCluster.yaml",          # chip-repl does not load custom pseudo clusters
+        "Test_TC_TIMESYNC_1_1.yaml",         # Time sync SDK is not yet ready
+        "TestAttributesById.yaml",           # chip-repl does not support AnyCommands (06/06/2023)
+        "TestCommandsById.yaml",             # chip-repl does not support AnyCommands (06/06/2023)
+        "TestEventsById.yaml",               # chip-repl does not support AnyCommands (06/06/2023)
+        "Test_TC_DRLK_2_8.yaml",  # Test fails only in chip-repl: Refer--> https://github.com/project-chip/connectedhomeip/pull/27011#issuecomment-1593339855
+    }
 
 
 def _AllYamlTests():
@@ -180,14 +187,19 @@ def tests_with_command(chip_tool: str, is_manual: bool):
     if is_manual:
         test_tags.add(TestTag.MANUAL)
 
+    in_development_tests = [s.replace(".yaml", "") for s in _GetInDevelopmentTests()]
+
     for name in result.stdout.decode("utf8").split("\n"):
         if not name:
             continue
 
         target = target_for_name(name)
+        tags = test_tags.copy()
+        if name in in_development_tests:
+            tags.add(TestTag.IN_DEVELOPMENT)
 
         yield TestDefinition(
-            run_name=name, name=name, target=target, tags=test_tags
+            run_name=name, name=name, target=target, tags=tags
         )
 
 

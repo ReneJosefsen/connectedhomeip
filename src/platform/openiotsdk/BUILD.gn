@@ -68,6 +68,7 @@ static_library("openiotsdk") {
     "KeyValueStoreManagerImpl.cpp",
     "KeyValueStoreManagerImpl.h",
     "Logging.cpp",
+    "Logging.h",
     "NetworkCommissioningDriver.h",
     "NetworkCommissioningEthernetDriver.cpp",
     "OpenIoTSDKArchUtils.c",
@@ -95,4 +96,6 @@ static_library("openiotsdk") {
       "KVBlockDeviceStore.h",
     ]
   }
+
+  cflags = [ "-Wconversion" ]
 }

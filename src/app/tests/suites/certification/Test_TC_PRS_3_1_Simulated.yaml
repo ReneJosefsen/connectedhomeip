@@ -14,6 +14,13 @@
 
 name: 34.3.1. [TC-PRS-3.1] Attributes with Client as DUT
 
+PICS:
+    - PRS.C
+    - PRS.C.AM-READ
+    - PRS.C.AO-READ
+    - PRS.C.AM-WRITE
+    - PRS.C.AO-WRITE
+
 config:
     nodeId: 0x12344321
     cluster: "Pressure Measurement"
@@ -25,38 +32,47 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: MeasuredValue"
+      PICS: PRS.C.AM-READ
       wait: "readAttribute"
       attribute: "MeasuredValue"
 
     - label: "Read attribute: MinMeasuredValue"
+      PICS: PRS.C.AM-READ
       wait: "readAttribute"
       attribute: "MinMeasuredValue"
 
     - label: "Read attribute: MaxMeasuredValue"
+      PICS: PRS.C.AM-READ
       wait: "readAttribute"
       attribute: "MaxMeasuredValue"
 
     - label: "Read attribute: Tolerance"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "Tolerance"
 
     - label: "Read attribute: ScaledValue"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "ScaledValue"
 
     - label: "Read attribute: MinScaledValue"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "MinScaledValue"
 
     - label: "Read attribute: MaxScaledValue"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "MaxScaledValue"
 
     - label: "Read attribute: ScaledTolerance"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "ScaledTolerance"
 
     - label: "Read attribute: Scale"
+      PICS: PRS.C.AO-READ
       wait: "readAttribute"
       attribute: "Scale"
 
@@ -70,6 +86,32 @@ tests:
 
 
           TH receives the read command and knows this attribute for this cluster and provides a plausable value, DUT processes the values and operates normally
+
+          ./chip-tool pressuremeasurement read feature-map 1 1
+
+          verify the "  feature-map  response" on the TH (all-cluster-minimal-app) log:
+
+          [1678873303.474810][348369:348369] CHIP:EM: Handling via exchange: 59017r, Delegate: 0x55713c07aca8
+          [1678873303.474829][348369:348369] CHIP:IM: Received Read request
+          [1678873303.474872][348369:348369] CHIP:DMG: ReadRequestMessage =
+          [1678873303.474880][348369:348369] CHIP:DMG: {
+          [1678873303.474885][348369:348369] CHIP:DMG:         AttributePathIBs =
+          [1678873303.474894][348369:348369] CHIP:DMG:         [
+          [1678873303.474900][348369:348369] CHIP:DMG:                 AttributePathIB =
+          [1678873303.474908][348369:348369] CHIP:DMG:                 {
+          [1678873303.474915][348369:348369] CHIP:DMG:                         Endpoint = 0x1,
+          [1678873303.474922][348369:348369] CHIP:DMG:                         Cluster = 0x403,
+          [1678873303.474930][348369:348369] CHIP:DMG:                         Attribute = 0x0000_FFFC,
+          [1678873303.474936][348369:348369] CHIP:DMG:                 }
+          [1678873303.474944][348369:348369] CHIP:DMG:
+          [1678873303.474950][348369:348369] CHIP:DMG:         ],
+          [1678873303.474959][348369:348369] CHIP:DMG:
+          [1678873303.474966][348369:348369] CHIP:DMG:         isFabricFiltered = true,
+          [1678873303.474972][348369:348369] CHIP:DMG:         InteractionModelRevision = 1
+          [1678873303.474978][348369:348369] CHIP:DMG: },
+          [1678873303.475012][348369:348369] CHIP:DMG: IM RH moving to [GeneratingReports]
+          [1678873303.475045][348369:348369] CHIP:DMG: Building Reports for ReadHandler with LastReportGeneration = 0 DirtyGeneration = 0
+          [1678873303.475054][348369:348369] CHIP:DMG: <RE:Run> Cluster 403, Attribute fffc is dirty
 
           ./chip-tool pressuremeasurement read attribute-list  1 1
 
@@ -198,7 +240,7 @@ tests:
           ./chip-tool pressuremeasurement read scale 1 1
       cluster: "LogCommands"
       command: "UserPrompt"
-      PICS: PICS_SKIP_SAMPLE_APP
+      PICS: PICS_SKIP_SAMPLE_APP && PRS.C.AO-READ
       arguments:
           values:
               - name: "message"

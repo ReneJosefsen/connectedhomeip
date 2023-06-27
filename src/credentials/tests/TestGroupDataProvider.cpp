@@ -78,9 +78,9 @@ constexpr ByteSpan kCompressedFabricId1(kCompressedFabricIdBuffer1);
 static const uint8_t kCompressedFabricIdBuffer2[] = { 0x3f, 0xaa, 0xe2, 0x90, 0x93, 0xd5, 0xaf, 0x45 };
 constexpr ByteSpan kCompressedFabricId2(kCompressedFabricIdBuffer2);
 
-constexpr chip::GroupId kGroup1 = kMinFabricGroupId;
+constexpr chip::GroupId kGroup1 = kMinApplicationGroupId;
 constexpr chip::GroupId kGroup2 = 0x2222;
-constexpr chip::GroupId kGroup3 = kMaxFabricGroupId;
+constexpr chip::GroupId kGroup3 = kMaxApplicationGroupId;
 constexpr chip::GroupId kGroup4 = 0x4444;
 constexpr chip::GroupId kGroup5 = 0x5555;
 
@@ -1174,6 +1174,12 @@ void TestGroupDecryption(nlTestSuite * apSuite, void * apContext)
             std::pair<FabricIndex, GroupId> found(session.fabric_index, session.group_id);
             NL_TEST_ASSERT(apSuite, expected.count(found) > 0);
             NL_TEST_ASSERT(apSuite, session.keyContext != nullptr);
+            // Assert aboves doesn't actually exit, we call continue so that we can call it->Release() outside of
+            // loop.
+            if (session.keyContext == nullptr)
+            {
+                continue;
+            }
 
             // Decrypt the ciphertext
             NL_TEST_ASSERT(apSuite,

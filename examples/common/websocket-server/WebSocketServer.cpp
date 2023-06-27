@@ -110,20 +110,21 @@ static int OnWebSocketCallback(lws * wsi, lws_callback_reasons reason, void * us
 {
     LogWebSocketCallbackReason(reason);
 
-    WebSocketServer * server = nullptr;
-    auto protocol            = lws_get_protocol(wsi);
-    if (protocol)
+    if (LWS_CALLBACK_RECEIVE == reason)
     {
+        WebSocketServer * server = nullptr;
+        auto protocol            = lws_get_protocol(wsi);
+        if (!protocol)
+        {
+            ChipLogError(chipTool, "Failed to retrieve the protocol.");
+            return -1;
+        }
         server = static_cast<WebSocketServer *>(protocol->user);
         if (nullptr == server)
         {
             ChipLogError(chipTool, "Failed to retrieve the server interactive context.");
             return -1;
         }
-    }
-
-    if (LWS_CALLBACK_RECEIVE == reason)
-    {
         char msg[kMaxMessageBufferLen + 1 /* for null byte */] = {};
         VerifyOrDie(sizeof(msg) > len);
         memcpy(msg, in, len);
@@ -200,9 +201,8 @@ bool WebSocketServer::OnWebSocketMessageReceived(char * msg)
     return shouldContinue;
 }
 
-CHIP_ERROR WebSocketServer::Send(const char * msg)
+void WebSocketServer::Send(const char * msg)
 {
     std::lock_guard<std::mutex> lock(gMutex);
     gMessageQueue.push_back(msg);
-    return CHIP_NO_ERROR;
 }

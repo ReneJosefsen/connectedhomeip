@@ -61,7 +61,11 @@ static_library("Zephyr") {
     ]
 
     if (chip_mdns == "platform") {
-      sources += [ "../OpenThread/DnssdImpl.cpp" ]
+      sources += [
+        "../OpenThread/DnssdImpl.cpp",
+        "../OpenThread/OpenThreadDnssdImpl.cpp",
+        "../OpenThread/OpenThreadDnssdImpl.h",
+      ]
       deps = [ "${chip_root}/src/lib/dnssd:platform_header" ]
     }
   }
@@ -76,4 +80,6 @@ static_library("Zephyr") {
   if (chip_malloc_sys_heap) {
     sources += [ "SysHeapMalloc.cpp" ]
   }
+
+  cflags = [ "-Wconversion" ]
 }

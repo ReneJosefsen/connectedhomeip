@@ -41,6 +41,10 @@ class TargetType(Flag):
     # Global templates: generally examples and chip controller
     GLOBAL = auto()
 
+    # codgen.py templates (generally java templates, which cannot be built
+    # at compile time currently)
+    IDL_CODEGEN = auto()
+
     # App-specific templates (see getSpecificTemplatesTargets)
     SPECIFIC = auto()
 
@@ -48,12 +52,13 @@ class TargetType(Flag):
     GOLDEN_TEST_IMAGES = auto()
 
     # All possible targets. Convenience constant
-    ALL = TESTS | GLOBAL | SPECIFIC | GOLDEN_TEST_IMAGES
+    ALL = TESTS | GLOBAL | IDL_CODEGEN | SPECIFIC | GOLDEN_TEST_IMAGES
 
 
 __TARGET_TYPES__ = {
     'tests': TargetType.TESTS,
     'global': TargetType.GLOBAL,
+    'idl_codegen': TargetType.IDL_CODEGEN,
     'specific': TargetType.SPECIFIC,
     'golden_test_images': TargetType.GOLDEN_TEST_IMAGES,
     'all': TargetType.ALL,
@@ -83,10 +88,13 @@ class ZapDistinctOutput:
 class ZAPGenerateTarget:
 
     @staticmethod
-    def MatterIdlTarget(zap_config):
-        # NOTE: this assumes `src/app/zap-templates/matter-idl.json` is the
-        #       DEFAULT generation target and it needs no output_dir
-        return ZAPGenerateTarget(zap_config, template=None, output_dir=None)
+    def MatterIdlTarget(zap_config, client_side=False):
+        if client_side:
+            return ZAPGenerateTarget(zap_config, template="src/app/zap-templates/matter-idl-client.json", output_dir=None)
+        else:
+            # NOTE: this assumes `src/app/zap-templates/matter-idl-server.json` is the
+            #       DEFAULT generation target and it needs no output_dir
+            return ZAPGenerateTarget(zap_config, template=None, output_dir=None)
 
     def __init__(self, zap_config, template, output_dir=None):
         self.script = './scripts/tools/zap/generate.py'
@@ -98,6 +106,10 @@ class ZAPGenerateTarget:
             self.output_dir = str(output_dir)
         else:
             self.output_dir = None
+
+    @property
+    def is_matter_idl_generation(self):
+        return (self.output_dir is None)
 
     def distinct_output(self):
         if not self.template and not self.output_dir:
@@ -196,6 +208,37 @@ class GoldenTestImageTarget():
         logging.info("  %s" % " ".join(self.command))
 
 
+class JinjaCodegenTarget():
+    def __init__(self, generator: str, output_directory: str, idl_path: str):
+        # This runs a test, but the important bit is we pass `--regenerate`
+        # to it and this will cause it to OVERWRITE golden images.
+        self.idl_path = idl_path
+        self.generator = generator
+        self.output_directory = output_directory
+        self.command = ["./scripts/codegen.py", "--output-dir", output_directory,
+                        "--generator", generator, idl_path]
+
+    def generate(self) -> TargetRunStats:
+        generate_start = time.time()
+
+        subprocess.check_call(self.command)
+
+        generate_end = time.time()
+
+        return TargetRunStats(
+            generate_time=generate_end - generate_start,
+            config=f'codegen:{self.generator}',
+            template=self.idl_path,
+        )
+
+    def distinct_output(self):
+        # Fake output - this is a single target that generates golden images
+        return ZapDistinctOutput(input_template=f'{self.generator}{self.idl_path}', output_directory=self.output_directory)
+
+    def log_command(self):
+        logging.info("  %s" % " ".join(self.command))
+
+
 def checkPythonVersion():
     if sys.version_info[0] < 3:
         print('Must use Python 3. Current version is ' +
@@ -257,7 +300,8 @@ def getGlobalTemplatesTargets():
             # a name like <zap-generated/foo.h>
             output_dir = os.path.join(
                 'zzz_generated', 'placeholder', example_name, 'zap-generated')
-            template = 'examples/placeholder/templates/templates.json'
+            template = os.path.join(
+                'examples', 'placeholder', 'linux', 'apps', example_name, 'templates', 'templates.json')
 
             targets.append(ZAPGenerateTarget.MatterIdlTarget(filepath))
             targets.append(ZAPGenerateTarget(filepath, output_dir=output_dir, template=template))
@@ -284,17 +328,18 @@ def getGlobalTemplatesTargets():
             'zzz_generated', generate_subdir, 'zap-generated')
         targets.append(ZAPGenerateTarget.MatterIdlTarget(filepath))
 
-    targets.append(ZAPGenerateTarget.MatterIdlTarget('src/controller/data_model/controller-clusters.zap'))
+    targets.append(ZAPGenerateTarget.MatterIdlTarget('src/controller/data_model/controller-clusters.zap', client_side=True))
 
-    # This generates app headers for darwin only, for easier/clearer include
-    # in .pbxproj files.
-    #
-    # TODO: These files can be code generated at compile time, we should figure
-    #       out a path for this codegen to not be required.
-    targets.append(ZAPGenerateTarget(
-        'src/controller/data_model/controller-clusters.zap',
-        template="src/app/zap-templates/app-templates.json",
-        output_dir=os.path.join('zzz_generated/darwin/controller-clusters/zap-generated')))
+    return targets
+
+
+def getCodegenTemplates():
+    targets = []
+
+    targets.append(JinjaCodegenTarget(
+        generator="java-class",
+        idl_path="src/controller/data_model/controller-clusters.matter",
+        output_directory="src/controller/java/generated"))
 
     return targets
 
@@ -363,6 +408,9 @@ def getTargets(type, test_target):
     if type & TargetType.SPECIFIC:
         targets.extend(getSpecificTemplatesTargets())
 
+    if type & TargetType.IDL_CODEGEN:
+        targets.extend(getCodegenTemplates())
+
     if type & TargetType.GOLDEN_TEST_IMAGES:
         targets.extend(getGoldenTestImageTargets())
 
@@ -419,9 +467,22 @@ def main():
     if args.parallel:
         # Ensure each zap run is independent
         os.environ['ZAP_TEMPSTATE'] = '1'
-        with multiprocessing.Pool() as pool:
-            for timing in pool.imap_unordered(_ParallelGenerateOne, targets):
-                timings.append(timing)
+
+        # There is a sequencing here:
+        #   - ZAP will generate ".matter" files
+        #   - various codegen may generate from ".matter" files (like java)
+        # We split codegen into two generations to not be racy
+        first, second = [], []
+        for target in targets:
+            if isinstance(target, ZAPGenerateTarget) and target.is_matter_idl_generation:
+                first.append(target)
+            else:
+                second.append(target)
+
+        for items in [first, second]:
+            with multiprocessing.Pool() as pool:
+                for timing in pool.imap_unordered(_ParallelGenerateOne, items):
+                    timings.append(timing)
     else:
         for target in targets:
             timings.append(target.generate())

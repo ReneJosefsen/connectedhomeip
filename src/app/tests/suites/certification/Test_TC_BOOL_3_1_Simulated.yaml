@@ -32,6 +32,7 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: StateValue"
+      PICS: BOOL.C.AM-READ
       wait: "readAttribute"
       attribute: "StateValue"
 
@@ -245,7 +246,7 @@ tests:
           [1665059548.746728][9263:9263] CHIP:DMG:                         },
 
 
-          ./chip-tool booleanstate read state-value 1 1
+           ./chip-tool booleanstate read state-value 1 1
 
           Verify read command is received on TH (all-clusters-minimal-app) Log
 

@@ -161,7 +161,7 @@ class NrfConnectBuilder(Builder):
                 zephyr_base = os.environ['ZEPHYR_BASE']
                 nrfconnect_sdk = os.path.dirname(zephyr_base)
                 zephyr_sdk_dir = os.environ.get('ZEPHYR_SDK_INSTALL_DIR') or os.path.join(
-                    os.environ['NRF5_TOOLS_ROOT'], 'zephyr-sdk-0.15.2')
+                    os.environ['NRF5_TOOLS_ROOT'], 'zephyr-sdk-0.16.0')
 
                 # NRF builds will both try to change .west/config in nrfconnect and
                 # overall perform a git fetch on that location
@@ -184,7 +184,8 @@ class NrfConnectBuilder(Builder):
             if self.enable_rpcs:
                 flags.append("-DOVERLAY_CONFIG=rpc.overlay")
 
-            if self.board == NrfBoard.NRF52840DONGLE and self.app != NrfApp.ALL_CLUSTERS and self.app != NrfApp.ALL_CLUSTERS_MINIMAL:
+            if (self.board == NrfBoard.NRF52840DONGLE and
+                    self.app != NrfApp.ALL_CLUSTERS and self.app != NrfApp.ALL_CLUSTERS_MINIMAL):
                 flags.append("-DCONF_FILE=prj_no_dfu.conf")
 
             if self.options.pregen_dir:
@@ -242,5 +243,5 @@ west build --cmake-only -d {outdir} -b {board} {sourcedir}{build_flags}
 
         with open(os.path.join(self.output_dir, self.app.FlashBundleName()), 'r') as fp:
             return {
-                l.strip(): os.path.join(self.output_dir, l.strip()) for l in fp.readlines() if l.strip()
+                line.strip(): os.path.join(self.output_dir, line.strip()) for line in fp.readlines() if line.strip()
             }

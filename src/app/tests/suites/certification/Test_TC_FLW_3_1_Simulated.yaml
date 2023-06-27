@@ -32,18 +32,22 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: MeasuredValue"
+      PICS: FLW.C.AM-READ
       wait: "readAttribute"
       attribute: "MeasuredValue"
 
     - label: "Read attribute: MinMeasuredValue"
+      PICS: FLW.C.AM-READ
       wait: "readAttribute"
       attribute: "MinMeasuredValue"
 
     - label: "Read attribute: MaxMeasuredValue"
+      PICS: FLW.C.AM-READ
       wait: "readAttribute"
       attribute: "MaxMeasuredValue"
 
     - label: "Read attribute: Tolerance"
+      PICS: FLW.C.AO-READ
       wait: "readAttribute"
       attribute: "Tolerance"
 
@@ -387,7 +391,7 @@ tests:
           General error: 0x86 (UNSUPPORTED_ATTRIBUTE)
       cluster: "LogCommands"
       command: "UserPrompt"
-      PICS: PICS_SKIP_SAMPLE_APP
+      PICS: PICS_SKIP_SAMPLE_APP && FLW.C.AO-READ
       arguments:
           values:
               - name: "message"

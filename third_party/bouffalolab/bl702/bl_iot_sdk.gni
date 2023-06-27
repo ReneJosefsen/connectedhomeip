@@ -302,7 +302,9 @@ template("bl_iot_sdk") {
       "-Wno-stringop-overflow",
       "-Wno-format-truncation",
       "-Wno-shadow",
+      "-Wno-incompatible-pointer-types",
     ]
+
     configs += [
       ":${sdk_target_name}_config_soc",
       ":${sdk_target_name}_config_BSP_Driver",
@@ -643,6 +645,7 @@ template("bl_iot_sdk") {
 
     configs += [
       ":${sdk_target_name}_config_BSP_Driver",
+      ":${sdk_target_name}_config_hosal",
       ":${sdk_target_name}_config_freertos",
       ":${sdk_target_name}_config_utils",
     ]

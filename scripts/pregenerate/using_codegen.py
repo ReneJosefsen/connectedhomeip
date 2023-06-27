@@ -44,36 +44,35 @@ class CodegenTarget:
             output_root, self.idl.pregen_subdir, self.generator)
 
         logging.info(
-            f"Generating: {self.generator}:{self.idl.relative_path} into {output_dir}")
+            f"Generating: {self.generator}:{self.idl.full_path} into {output_dir}")
 
         cmd = [
             CODEGEN_PY_PATH,
             '--log-level', 'fatal',
             '--generator', self.generator,
             '--output-dir', output_dir,
-            os.path.join(self.sdk_root, self.idl.relative_path)
+            self.idl.full_path
         ]
 
         logging.debug(f"Executing {cmd}")
         self.runner.run(cmd)
 
 
-class CodegenBridgePregenerator:
-    """Pregeneration logic for "bridge" codegen.py outputs"""
+class CodegenJavaJNIPregenerator:
+    """Pregeneration logic for "java" codegen.py outputs"""
 
     def __init__(self, sdk_root):
         self.sdk_root = sdk_root
 
     def Accept(self, idl: InputIdlFile):
-        # Bridge is highly specific, a single path is acceptable for dynamic
-        # bridge codegen
-        return idl.relative_path == "examples/dynamic-bridge-app/bridge-common/bridge-app.matter"
+        # Java is highly specific, a single path is acceptable for codegen
+        return idl.relative_path == "src/controller/data_model/controller-clusters.matter"
 
     def CreateTarget(self, idl: InputIdlFile, runner):
-        return CodegenTarget(sdk_root=self.sdk_root, idl=idl, generator="bridge", runner=runner)
+        return CodegenTarget(sdk_root=self.sdk_root, idl=idl, generator="java-jni", runner=runner)
 
 
-class CodegenJavaPregenerator:
+class CodegenJavaClassPregenerator:
     """Pregeneration logic for "java" codegen.py outputs"""
 
     def __init__(self, sdk_root):
@@ -85,7 +84,7 @@ class CodegenJavaPregenerator:
         return idl.relative_path == "src/controller/data_model/controller-clusters.matter"
 
     def CreateTarget(self, idl: InputIdlFile, runner):
-        return CodegenTarget(sdk_root=self.sdk_root, idl=idl, generator="java", runner=runner)
+        return CodegenTarget(sdk_root=self.sdk_root, idl=idl, generator="java-class", runner=runner)
 
 
 class CodegenCppAppPregenerator:

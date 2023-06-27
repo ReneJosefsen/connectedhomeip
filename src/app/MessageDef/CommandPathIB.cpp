@@ -119,7 +119,7 @@ CommandPathIB::Builder & CommandPathIB::Builder::EndpointId(const chip::Endpoint
     // skip if error has already been set
     if (mError == CHIP_NO_ERROR)
     {
-        mError = mpWriter->Put(TLV::ContextTag(to_underlying(Tag::kEndpointId)), aEndpointId);
+        mError = mpWriter->Put(TLV::ContextTag(Tag::kEndpointId), aEndpointId);
     }
     return *this;
 }
@@ -129,7 +129,7 @@ CommandPathIB::Builder & CommandPathIB::Builder::ClusterId(const chip::ClusterId
     // skip if error has already been set
     if (mError == CHIP_NO_ERROR)
     {
-        mError = mpWriter->Put(TLV::ContextTag(to_underlying(Tag::kClusterId)), aClusterId);
+        mError = mpWriter->Put(TLV::ContextTag(Tag::kClusterId), aClusterId);
     }
     return *this;
 }
@@ -139,15 +139,15 @@ CommandPathIB::Builder & CommandPathIB::Builder::CommandId(const chip::CommandId
     // skip if error has already been set
     if (mError == CHIP_NO_ERROR)
     {
-        mError = mpWriter->Put(TLV::ContextTag(to_underlying(Tag::kCommandId)), aCommandId);
+        mError = mpWriter->Put(TLV::ContextTag(Tag::kCommandId), aCommandId);
     }
     return *this;
 }
 
-CommandPathIB::Builder & CommandPathIB::Builder::EndOfCommandPathIB()
+CHIP_ERROR CommandPathIB::Builder::EndOfCommandPathIB()
 {
     EndOfContainer();
-    return *this;
+    return GetError();
 }
 
 CHIP_ERROR CommandPathIB::Builder::Encode(const CommandPathParams & aCommandPathParams)
@@ -157,17 +157,15 @@ CHIP_ERROR CommandPathIB::Builder::Encode(const CommandPathParams & aCommandPath
         EndpointId(aCommandPathParams.mEndpointId);
     }
 
-    ClusterId(aCommandPathParams.mClusterId).CommandId(aCommandPathParams.mCommandId).EndOfCommandPathIB();
-    return GetError();
+    return ClusterId(aCommandPathParams.mClusterId).CommandId(aCommandPathParams.mCommandId).EndOfCommandPathIB();
 }
 
 CHIP_ERROR CommandPathIB::Builder::Encode(const ConcreteCommandPath & aConcreteCommandPath)
 {
-    EndpointId(aConcreteCommandPath.mEndpointId)
+    return EndpointId(aConcreteCommandPath.mEndpointId)
         .ClusterId(aConcreteCommandPath.mClusterId)
         .CommandId(aConcreteCommandPath.mCommandId)
         .EndOfCommandPathIB();
-    return GetError();
 }
 
 }; // namespace app

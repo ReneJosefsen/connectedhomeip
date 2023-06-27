@@ -232,8 +232,13 @@ private:
         uint16_t fdl = 0;
         auto fd = mTransfer.GetFileDesignator(fdl);
         VerifyOrReturnError(fdl <= bdx::kMaxFileDesignatorLen, CHIP_ERROR_INVALID_ARGUMENT);
+        CharSpan fileDesignatorSpan(Uint8::to_const_char(fd), fdl);
 
-        auto fileDesignator = [[NSString alloc] initWithBytes:fd length:fdl encoding:NSUTF8StringEncoding];
+        auto fileDesignator = AsString(fileDesignatorSpan);
+        if (fileDesignator == nil) {
+            return CHIP_ERROR_INCORRECT_STATE;
+        }
+
         auto offset = @(mTransfer.GetStartOffset());
 
         auto * controller = [[MTRDeviceControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
@@ -316,11 +321,13 @@ private:
         auto nodeId = @(mNodeId.Value());
 
         auto strongDelegate = mDelegate;
-        dispatch_async(mDelegateNotificationQueue, ^{
-            [strongDelegate handleBDXTransferSessionEndForNodeID:nodeId
-                                                      controller:controller
-                                                           error:[MTRError errorForCHIPErrorCode:error]];
-        });
+        if ([strongDelegate respondsToSelector:@selector(handleBDXTransferSessionEndForNodeID:controller:error:)]) {
+            dispatch_async(mDelegateNotificationQueue, ^{
+                [strongDelegate handleBDXTransferSessionEndForNodeID:nodeId
+                                                          controller:controller
+                                                               error:[MTRError errorForCHIPErrorCode:error]];
+            });
+        }
 
         ResetState();
         return CHIP_NO_ERROR;
@@ -485,9 +492,11 @@ private:
     uint64_t mTransferGeneration = 0;
 };
 
+namespace {
 BdxOTASender gOtaSender;
 
-static NSInteger const kOtaProviderEndpoint = 0;
+NSInteger const kOtaProviderEndpoint = 0;
+} // anonymous namespace
 
 MTROTAProviderDelegateBridge::MTROTAProviderDelegateBridge(id<MTROTAProviderDelegate> delegate)
     : mDelegate(delegate)
@@ -563,8 +572,8 @@ CommandHandler * _Nullable EnsureValidState(
     if (error != nil) {
         auto * desc = [error description];
         auto err = [MTRError errorToCHIPErrorCode:error];
-        ChipLogError(Controller, "%s: application returned error: '%s', sending error: '%s'", prefix,
-            [desc cStringUsingEncoding:NSUTF8StringEncoding], chip::ErrorStr(err));
+        ChipLogError(
+            Controller, "%s: application returned error: '%s', sending error: '%s'", prefix, desc.UTF8String, err.AsString());
 
         handler->AddStatus(cachedCommandPath, StatusIB(err).mStatus);
         handle.Release();
@@ -610,6 +619,9 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
         return;
     }
 
+    auto fabricIndex = commandObj->GetAccessingFabricIndex();
+    auto ourNodeId = commandObj->GetExchangeContext()->GetSessionHandle()->AsSecureSession()->GetLocalScopedNodeId();
+
     auto * commandParams = [[MTROTASoftwareUpdateProviderClusterQueryImageParams alloc] init];
     CHIP_ERROR err = ConvertToQueryImageParams(commandData, commandParams);
     if (err != CHIP_NO_ERROR) {
@@ -630,8 +642,7 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
                 CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "QueryImage", data, error);
                 VerifyOrReturn(handler != nullptr);
 
-                ChipLogDetail(Controller, "QueryImage: application responded with: %s",
-                    [[data description] cStringUsingEncoding:NSUTF8StringEncoding]);
+                ChipLogDetail(Controller, "QueryImage: application responded with: %s", [[data description] UTF8String]);
 
                 auto hasUpdate = [data.status isEqual:@(MTROtaSoftwareUpdateProviderOTAQueryStatusUpdateAvailable)];
                 auto isBDXProtocolSupported = [commandParams.protocolsSupported
@@ -666,8 +677,6 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
                 }
 
                 // If there is an update available, try to prepare for a transfer.
-                auto fabricIndex = handler->GetSubjectDescriptor().fabricIndex;
-                auto nodeId = handler->GetSubjectDescriptor().subject;
                 CHIP_ERROR err = gOtaSender.PrepareForTransfer(fabricIndex, nodeId);
                 if (CHIP_NO_ERROR != err) {
 
@@ -694,11 +703,10 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
                     gOtaSender.ResetState();
                     return;
                 }
-                auto targetNodeId = handler->GetExchangeContext()->GetSessionHandle()->AsSecureSession()->GetLocalScopedNodeId();
 
                 char uriBuffer[kMaxBDXURILen];
                 MutableCharSpan uri(uriBuffer);
-                err = bdx::MakeURI(targetNodeId.GetNodeId(), AsCharSpan(data.imageURI), uri);
+                err = bdx::MakeURI(ourNodeId.GetNodeId(), AsCharSpan(data.imageURI), uri);
                 if (CHIP_NO_ERROR != err) {
                     LogErrorOnFailure(err);
                     handler->AddStatus(cachedCommandPath, StatusIB(err).mStatus);
@@ -751,27 +759,26 @@ void MTROTAProviderDelegateBridge::HandleApplyUpdateRequest(CommandHandler * com
     __block CommandHandler::Handle handle(commandObj);
     __block ConcreteCommandPath cachedCommandPath(commandPath.mEndpointId, commandPath.mClusterId, commandPath.mCommandId);
 
-    auto completionHandler
-        = ^(MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error) {
-              [controller
-                  asyncDispatchToMatterQueue:^() {
-                      assertChipStackLockedByCurrentThread();
+    auto completionHandler = ^(
+        MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error) {
+        [controller
+            asyncDispatchToMatterQueue:^() {
+                assertChipStackLockedByCurrentThread();
 
-                      CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "ApplyUpdateRequest", data, error);
-                      VerifyOrReturn(handler != nullptr);
+                CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "ApplyUpdateRequest", data, error);
+                VerifyOrReturn(handler != nullptr);
 
-                      ChipLogDetail(Controller, "ApplyUpdateRequest: application responded with: %s",
-                          [[data description] cStringUsingEncoding:NSUTF8StringEncoding]);
+                ChipLogDetail(Controller, "ApplyUpdateRequest: application responded with: %s", [[data description] UTF8String]);
 
-                      Commands::ApplyUpdateResponse::Type response;
-                      ConvertFromApplyUpdateRequestResponseParms(data, response);
-                      handler->AddResponse(cachedCommandPath, response);
-                      handle.Release();
-                  }
-                                errorHandler:^(NSError *) {
-                                    // Not much we can do here
-                                }];
-          };
+                Commands::ApplyUpdateResponse::Type response;
+                ConvertFromApplyUpdateRequestResponseParms(data, response);
+                handler->AddResponse(cachedCommandPath, response);
+                handle.Release();
+            }
+                          errorHandler:^(NSError *) {
+                              // Not much we can do here
+                          }];
+    };
 
     auto * commandParams = [[MTROTASoftwareUpdateProviderClusterApplyUpdateRequestParams alloc] init];
     ConvertToApplyUpdateRequestParams(commandData, commandParams);

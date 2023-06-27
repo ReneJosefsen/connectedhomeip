@@ -4,12 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import chip.devicecontroller.ChipDeviceController
-import chip.devicecontroller.ChipIdLookup
 import com.google.chip.chiptool.ChipClient
-import com.google.chip.chiptool.R
 import com.google.chip.chiptool.databinding.AddressUpdateFragmentBinding
 import com.google.chip.chiptool.util.DeviceIdUtil
 
@@ -20,7 +17,11 @@ class AddressUpdateFragment: Fragment() {
 
   val deviceId: Long
     get() = binding.deviceIdEd.text.toString().toULong().toLong()
-
+  var endpointId : Int
+    get() = binding.epIdEd.text.toString().toInt()
+    set(value) {
+      binding.epIdEd.setText(value.toString())
+    }
   private var _binding: AddressUpdateFragmentBinding? = null
   private val binding get() = _binding!!
 
@@ -39,6 +40,7 @@ class AddressUpdateFragment: Fragment() {
     val compressedFabricId = deviceController.compressedFabricId
     binding.fabricIdEd.setText(compressedFabricId.toULong().toString(16).padStart(16, '0'))
     binding.deviceIdEd.setText(DeviceIdUtil.getLastDeviceId(requireContext()).toString())
+    binding.epIdEd.setText(endpointId.toString())
   }
 
   override fun onDestroyView() {

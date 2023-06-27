@@ -26,17 +26,20 @@
 
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 
+#include <platform/NetworkCommissioning.h>
+#include <platform/Zephyr/BLEAdvertisingArbiter.h>
+
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
-
-#include <lib/support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {
 
 using namespace chip::Ble;
+
+class InternalScanCallback;
 
 /**
  * Concrete implementation of the BLEManager singleton object for the Zephyr platforms.
@@ -51,7 +54,7 @@ private:
     // ===== Members that implement the BLEManager internal interface.
 
     CHIP_ERROR _Init(void);
-    void _Shutdown() {}
+    void _Shutdown();
     bool _IsAdvertisingEnabled(void);
     CHIP_ERROR _SetAdvertisingEnabled(bool val);
     bool _IsAdvertising(void);
@@ -103,12 +106,14 @@ private:
     bt_gatt_indicate_params mIndicateParams[CONFIG_BT_MAX_CONN];
     bt_conn_cb mConnCallbacks;
     bt_conn * mconId;
+    BLEAdvertisingArbiter::Request mAdvertisingRequest = {};
 #if CHIP_ENABLE_ADDITIONAL_DATA_ADVERTISING
     PacketBufferHandle c3CharDataBufferHandle;
 #endif
+    bool mBLERadioInitialized;
 
     void DriveBLEState(void);
-    CHIP_ERROR ConfigureAdvertising(void);
+    CHIP_ERROR PrepareAdvertisingRequest(void);
     CHIP_ERROR StartAdvertising(void);
     CHIP_ERROR StopAdvertising(void);
     CHIP_ERROR HandleGAPConnect(const ChipDeviceEvent * event);
@@ -128,8 +133,10 @@ private:
     CHIP_ERROR HandleThreadStateChange(const ChipDeviceEvent * event);
     CHIP_ERROR HandleOperationalNetworkEnabled(const ChipDeviceEvent * event);
 
+    InternalScanCallback * mInternalScanCallback;
+
 #if CHIP_ENABLE_ADDITIONAL_DATA_ADVERTISING
-    CHIP_ERROR PrepareC3CharData();
+    CHIP_ERROR PrepareC3CharData(void);
 #endif
     bool IsSubscribed(bt_conn * conn);
     bool SetSubscribed(bt_conn * conn);
@@ -163,6 +170,22 @@ public:
 
     /* Switch to IEEE802154 interface. @todo: remove to other module? */
     void SwitchToIeee802154(void);
+
+    CHIP_ERROR StartAdvertisingProcess(void);
+};
+
+class InternalScanCallback : public DeviceLayer::NetworkCommissioning::ThreadDriver::ScanCallback
+{
+public:
+    explicit InternalScanCallback(BLEManagerImpl * aBLEManagerImpl) { mBLEManagerImpl = aBLEManagerImpl; }
+    void OnFinished(NetworkCommissioning::Status err, CharSpan debugText,
+                    NetworkCommissioning::ThreadScanResponseIterator * networks)
+    {
+        mBLEManagerImpl->StartAdvertisingProcess();
+    };
+
+private:
+    BLEManagerImpl * mBLEManagerImpl;
 };
 
 /**

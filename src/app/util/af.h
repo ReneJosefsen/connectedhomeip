@@ -35,8 +35,7 @@
 
 #include <app/util/af-types.h>
 
-#include <app/util/debug-printing.h>
-#include <app/util/ember-print.h>
+#include <app/util/endpoint-config-api.h>
 
 #include <lib/core/DataModelTypes.h>
 #include <lib/support/Iterators.h>
@@ -119,35 +118,6 @@ EmberAfStatus emberAfReadAttribute(chip::EndpointId endpoint, chip::ClusterId cl
                                    uint8_t * dataPtr, uint16_t readLength);
 
 /**
- * @brief this function returns the size of the ZCL data in bytes.
- *
- * @param dataType Zcl data type
- * @return size in bytes or 0 if invalid data type
- */
-uint8_t emberAfGetDataSize(uint8_t dataType);
-
-/**
- * @brief macro that returns true if the cluster is in the manufacturer specific range
- *
- * @param cluster EmberAfCluster* to consider
- */
-#define emberAfClusterIsManufacturerSpecific(cluster) ((cluster)->clusterId >= 0xFC00)
-
-/**
- * @brief macro that returns true if attribute is saved in external storage.
- *
- * @param metadata EmberAfAttributeMetadata* to consider.
- */
-#define emberAfAttributeIsExternal(metadata) (((metadata)->mask & ATTRIBUTE_MASK_EXTERNAL_STORAGE) != 0)
-
-/**
- * @brief macro that returns true if attribute is a singleton
- *
- * @param metadata EmberAfAttributeMetadata* to consider.
- */
-#define emberAfAttributeIsSingleton(metadata) (((metadata)->mask & ATTRIBUTE_MASK_SINGLETON) != 0)
-
-/**
  * @brief macro that returns size of attribute in bytes.
  *
  * @param metadata EmberAfAttributeMetadata* to consider.
@@ -158,11 +128,6 @@ uint8_t emberAfGetDataSize(uint8_t dataType);
 // master array of all defined endpoints
 extern EmberAfDefinedEndpoint emAfEndpoints[];
 #endif
-
-/**
- * @brief Macro that takes index of endpoint, and returns Zigbee endpoint
- */
-chip::EndpointId emberAfEndpointFromIndex(uint16_t index);
 
 /**
  * @brief Returns root endpoint of a composed bridged device
@@ -182,20 +147,46 @@ uint16_t emberAfIndexFromEndpoint(chip::EndpointId endpoint);
 uint16_t emberAfIndexFromEndpointIncludingDisabledEndpoints(chip::EndpointId endpoint);
 
 /**
- * Returns the endpoint index within a given cluster (Server-side),
- * looking only for standard clusters.
- */
-uint16_t emberAfFindClusterServerEndpointIndex(chip::EndpointId endpoint, chip::ClusterId clusterId);
+ *  @brief Returns the index of the given endpoint in the list of all endpoints that might support the given cluster server.
+ *
+ * Returns kEmberInvalidEndpointIndex if the given endpoint does not support the
+ * given cluster or if the given endpoint is disabled.
+ *
+ * This function always returns the same index for a given endpointId instance, fixed or dynamic.
+ *
+ * The return index for fixed endpoints will range from 0 to (fixedClusterServerEndpointCount - 1),
+ * For dynamic endpoints the indexing assumes that any dynamic endpoint could start supporting
+ * the given server cluster and their index will range from fixedClusterServerEndpointCount to
+ * (fixedClusterServerEndpointCount + CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT - 1).
+ *
+ * For example, if a device has 4 fixed endpoints (ids 0-3) and 2 dynamic
+ * endpoints, and cluster X is supported on endpoints 1 and 3, then
+ * fixedClusterServerEndpointCount should be 2 and
+ *
+ * 1) emberAfGetClusterServerEndpointIndex(0, X) returns kEmberInvalidEndpointIndex
+ * 2) emberAfGetClusterServerEndpointIndex(1, X) returns 0
+ * 3) emberAfGetClusterServerEndpointIndex(2, X) returns kEmberInvalidEndpointIndex
+ * 4) emberAfGetClusterServerEndpointIndex(3, X) returns 1
 
-/**
- * @brief Macro that returns the primary endpoint.
+ * The Dynamic endpoints are placed after the fixed ones;
+ * therefore their return index will always be >= to fixedClusterServerEndpointCount
+ *
+ * If a dynamic endpoint, supporting cluster X, is defined to dynamic index 1 with endpoint id 7,
+ * (via emberAfSetDynamicEndpoint(1, 7, ...))
+ * then emberAfGetClusterServerEndpointIndex(7, X) returns 3 (fixedClusterServerEndpointCount{2} + DynamicEndpointIndex {1}).
+ *
+ * If now a second dynamic endpoint, also supporting cluster X, is defined to dynamic index 0
+ * with endpoint id 9  (via emberAfSetDynamicEndpoint(0, 9, ...)),
+ * emberAfGetClusterServerEndpointIndex(9, X) returns 2. (fixedClusterServerEndpointCount{2} + DynamicEndpointIndex {0}).
+ * and emberAfGetClusterServerEndpointIndex(7, X) still returns 3
+ *
+ * @param endpoint Endpoint number
+ * @param cluster Id the of the Cluster server you are interrested on
+ * @param fixedClusterServerEndpointCount The number of fixed endpoints containing this cluster server.  Typically one of the
+ EMBER_AF_*_CLUSTER_SERVER_ENDPOINT_COUNT constants.
  */
-#define emberAfPrimaryEndpoint() (emAfEndpoints[0].endpoint)
-
-/**
- * @brief Returns the total number of endpoints (dynamic and pre-compiled).
- */
-uint16_t emberAfEndpointCount(void);
+uint16_t emberAfGetClusterServerEndpointIndex(chip::EndpointId endpoint, chip::ClusterId cluster,
+                                              uint16_t fixedClusterServerEndpointCount);
 
 /**
  * @brief Returns the number of pre-compiled endpoints.
@@ -203,48 +194,10 @@ uint16_t emberAfEndpointCount(void);
 uint16_t emberAfFixedEndpointCount(void);
 
 /**
- * Data types are either analog or discrete. This makes a difference for
- * some of the ZCL global commands
- */
-enum
-{
-    EMBER_AF_DATA_TYPE_ANALOG   = 0,
-    EMBER_AF_DATA_TYPE_DISCRETE = 1,
-    EMBER_AF_DATA_TYPE_NONE     = 2
-};
-
-/**
  *@brief Returns true if type is signed, false otherwise.
  */
 bool emberAfIsTypeSigned(EmberAfAttributeType dataType);
 
-/**
- * @brief Function that extracts a 16-bit integer from the message buffer
- */
-uint16_t emberAfGetInt16u(const uint8_t * message, uint16_t currentIndex, uint16_t msgLen);
-
-/**
- * @brief Macro for consistency, that extracts single byte out of the message
- */
-#define emberAfGetInt8u(message, currentIndex, msgLen) message[currentIndex]
-#define emberAfGetInt8s(message, currentIndex, msgLen) chip::CastToSigned(emberAfGetInt8u(message, currentIndex, msgLen))
-
-/**
- * @brief Macro for consistency that copies a uint8_t from variable into buffer.
- */
-#define emberAfCopyInt8u(data, index, x) (data[index] = (x))
-/**
- * @brief function that copies a uint16_t value into a buffer
- */
-void emberAfCopyInt16u(uint8_t * data, uint16_t index, uint16_t x);
-/**
- * @brief function that copies a uint24_t value into a buffer
- */
-void emberAfCopyInt24u(uint8_t * data, uint16_t index, uint32_t x);
-/**
- * @brief function that copies a uint32_t value into a buffer
- */
-void emberAfCopyInt32u(uint8_t * data, uint16_t index, uint32_t x);
 /*
  * @brief Function that copies a ZCL string type into a buffer.  The size
  * parameter should indicate the maximum number of characters to copy to the
@@ -283,23 +236,6 @@ bool emberAfIsDeviceIdentifying(chip::EndpointId endpoint);
  */
 bool emberAfEndpointEnableDisable(chip::EndpointId endpoint, bool enable);
 
-/**
- * @brief Determine if an endpoint at the specified index is enabled or disabled
- */
-bool emberAfEndpointIndexIsEnabled(uint16_t index);
-
-/**
- * @brief Returns true if a given ZCL data type is a string type.
- *
- * You should use this function if you need to perform a different
- * memory operation on a certain attribute because it is a string type.
- * Since ZCL strings carry length as the first byte(s), it is often required
- * to treat them differently than regular data types.
- *
- * @return true if data type is a string.
- */
-bool emberAfIsThisDataTypeAStringType(EmberAfAttributeType dataType);
-
 /** @brief Returns true if a given ZCL data type is a list type. */
 bool emberAfIsThisDataTypeAListType(EmberAfAttributeType dataType);
 
@@ -317,62 +253,7 @@ bool emberAfIsThisDataTypeAListType(EmberAfAttributeType dataType);
  */
 int8_t emberAfCompareValues(const uint8_t * val1, const uint8_t * val2, uint16_t len, bool signedNumber);
 
-/**
- * @brief populates the passed EUI64 with the local EUI64 MAC address.
- */
-void emberAfGetEui64(EmberEUI64 returnEui64);
-
-/**
- * @brief Returns the node ID of the local node.
- */
-EmberNodeId emberAfGetNodeId(void);
-
 /** @} END Miscellaneous */
-
-/** @name Messaging */
-// @{
-
-/**
- * @brief Set the source and destination endpoints in the client API APS frame.
- */
-void emberAfSetCommandEndpoints(chip::EndpointId sourceEndpoint, chip::EndpointId destinationEndpoint);
-
-/** @} END Messaging */
-
-/** @name ZCL macros */
-// @{
-// Frame control fields (8 bits total)
-// Bits 0 and 1 are Frame Type Sub-field
-#define ZCL_FRAME_CONTROL_FRAME_TYPE_MASK (EMBER_BIT(0) | EMBER_BIT(1))
-#define ZCL_CLUSTER_SPECIFIC_COMMAND EMBER_BIT(0)
-#define ZCL_PROFILE_WIDE_COMMAND 0
-#define ZCL_GLOBAL_COMMAND (ZCL_PROFILE_WIDE_COMMAND)
-// Bit 2 is Manufacturer Specific Sub-field
-#define ZCL_MANUFACTURER_SPECIFIC_MASK EMBER_BIT(2)
-// Bit 3 is Direction Sub-field
-#define ZCL_FRAME_CONTROL_DIRECTION_MASK EMBER_BIT(3)
-#define ZCL_FRAME_CONTROL_SERVER_TO_CLIENT EMBER_BIT(3)
-#define ZCL_FRAME_CONTROL_CLIENT_TO_SERVER 0
-// Bit 4 is Disable Default Response Sub-field
-#define ZCL_DISABLE_DEFAULT_RESPONSE_MASK EMBER_BIT(4)
-// Bits 5 to 7 are reserved
-
-#define ZCL_DIRECTION_CLIENT_TO_SERVER 0
-#define ZCL_DIRECTION_SERVER_TO_CLIENT 1
-
-// Packet must be at least 3 bytes for ZCL overhead.
-//   Frame Control (1-byte)
-//   Sequence Number (1-byte)
-//   Command Id (1-byte)
-#define EMBER_AF_ZCL_OVERHEAD 3
-#define EMBER_AF_ZCL_MANUFACTURER_SPECIFIC_OVERHEAD 5
-
-// Permitted values for emberAfSetFormAndJoinMode
-#define FIND_AND_JOIN_MODE_ALLOW_2_4_GHZ EMBER_BIT(0)
-#define FIND_AND_JOIN_MODE_ALLOW_SUB_GHZ EMBER_BIT(1)
-#define FIND_AND_JOIN_MODE_ALLOW_BOTH (FIND_AND_JOIN_MODE_ALLOW_2_4_GHZ | FIND_AND_JOIN_MODE_ALLOW_SUB_GHZ)
-
-/** @} END ZCL macros */
 
 /** @} END addtogroup */
 

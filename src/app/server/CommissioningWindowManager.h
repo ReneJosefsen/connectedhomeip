@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include <app-common/zap-generated/cluster-objects.h>
 #include <app/data-model/Nullable.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/CommissioningModeProvider.h>
 #include <lib/core/CHIPVendorIdentifiers.hpp>
+#include <lib/core/ClusterEnums.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/dnssd/Advertiser.h>
 #include <messaging/ExchangeDelegate.h>
@@ -213,6 +213,10 @@ private:
 
 #if CHIP_DEVICE_CONFIG_ENABLE_SED
     bool mSEDActiveModeEnabled = false;
+#endif
+
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD && CHIP_DEVICE_CONFIG_THREAD_FTD
+    bool mRecoverRouterDeviceRole = false;
 #endif
 
     // For tests only, so that we can test the commissioning window timeout

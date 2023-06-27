@@ -53,11 +53,13 @@ using namespace ::chip::DeviceLayer;
 static chip::DeviceLayer::Internal::Efr32PsaOperationalKeystore gOperationalKeystore;
 #endif
 
-#include "EFR32DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
+#include "SilabsTestEventTriggerDelegate.h"
 #include <app/InteractionModelEngine.h>
+#include <string.h>
 
 #ifdef CHIP_CONFIG_USE_ICD_SUBSCRIPTION_CALLBACKS
-ICDSubscriptionCallback EFR32MatterConfig::mICDSubscriptionHandler;
+ICDSubscriptionCallback SilabsMatterConfig::mICDSubscriptionHandler;
 #endif // CHIP_CONFIG_USE_ICD_SUBSCRIPTION_CALLBACKS
 
 #if CHIP_ENABLE_OPENTHREAD
@@ -87,10 +89,10 @@ void UnlockOpenThreadTask(void)
 }
 
 // ================================================================================
-// EFR32MatterConfig Methods
+// SilabsMatterConfig Methods
 // ================================================================================
 
-CHIP_ERROR EFR32MatterConfig::InitOpenThread(void)
+CHIP_ERROR SilabsMatterConfig::InitOpenThread(void)
 {
     SILABS_LOG("Initializing OpenThread stack");
     ReturnErrorOnFailure(ThreadStackMgr().InitThreadStack());
@@ -110,14 +112,14 @@ CHIP_ERROR EFR32MatterConfig::InitOpenThread(void)
 }
 #endif // CHIP_ENABLE_OPENTHREAD
 
-#if EFR32_OTA_ENABLED
-void EFR32MatterConfig::InitOTARequestorHandler(System::Layer * systemLayer, void * appState)
+#if SILABS_OTA_ENABLED
+void SilabsMatterConfig::InitOTARequestorHandler(System::Layer * systemLayer, void * appState)
 {
     OTAConfig::Init();
 }
 #endif
 
-void EFR32MatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event, intptr_t arg)
+void SilabsMatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event, intptr_t arg)
 {
     // Initialize OTA only when Thread or WiFi connectivity is established
     if (((event->Type == DeviceEventType::kThreadConnectivityChange) &&
@@ -125,7 +127,7 @@ void EFR32MatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event,
         ((event->Type == DeviceEventType::kInternetConnectivityChange) &&
          (event->InternetConnectivityChange.IPv6 == kConnectivity_Established)))
     {
-#if EFR32_OTA_ENABLED
+#if SILABS_OTA_ENABLED
         SILABS_LOG("Scheduling OTA Requestor initialization")
         chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds32(OTAConfig::kInitOTARequestorDelaySec),
                                                     InitOTARequestorHandler, nullptr);
@@ -133,7 +135,52 @@ void EFR32MatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event,
     }
 }
 
-CHIP_ERROR EFR32MatterConfig::InitMatter(const char * appName)
+#if SILABS_TEST_EVENT_TRIGGER_ENABLED
+static uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+                                                                                          0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+                                                                                          0xcc, 0xdd, 0xee, 0xff };
+
+static int hex_digit_to_int(char hex)
+{
+    if ('A' <= hex && hex <= 'F')
+    {
+        return 10 + hex - 'A';
+    }
+    if ('a' <= hex && hex <= 'f')
+    {
+        return 10 + hex - 'a';
+    }
+    if ('0' <= hex && hex <= '9')
+    {
+        return hex - '0';
+    }
+    return -1;
+}
+
+static size_t hex_string_to_binary(const char * hex_string, uint8_t * buf, size_t buf_size)
+{
+    size_t num_char = strlen(hex_string);
+    if (num_char != buf_size * 2)
+    {
+        return 0;
+    }
+    for (size_t i = 0; i < num_char; i += 2)
+    {
+        int digit0 = hex_digit_to_int(hex_string[i]);
+        int digit1 = hex_digit_to_int(hex_string[i + 1]);
+
+        if (digit0 < 0 || digit1 < 0)
+        {
+            return 0;
+        }
+        buf[i / 2] = (digit0 << 4) + digit1;
+    }
+
+    return buf_size;
+}
+#endif // SILABS_TEST_EVENT_TRIGGER_ENABLED
+
+CHIP_ERROR SilabsMatterConfig::InitMatter(const char * appName)
 {
     CHIP_ERROR err;
 
@@ -159,8 +206,8 @@ CHIP_ERROR EFR32MatterConfig::InitMatter(const char * appName)
     ReturnErrorOnFailure(chip::Platform::MemoryInit());
     ReturnErrorOnFailure(PlatformMgr().InitChipStack());
 
-    SetDeviceInstanceInfoProvider(&EFR32::EFR32DeviceDataProvider::GetDeviceDataProvider());
-    SetCommissionableDataProvider(&EFR32::EFR32DeviceDataProvider::GetDeviceDataProvider());
+    SetDeviceInstanceInfoProvider(&Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider());
+    SetCommissionableDataProvider(&Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider());
 
     chip::DeviceLayer::ConnectivityMgr().SetBLEDeviceName(appName);
 
@@ -173,6 +220,17 @@ CHIP_ERROR EFR32MatterConfig::InitMatter(const char * appName)
 
     // Create initParams with SDK example defaults here
     static chip::CommonCaseDeviceServerInitParams initParams;
+
+#if SILABS_TEST_EVENT_TRIGGER_ENABLED
+    if (hex_string_to_binary(SILABS_TEST_EVENT_TRIGGER_ENABLE_KEY, sTestEventTriggerEnableKey,
+                             sizeof(sTestEventTriggerEnableKey)) == 0)
+    {
+        SILABS_LOG("Failed to convert the EnableKey string to octstr type value");
+        memset(sTestEventTriggerEnableKey, 0, sizeof(sTestEventTriggerEnableKey));
+    }
+    static SilabsTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+#endif // SILABS_TEST_EVENT_TRIGGER_ENABLED
 
 #if CHIP_CRYPTO_PLATFORM
     // When building with EFR32 crypto, use the opaque key store
@@ -223,7 +281,7 @@ CHIP_ERROR EFR32MatterConfig::InitMatter(const char * appName)
 }
 
 #ifdef SL_WIFI
-void EFR32MatterConfig::InitWiFi(void)
+void SilabsMatterConfig::InitWiFi(void)
 {
 #ifdef WF200_WIFI
     // Start wfx bus communication task.
@@ -249,7 +307,4 @@ void EFR32MatterConfig::InitWiFi(void)
 extern "C" void vApplicationIdleHook(void)
 {
     // FreeRTOS Idle callback
-
-    // Check CHIP Config nvm3 and repack flash if necessary.
-    Internal::SilabsConfig::RepackNvm3Flash();
 }

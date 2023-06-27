@@ -37,7 +37,7 @@ config CHIP_APP_LOG_LEVEL
     default 4 # debug
 
 config LOG_DEFAULT_LEVEL
-    default 2 # warning
+    default 1 # error
 
 config CHIP_LOG_SIZE_OPTIMIZATION
     default y
@@ -48,6 +48,12 @@ config PRINTK_SYNC
     default y
 
 config ASSERT
+    default y
+
+config ASSERT_NO_COND_INFO
+    default y
+
+config ASSERT_NO_MSG_INFO
     default y
 
 config HW_STACK_PROTECTION
@@ -63,9 +69,9 @@ config PTHREAD_IPC
     bool
     default n
 
-# Generic networking options
-config NET_SOCKETS_POSIX_NAMES
-    default n
+config POSIX_MAX_FDS
+    int
+    default 16
 
 # Application stack size
 config MAIN_STACK_SIZE
@@ -161,6 +167,11 @@ config BT_DEVICE_NAME_GATT_WRITABLE
 config CHIP_NFC_COMMISSIONING
     default y
 
+# Disable not needed NFC callback to save flash
+config NFC_THREAD_CALLBACK
+    bool
+    default n
+
 config CHIP_OTA_REQUESTOR
     default y
 
@@ -211,6 +222,10 @@ endif
 
 if CHIP_WIFI
 
+choice WPA_SUPP_LOG_LEVEL_CHOICE
+	default WPA_SUPP_LOG_LEVEL_ERR
+endchoice
+
 config NRF_WIFI_LOW_POWER
     default n
 
@@ -218,7 +233,7 @@ config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
     default n
 
 config SYSTEM_WORKQUEUE_STACK_SIZE
-    default 2048
+    default 2560
 
 # align these numbers to match the OpenThread config
 config NET_IF_UNICAST_IPV6_ADDR_COUNT
@@ -227,8 +242,8 @@ config NET_IF_UNICAST_IPV6_ADDR_COUNT
 config NET_IF_MCAST_IPV6_ADDR_COUNT
     default 8
 
-config NET_SOCKETS_POSIX_NAMES
-    default n
+config NET_SOCKETS_POLL_MAX
+    default 4
 
 config MBEDTLS_SSL_OUT_CONTENT_LEN
     default 900
@@ -246,6 +261,9 @@ config SHELL_STACK_SIZE
 
 config HEAP_MEM_POOL_SIZE
     default 200000
+
+config CHIP_MALLOC_SYS_HEAP_SIZE
+    default 28672 # 28 kB
 
 endif
 
@@ -368,6 +386,18 @@ config PSA_WANT_ALG_OFB
 
 # Disable not used shell modules
 
+config SHELL_WILDCARD
+    default n
+
+config SHELL_VT100_COLORS
+    default n
+
+config SHELL_STATS
+    default n
+
+config KERNEL_SHELL
+    default n
+
 config SENSOR_SHELL
     default n
 
@@ -389,6 +419,18 @@ config CLOCK_CONTROL_NRF_SHELL
 config FLASH_SHELL
     default n
 
+if MPSL_FEM
+
+config MPSL_FEM_NRF21540_RUNTIME_PA_GAIN_CONTROL
+	default y
+
+endif # MPSL_FEM
+
+config OPENTHREAD_DEFAULT_TX_POWER
+	default 20 if MPSL_FEM
+	default 3 if SOC_SERIES_NRF53X && !MPSL_FEM
+	default 8 if SOC_SERIES_NRF52X && !MPSL_FEM
+
 # SoC series related configuration
 
 if SOC_SERIES_NRF52X
@@ -400,6 +442,9 @@ config BT_CTLR_DATA_LENGTH_MAX
 endif # SOC_SERIES_NRF52X
 
 if SOC_SERIES_NRF53X
+
+config BOOT_IMAGE_ACCESS_HOOKS
+    default y
 
 config UPDATEABLE_IMAGE_NUMBER
     default 2

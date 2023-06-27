@@ -13,29 +13,33 @@ class ChipClusters:
     SUCCESS_DELEGATE = ctypes.CFUNCTYPE(None)
     FAILURE_DELEGATE = ctypes.CFUNCTYPE(None, ctypes.c_uint8)
 
-{{#chip_client_clusters}}
+{{#zcl_clusters}}
     _{{asDelimitedMacro name}}_CLUSTER_INFO = {
         "clusterName": "{{asUpperCamelCase name}}",
         "clusterId": {{asHex code 8}},
         "commands": {
-{{#chip_cluster_commands}}
+{{#zcl_commands_source_client}}
             {{asHex code 8}}: {
                 "commandId": {{asHex code 8}},
-                "commandName": "{{asUpperCamelCase name}}",
+                "commandName": "{{asUpperCamelCase commandName}}",
                 "args": {
-{{#chip_cluster_command_arguments_with_structs_expanded}}
-                    "{{asLowerCamelCase label}}": "{{#if (isCharString type)}}str{{else}}{{asPythonType chipType}}{{/if}}",
-{{/chip_cluster_command_arguments_with_structs_expanded}}
+{{#zcl_command_arguments}}
+     {{#if_is_struct type}}
+                    "{{asLowerCamelCase label}}": "{{type}}",
+    {{else}}
+                    "{{asLowerCamelCase label}}": "{{#if (isCharString type)}}str{{else}}{{as_underlying_python_zcl_type type ../../id}}{{/if}}",
+    {{/if_is_struct}}
+{{/zcl_command_arguments}}
                 },
             },
-{{/chip_cluster_commands}}
+{{/zcl_commands_source_client}}
         },
         "attributes": {
-{{#chip_server_cluster_attributes}}
+{{#zcl_attributes_server removeKeys='isOptional'}}
             {{asHex code 8}}: {
                 "attributeName": "{{asUpperCamelCase name}}",
                 "attributeId": {{asHex code 8}},
-                "type": "{{#if (isCharString type)}}str{{else}}{{asPythonType chipType}}{{/if}}",
+                "type": "{{as_underlying_python_zcl_type type ../id}}",
                 {{#if isReportableAttribute}}
                 "reportable": True,
                 {{/if}}
@@ -43,21 +47,21 @@ class ChipClusters:
                 "writable": True,
                 {{/if}}
             },
-{{/chip_server_cluster_attributes}}
+{{/zcl_attributes_server}}
         },
     }
-{{/chip_client_clusters}}
+{{/zcl_clusters}}
 
     _CLUSTER_ID_DICT = {
-{{#chip_client_clusters}}
+{{#zcl_clusters}}
         {{asHex code 8}}: _{{asDelimitedMacro name}}_CLUSTER_INFO,
-{{/chip_client_clusters}}
+{{/zcl_clusters}}
     }
 
     _CLUSTER_NAME_DICT = {
-{{#chip_client_clusters}}
+{{#zcl_clusters}}
         "{{asUpperCamelCase name}}": _{{asDelimitedMacro name}}_CLUSTER_INFO,
-{{/chip_client_clusters}}
+{{/zcl_clusters}}
     }
 
     def __init__(self, chipstack):

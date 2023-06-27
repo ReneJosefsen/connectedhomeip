@@ -28,14 +28,16 @@
 
 #include "AppEvent.h"
 #include "FreeRTOS.h"
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
-#include "sl_simple_button_instances.h"
-#endif
 #include "timers.h" // provides FreeRTOS timer support
-#include <app/clusters/identify-server/identify-server.h>
+#include <app/util/config.h>
 #include <ble/BLEEndPoint.h>
 #include <lib/core/CHIPError.h>
+#include <platform/CHIPDeviceEvent.h>
 #include <platform/CHIPDeviceLayer.h>
+
+#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#include <app/clusters/identify-server/identify-server.h>
+#endif
 
 #ifdef DISPLAY_ENABLED
 #include "demo-ui.h"
@@ -93,18 +95,6 @@ public:
      */
     static SilabsLCD & GetLCD(void);
 #endif
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
-    /**
-     * @brief Event handler when a button is pressed
-     * Function posts an event for button processing
-     *
-     * @param buttonHandle APP_LIGHT_SWITCH or APP_FUNCTION_BUTTON
-     * @param btnAction button action - SL_SIMPLE_BUTTON_PRESSED,
-     *                  SL_SIMPLE_BUTTON_RELEASED or SL_SIMPLE_BUTTON_DISABLED
-     */
-    virtual void ButtonEventHandler(const sl_button_t * buttonHandle, uint8_t btnAction) = 0;
-
-#endif
 
     /**
      * @brief Function called to start the LED light timer
@@ -117,6 +107,14 @@ public:
      */
     static void StopStatusLEDTimer(void);
 
+#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+    // Idenfiy server command callbacks.
+    static void OnIdentifyStart(Identify * identify);
+    static void OnIdentifyStop(Identify * identify);
+    static void OnTriggerIdentifyEffectCompleted(chip::System::Layer * systemLayer, void * appState);
+    static void OnTriggerIdentifyEffect(Identify * identify);
+#endif
+
     enum Function_t
     {
         kFunction_NoneSelected   = 0,
@@ -128,7 +126,7 @@ public:
     } Function;
 
 protected:
-    CHIP_ERROR Init(Identify * identifyObj);
+    CHIP_ERROR Init();
 
     /**
      * @brief Function called to start the function timer
@@ -164,7 +162,7 @@ protected:
      * @param aEvent post event being processed
      */
     static void FunctionEventHandler(AppEvent * aEvent);
-#ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
+
     /**
      * @brief PB0 Button event processing function
      *        Press and hold will trigger a factory reset timer start
@@ -173,7 +171,7 @@ protected:
      * @param aEvent button event being processed
      */
     static void ButtonHandler(AppEvent * aEvent);
-#endif
+
     /**
      * @brief Light Timer finished callback function
      *        Calls LED processing function
@@ -187,6 +185,26 @@ protected:
      */
     static void LightEventHandler();
 
+    /**
+     * @brief Activate a set of Led patterns of the Status led
+     *        Identify patterns and Trigger effects have priority
+     *        If no identification patterns are in progress, we provide
+     *        commissioning status feedback.
+     *
+     * @return True if a Led pattern was set, otherwise, returns false.
+     */
+    static bool ActivateStatusLedPatterns();
+
+    /**
+     * @brief Start the factory Reset process
+     *  Almost identical to Server::ScheduleFactoryReset()
+     *  but doesn't call GetFabricTable().DeleteAllFabrics(); which deletes Key per key.
+     *  With our KVS platform implementation this is a lot slower than deleting the whole kvs section
+     *  our silabs nvm3 driver which end up being doing in ConfigurationManagerImpl::DoFactoryReset(intptr_t arg).
+     */
+    static void ScheduleFactoryReset();
+
+    static void OnPlatformEvent(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t);
     /**********************************************************
      * Protected Attributes declaration
      *********************************************************/

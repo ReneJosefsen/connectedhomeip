@@ -115,6 +115,15 @@ CHIP_ERROR KVPsaPsStore::Init(void)
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR KVPsaPsStore::Shutdown(void)
+{
+    KVSKeyMapUpdate();
+
+    initialized = false;
+
+    return CHIP_NO_ERROR;
+}
+
 CHIP_ERROR KVPsaPsStore::ReadConfigValue(Key key, bool & val)
 {
     if (!ConfigValueExists(key))
@@ -303,7 +312,7 @@ CHIP_ERROR KVPsaPsStore::WriteConfigValue(Key key, uint64_t val)
 
 CHIP_ERROR KVPsaPsStore::WriteConfigValueStr(Key key, const char * str)
 {
-    return WriteConfigValueBin(key, reinterpret_cast<const uint8_t *>(str), (str != NULL) ? strlen(str) : 0);
+    return WriteConfigValueBin(key, reinterpret_cast<const uint8_t *>(str), (str != nullptr) ? strlen(str) : 0);
 }
 
 CHIP_ERROR KVPsaPsStore::WriteConfigValueStr(Key key, const char * str, size_t strLen)
@@ -601,7 +610,7 @@ void KVPsaPsStoreKeyBuilder::AddKey()
         return;
     }
 
-    uint32_t keyIndex = CONVERT_KEY_TO_INDEX(keyValue);
+    auto keyIndex = CONVERT_KEY_TO_INDEX(keyValue);
     memset(mKvsStoredKeyString[keyIndex], 0, sizeof(mKvsStoredKeyString[keyIndex]));
     Platform::CopyString(mKvsStoredKeyString[keyIndex], buffer);
     KVPsaPsStore::ScheduleKVSKeyMapUpdate();
@@ -614,7 +623,7 @@ void KVPsaPsStoreKeyBuilder::RemoveKey()
         return;
     }
 
-    uint32_t keyIndex = CONVERT_KEY_TO_INDEX(keyValue);
+    auto keyIndex = CONVERT_KEY_TO_INDEX(keyValue);
     memset(mKvsStoredKeyString[keyIndex], 0, sizeof(mKvsStoredKeyString[keyIndex]));
     KVPsaPsStore::ScheduleKVSKeyMapUpdate();
 }

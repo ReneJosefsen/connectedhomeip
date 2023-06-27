@@ -14,9 +14,13 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#import <Matter/MTRDefines.h>
+
 #import "MTRDeviceController_Internal.h"
 
 #import "MTRBaseDevice_Internal.h"
+#import "MTRCommissionableBrowser.h"
+#import "MTRCommissionableBrowserResult_Internal.h"
 #import "MTRCommissioningParameters.h"
 #import "MTRDeviceControllerDelegateBridge.h"
 #import "MTRDeviceControllerFactory_Internal.h"
@@ -31,6 +35,7 @@
 #import "MTRPersistentStorageDelegateBridge.h"
 #import "MTRSetupPayload.h"
 #import "NSDataSpanConversion.h"
+#import "NSStringSpanConversion.h"
 #import <setup_payload/ManualSetupPayloadGenerator.h>
 #import <setup_payload/SetupPayload.h>
 #import <zap-generated/MTRBaseClusters.h>
@@ -103,6 +108,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 @property (readonly) MTRDeviceControllerFactory * factory;
 @property (readonly) NSMutableDictionary * nodeIDToDeviceMap;
 @property (readonly) os_unfair_lock deviceMapLock; // protects nodeIDToDeviceMap
+@property (readonly) MTRCommissionableBrowser * commissionableBrowser;
 @end
 
 @implementation MTRDeviceController
@@ -153,6 +159,15 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
 // Clean up from a state where startup was called.
 - (void)cleanupAfterStartup
 {
+    // Invalidate our MTRDevice instances before we shut down our secure
+    // sessions and whatnot, so they don't start trying to resubscribe when we
+    // do the secure session shutdowns.
+    for (MTRDevice * device in [self.nodeIDToDeviceMap allValues]) {
+        [device invalidate];
+    }
+    [self.nodeIDToDeviceMap removeAllObjects];
+    [self stopScan];
+
     [_factory controllerShuttingDown:self];
 }
 
@@ -203,11 +218,6 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         delete _deviceControllerDelegateBridge;
         _deviceControllerDelegateBridge = nullptr;
     }
-
-    for (MTRDevice * device in [self.nodeIDToDeviceMap allValues]) {
-        [device invalidate];
-    }
-    [self.nodeIDToDeviceMap removeAllObjects];
 }
 
 - (BOOL)startup:(MTRDeviceControllerStartupParamsInternal *)startupParams
@@ -299,10 +309,34 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         } else {
             chip::MutableByteSpan noc(nocBuffer);
 
+            chip::CATValues cats = chip::kUndefinedCATs;
+            if (startupParams.caseAuthenticatedTags != nil) {
+                unsigned long long tagCount = startupParams.caseAuthenticatedTags.count;
+                if (tagCount > chip::kMaxSubjectCATAttributeCount) {
+                    MTR_LOG_ERROR("%llu CASE Authenticated Tags cannot be represented in a certificate.", tagCount);
+                    return;
+                }
+
+                size_t tagIndex = 0;
+                for (NSNumber * boxedTag in startupParams.caseAuthenticatedTags) {
+                    if (!chip::CanCastTo<chip::CASEAuthTag>(boxedTag.unsignedLongLongValue)) {
+                        MTR_LOG_ERROR("0x%llx is not a valid CASE Authenticated Tag value.", boxedTag.unsignedLongLongValue);
+                        return;
+                    }
+
+                    auto tag = static_cast<chip::CASEAuthTag>(boxedTag.unsignedLongLongValue);
+                    if (!chip::IsValidCASEAuthTag(tag)) {
+                        MTR_LOG_ERROR("0x%" PRIx32 " is not a valid CASE Authenticated Tag value.", tag);
+                        return;
+                    }
+
+                    cats.values[tagIndex++] = tag;
+                }
+            }
+
             if (commissionerParams.operationalKeypair != nullptr) {
                 errorCode = _operationalCredentialsDelegate->GenerateNOC(startupParams.nodeID.unsignedLongLongValue,
-                    startupParams.fabricID.unsignedLongLongValue, chip::kUndefinedCATs,
-                    commissionerParams.operationalKeypair->Pubkey(), noc);
+                    startupParams.fabricID.unsignedLongLongValue, cats, commissionerParams.operationalKeypair->Pubkey(), noc);
 
                 if ([self checkForStartError:errorCode logMsg:kErrorGenerateNOC]) {
                     return;
@@ -322,8 +356,8 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
                     return;
                 }
 
-                errorCode = _operationalCredentialsDelegate->GenerateNOC(startupParams.nodeID.unsignedLongLongValue,
-                    startupParams.fabricID.unsignedLongLongValue, chip::kUndefinedCATs, pubKey, noc);
+                errorCode = _operationalCredentialsDelegate->GenerateNOC(
+                    startupParams.nodeID.unsignedLongLongValue, startupParams.fabricID.unsignedLongLongValue, cats, pubKey, noc);
 
                 if ([self checkForStartError:errorCode logMsg:kErrorGenerateNOC]) {
                     return;
@@ -332,6 +366,12 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
             commissionerParams.controllerNOC = noc;
         }
         commissionerParams.controllerVendorId = static_cast<chip::VendorId>([startupParams.vendorID unsignedShortValue]);
+        commissionerParams.enableServerInteractions = startupParams.advertiseOperational;
+        // We don't want to remove things from the fabric table on controller
+        // shutdown, since our controller setup depends on being able to fetch
+        // fabric information for the relevant fabric indices on controller
+        // bring-up.
+        commissionerParams.removeFromFabricTableOnShutdown = false;
         commissionerParams.deviceAttestationVerifier = _factory.deviceAttestationVerifier;
 
         auto & factory = chip::Controller::DeviceControllerFactory::GetInstance();
@@ -415,6 +455,53 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
     return [self syncRunOnWorkQueueWithBoolReturnValue:block error:error];
 }
 
+- (BOOL)setupCommissioningSessionWithDiscoveredDevice:(MTRCommissionableBrowserResult *)discoveredDevice
+                                              payload:(MTRSetupPayload *)payload
+                                            newNodeID:(NSNumber *)newNodeID
+                                                error:(NSError * __autoreleasing *)error
+{
+    auto block = ^BOOL {
+        chip::NodeId nodeId = [newNodeID unsignedLongLongValue];
+        self->_operationalCredentialsDelegate->SetDeviceID(nodeId);
+
+        auto errorCode = CHIP_ERROR_INVALID_ARGUMENT;
+        if (discoveredDevice.params.HasValue()) {
+            auto params = discoveredDevice.params.Value();
+            auto pinCode = static_cast<uint32_t>([[payload setupPasscode] unsignedLongValue]);
+            params.SetSetupPINCode(pinCode);
+
+            errorCode = self.cppCommissioner->EstablishPASEConnection(nodeId, params);
+        } else {
+            // Try to get a QR code if possible (because it has a better
+            // discriminator, etc), then fall back to manual code if that fails.
+            NSString * pairingCode = [payload qrCodeString:nil];
+            if (pairingCode == nil) {
+                pairingCode = [payload manualEntryCode];
+            }
+            if (pairingCode == nil) {
+                return ![MTRDeviceController checkForError:CHIP_ERROR_INVALID_ARGUMENT logMsg:kErrorSetupCodeGen error:error];
+            }
+
+            for (id key in discoveredDevice.interfaces) {
+                auto resolutionData = discoveredDevice.interfaces[key].resolutionData;
+                if (!resolutionData.HasValue()) {
+                    continue;
+                }
+
+                errorCode = self.cppCommissioner->EstablishPASEConnection(
+                    nodeId, [pairingCode UTF8String], chip::Controller::DiscoveryType::kDiscoveryNetworkOnly, resolutionData);
+                if (CHIP_NO_ERROR != errorCode) {
+                    break;
+                }
+            }
+        }
+
+        return ![MTRDeviceController checkForError:errorCode logMsg:kErrorPairDevice error:error];
+    };
+
+    return [self syncRunOnWorkQueueWithBoolReturnValue:block error:error];
+}
+
 - (BOOL)commissionNodeWithID:(NSNumber *)nodeID
          commissioningParams:(MTRCommissioningParameters *)commissioningParams
                        error:(NSError * __autoreleasing *)error
@@ -430,6 +517,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         if (commissioningParams.threadOperationalDataset) {
             params.SetThreadOperationalDataset(AsByteSpan(commissioningParams.threadOperationalDataset));
         }
+        params.SetSkipCommissioningComplete(commissioningParams.skipCommissioningComplete);
         if (commissioningParams.wifiSSID) {
             chip::ByteSpan ssid = AsByteSpan(commissioningParams.wifiSSID);
             chip::ByteSpan credentials;
@@ -457,6 +545,9 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
             self->_deviceAttestationDelegateBridge = new MTRDeviceAttestationDelegateBridge(
                 self, commissioningParams.deviceAttestationDelegate, timeoutSecs, shouldWaitAfterDeviceAttestation);
             params.SetDeviceAttestationDelegate(self->_deviceAttestationDelegateBridge);
+        }
+        if (commissioningParams.countryCode != nil) {
+            params.SetCountryCode(AsCharSpan(commissioningParams.countryCode));
         }
 
         chip::NodeId deviceId = [nodeID unsignedLongLongValue];
@@ -497,6 +588,28 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
     return [self syncRunOnWorkQueueWithBoolReturnValue:block error:error];
 }
 
+- (BOOL)startScan:(id<MTRCommissionableBrowserDelegate>)delegate queue:(dispatch_queue_t)queue
+{
+    auto block = ^BOOL {
+        self->_commissionableBrowser = [[MTRCommissionableBrowser alloc] initWithDelegate:delegate queue:queue];
+        return [self.commissionableBrowser start];
+    };
+
+    return [self syncRunOnWorkQueueWithBoolReturnValue:block error:nil];
+}
+
+- (BOOL)stopScan
+{
+    auto block = ^BOOL {
+        auto commissionableBrowser = self.commissionableBrowser;
+        VerifyOrReturnValue(commissionableBrowser, NO);
+        self->_commissionableBrowser = nil;
+        return [commissionableBrowser stop];
+    };
+
+    return [self syncRunOnWorkQueueWithBoolReturnValue:block error:nil];
+}
+
 - (void)preWarmCommissioningSession
 {
     auto block = ^{
@@ -515,7 +628,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
         chip::CommissioneeDeviceProxy * deviceProxy;
 
         auto errorCode = self->_cppCommissioner->GetDeviceBeingCommissioned(nodeID.unsignedLongLongValue, &deviceProxy);
-        VerifyOrReturnValue(![MTRDeviceController checkForError:errorCode logMsg:kErrorStopPairing error:error], nil);
+        VerifyOrReturnValue(![MTRDeviceController checkForError:errorCode logMsg:kErrorGetCommissionee error:error], nil);
 
         return [[MTRBaseDevice alloc] initWithPASEDevice:deviceProxy controller:self];
     };
@@ -534,7 +647,13 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
     MTRDevice * deviceToReturn = self.nodeIDToDeviceMap[nodeID];
     if (!deviceToReturn) {
         deviceToReturn = [[MTRDevice alloc] initWithNodeID:nodeID controller:self];
-        self.nodeIDToDeviceMap[nodeID] = deviceToReturn;
+        // If we're not running, don't add the device to our map.  That would
+        // create a cycle that nothing would break.  Just return the device,
+        // which will be in exactly the state it would be in if it were created
+        // while we were running and then we got shut down.
+        if ([self isRunning]) {
+            self.nodeIDToDeviceMap[nodeID] = deviceToReturn;
+        }
     }
     os_unfair_lock_unlock(&_deviceMapLock);
 
@@ -904,6 +1023,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
  * Shim to allow us to treat an MTRDevicePairingDelegate as an
  * MTRDeviceControllerDelegate.
  */
+MTR_HIDDEN
 @interface MTRDevicePairingDelegateShim : NSObject <MTRDeviceControllerDelegate>
 @property (nonatomic, readonly) id<MTRDevicePairingDelegate> delegate;
 - (instancetype)initWithDelegate:(id<MTRDevicePairingDelegate>)delegate;
@@ -961,6 +1081,7 @@ typedef BOOL (^SyncWorkQueueBlockWithBoolReturnValue)(void);
  * Shim to allow us to treat an MTRNOCChainIssuer as an
  * MTROperationalCertificateIssuer.
  */
+MTR_HIDDEN
 @interface MTROperationalCertificateChainIssuerShim : NSObject <MTROperationalCertificateIssuer>
 @property (nonatomic, readonly) id<MTRNOCChainIssuer> nocChainIssuer;
 @property (nonatomic, readonly) BOOL shouldSkipAttestationCertificateValidation;

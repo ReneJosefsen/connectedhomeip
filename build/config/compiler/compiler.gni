@@ -43,7 +43,11 @@ declare_args() {
   c_standard = "gnu11"
 
   # C++ standard level (value for -std flag).
-  cpp_standard = "gnu++14"
+  if (current_os == "android") {
+    cpp_standard = "gnu++17"
+  } else {
+    cpp_standard = "gnu++14"
+  }
 
   # enable libfuzzer
   is_libfuzzer = false
@@ -56,4 +60,7 @@ declare_args() {
 
   # Debug prefix mapping (values for -fdebug-prefix-map=).
   prefix_mappings = []
+
+  # Enable fuzzer build for OSS-Fuzz
+  oss_fuzz = false
 }

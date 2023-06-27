@@ -915,6 +915,17 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #endif
 
 /**
+ * @def CHIP_CONFIG_IM_ENABLE_ENCODING_SENTINEL_ENUM_VALUES
+ *
+ * @brief Defines whether encoding the "not a known enum value" enum values is
+ *        allowed.  Should only be enabled in certain test applications.  This
+ *        flag must not be enabled on actual devices.
+ */
+#ifndef CHIP_CONFIG_IM_ENABLE_ENCODING_SENTINEL_ENUM_VALUES
+#define CHIP_CONFIG_IM_ENABLE_ENCODING_SENTINEL_ENUM_VALUES 0
+#endif
+
+/**
  * @def CHIP_CONFIG_LAMBDA_EVENT_SIZE
  *
  * @brief The maximum size of the lambda which can be post into system event queue.
@@ -1345,20 +1356,6 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #endif // CHIP_CONFIG_NUM_CD_KEY_SLOTS
 
 /**
- * @def CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
- *
- * @brief Defines the number of clients that can register for monitoring with a server
- * see ClientMonitoring cluster for specification
- */
-#ifndef CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
-#define CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC 1
-#endif // CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
-
-/**
- * @}
- */
-
-/**
  * @def CHIP_CONFIG_MAX_SUBSCRIPTION_RESUMPTION_STORAGE_CONCURRENT_ITERATORS
  *
  * @brief Defines the number of simultaneous subscription resumption iterators that can be allocated
@@ -1368,3 +1365,75 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #ifndef CHIP_CONFIG_MAX_SUBSCRIPTION_RESUMPTION_STORAGE_CONCURRENT_ITERATORS
 #define CHIP_CONFIG_MAX_SUBSCRIPTION_RESUMPTION_STORAGE_CONCURRENT_ITERATORS 2
 #endif
+
+/**
+ * @brief The minimum number of scenes to support according to spec
+ */
+#ifndef CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT
+#define CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT 16
+#endif
+
+/**
+ * @brief Maximum length of Scene names
+ */
+#ifndef CHIP_CONFIG_SCENES_CLUSTER_MAXIMUM_NAME_LENGTH
+#define CHIP_CONFIG_SCENES_CLUSTER_MAXIMUM_NAME_LENGTH 16
+#endif
+
+/**
+ * @brief The maximum number of scenes allowed on a single fabric
+ */
+#ifndef CHIP_CONFIG_SCENES_MAX_PER_FABRIC
+#define CHIP_CONFIG_SCENES_MAX_PER_FABRIC (CHIP_CONFIG_MAX_SCENES_PER_ENDPOINT / 2)
+#endif
+
+/**
+ * @brief The maximum number of attribute value pairs in an extension field set.
+ */
+#ifndef CHIP_CONFIG_SCENES_MAX_AV_PAIRS_EFS
+#define CHIP_CONFIG_SCENES_MAX_AV_PAIRS_EFS 15
+#endif
+
+/**
+ * @brief The maximum number of clusters per scene, defaults to 3 for a typical usecase (onOff + level control + color control
+ * cluster). Needs to be changed in case a greater number of clusters is chosen.
+ */
+#ifndef CHIP_CONFIG_SCENES_MAX_CLUSTERS_PER_SCENE
+#define CHIP_CONFIG_SCENES_MAX_CLUSTERS_PER_SCENE 3
+#endif
+
+/**
+ * @brief The maximum size of a single extension field set for a single cluster
+ */
+#ifndef CHIP_CONFIG_SCENES_MAX_EXTENSION_FIELDSET_SIZE_PER_CLUSTER
+#define CHIP_CONFIG_SCENES_MAX_EXTENSION_FIELDSET_SIZE_PER_CLUSTER 128
+#endif
+
+/**
+ * @def CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS
+ *
+ * @brief Defines the number of simultaneous Scenes iterators that can be allocated
+ *
+ * Number of iterator instances that can be allocated at any one time
+ */
+#ifndef CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS
+#define CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS 2
+#endif
+
+/**
+ * @def CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+ *
+ * @brief Controls whether core data model code will try to include app-specific generated headers.
+ *
+ * If this is set to true, data model code will be compiled with no client or
+ * server clusters enabled and all required access control levels set to their
+ * defaults: (view for all attribute/event reads, operate for all writes and
+ * invokes).
+ */
+#ifndef CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+#define CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES 0
+#endif
+
+/**
+ * @}
+ */

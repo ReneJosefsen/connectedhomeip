@@ -308,6 +308,13 @@ void BleLayer::Shutdown()
 
 void BleLayer::CloseAllBleConnections()
 {
+    // Cancel any ongoing attempt to establish new BLE connection
+    CHIP_ERROR err = CancelBleIncompleteConnection();
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Ble, "CancelBleIncompleteConnection() failed, err = %" CHIP_ERROR_FORMAT, err.Format());
+    }
+
     // Close and free all BLE end points.
     for (size_t i = 0; i < BLE_LAYER_NUM_BLE_ENDPOINTS; i++)
     {
@@ -385,6 +392,22 @@ CHIP_ERROR BleLayer::NewBleConnectionByDiscriminator(const SetupDiscriminator & 
     mConnectionDelegate->OnConnectionError    = onError;
 
     mConnectionDelegate->NewConnection(this, appState == nullptr ? this : appState, connDiscriminator);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR BleLayer::NewBleConnectionByObject(BLE_CONNECTION_OBJECT connObj, void * appState,
+                                              BleConnectionDelegate::OnConnectionCompleteFunct onSuccess,
+                                              BleConnectionDelegate::OnConnectionErrorFunct onError)
+{
+    VerifyOrReturnError(mState == kState_Initialized, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mConnectionDelegate != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mBleTransport != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+    mConnectionDelegate->OnConnectionComplete = onSuccess;
+    mConnectionDelegate->OnConnectionError    = onError;
+
+    mConnectionDelegate->NewConnection(this, appState == nullptr ? this : appState, connObj);
 
     return CHIP_NO_ERROR;
 }

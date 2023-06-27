@@ -22,10 +22,12 @@
 #include <app/ConcreteAttributePath.h>
 #include <app/util/af.h>
 #include <app/util/config.h>
+#include <app/util/endpoint-config-api.h>
+#include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 
 #if !defined(EMBER_SCRIPTED_TEST)
-#include <app-common/zap-generated/att-storage.h>
+#include <app/att-storage.h>
 #endif
 
 #if !defined(ATTRIBUTE_STORAGE_CONFIGURATION) && defined(EMBER_TEST)
@@ -51,14 +53,13 @@
 #include <app-common/zap-generated/attribute-type.h>
 
 #define DECLARE_DYNAMIC_ENDPOINT(endpointName, clusterList)                                                                        \
-    EmberAfEndpointType endpointName = { clusterList, sizeof(clusterList) / sizeof(EmberAfCluster), 0 }
+    EmberAfEndpointType endpointName = { clusterList, ArraySize(clusterList), 0 }
 
 #define DECLARE_DYNAMIC_CLUSTER_LIST_BEGIN(clusterListName) EmberAfCluster clusterListName[] = {
 
 #define DECLARE_DYNAMIC_CLUSTER(clusterId, clusterAttrs, incomingCommands, outgoingCommands)                                       \
     {                                                                                                                              \
-        clusterId, clusterAttrs, sizeof(clusterAttrs) / sizeof(EmberAfAttributeMetadata), 0, ZAP_CLUSTER_MASK(SERVER), NULL,       \
-            incomingCommands, outgoingCommands                                                                                     \
+        clusterId, clusterAttrs, ArraySize(clusterAttrs), 0, ZAP_CLUSTER_MASK(SERVER), NULL, incomingCommands, outgoingCommands    \
     }
 
 #define DECLARE_DYNAMIC_CLUSTER_LIST_END }
@@ -99,10 +100,6 @@ EmberAfStatus emAfReadOrWriteAttribute(EmberAfAttributeSearchRecord * attRecord,
 bool emAfMatchCluster(const EmberAfCluster * cluster, EmberAfAttributeSearchRecord * attRecord);
 bool emAfMatchAttribute(const EmberAfCluster * cluster, const EmberAfAttributeMetadata * am,
                         EmberAfAttributeSearchRecord * attRecord);
-
-// Returns endpoint type for the given endpoint id if there is an enabled
-// endpoint with that endpoint id.  Otherwise returns null.
-const EmberAfEndpointType * emberAfFindEndpointType(chip::EndpointId endpointId);
 
 // Check if a cluster is implemented or not. If yes, the cluster is returned.
 //
@@ -147,9 +144,6 @@ chip::Optional<chip::ClusterId> emberAfGetNthClusterId(chip::EndpointId endpoint
 // Returns number of clusters put into the passed cluster list
 // for the given endpoint and client/server polarity
 uint8_t emberAfGetClustersFromEndpoint(chip::EndpointId endpoint, chip::ClusterId * clusterList, uint8_t listLen, bool server);
-
-// Returns server cluster within the endpoint, or NULL if it isn't there
-const EmberAfCluster * emberAfFindServerCluster(chip::EndpointId endpoint, chip::ClusterId clusterId);
 
 // Returns cluster within the endpoint; Does not ignore disabled endpoints
 const EmberAfCluster * emberAfFindClusterIncludingDisabledEndpoints(chip::EndpointId endpoint, chip::ClusterId clusterId,

@@ -305,13 +305,7 @@ public:
 
     void OnUnsolicitedMessageFromPublisher()
     {
-        // accelerate resubscription if scheduled
-        if (mIsResubscriptionScheduled)
-        {
-            ChipLogDetail(DataManagement, "%s ReadClient[%p] resubscribe on unsolicited message", __func__, this);
-            CancelResubscribeTimer();
-            OnResubscribeTimerCallback(nullptr, this);
-        }
+        TriggerResubscribeIfScheduled("unsolicited message");
 
         // Then notify callbacks
         mpCallback.OnUnsolicitedMessageFromPublisher(this);
@@ -421,6 +415,26 @@ public:
      */
     void OverrideLivenessTimeout(System::Clock::Timeout aLivenessTimeout);
 
+    /**
+     * If the ReadClient currently has a resubscription attempt scheduled,
+     * trigger that attempt right now.  This is generally useful when a consumer
+     * has some sort of indication that the server side is currently up and
+     * communicating, so right now is a good time to try to resubscribe.
+     *
+     * The reason string is used for logging if a resubscribe is triggered.
+     */
+    void TriggerResubscribeIfScheduled(const char * reason);
+
+    /**
+     * Returns the timeout after which we consider the subscription to have
+     * dropped, if we have received no messages within that amount of time.
+     *
+     * Returns NullOptional if a subscription has not yet been established (and
+     * hence the MaxInterval is not yet known), or if the subscription session
+     * is gone and hence the relevant MRP parameters can no longer be determined.
+     */
+    Optional<System::Clock::Timeout> GetSubscriptionTimeout();
+
 private:
     friend class TestReadInteraction;
     friend class InteractionModelEngine;
@@ -431,6 +445,14 @@ private:
         AwaitingInitialReport,     ///< The client is waiting for initial report
         AwaitingSubscribeResponse, ///< The client is waiting for subscribe response
         SubscriptionActive,        ///< The client is maintaining subscription
+    };
+
+    enum class ReportType
+    {
+        // kUnsolicited reports are the first message in an exchange.
+        kUnsolicited,
+        // kContinuingTransaction reports are responses to a message we sent.
+        kContinuingTransaction
     };
 
     bool IsMatchingSubscriptionId(SubscriptionId aSubscriptionId)
@@ -467,11 +489,12 @@ private:
     static void OnLivenessTimeoutCallback(System::Layer * apSystemLayer, void * apAppState);
     CHIP_ERROR ProcessSubscribeResponse(System::PacketBufferHandle && aPayload);
     CHIP_ERROR RefreshLivenessCheckTimer();
+    CHIP_ERROR ComputeLivenessCheckTimerTimeout(System::Clock::Timeout * aTimeout);
     void CancelLivenessCheckTimer();
     void CancelResubscribeTimer();
     void MoveToState(const ClientState aTargetState);
     CHIP_ERROR ProcessAttributePath(AttributePathIB::Parser & aAttributePath, ConcreteDataAttributePath & aClusterInfo);
-    CHIP_ERROR ProcessReportData(System::PacketBufferHandle && aPayload);
+    CHIP_ERROR ProcessReportData(System::PacketBufferHandle && aPayload, ReportType aReportType);
     const char * GetStateStr() const;
 
     /*

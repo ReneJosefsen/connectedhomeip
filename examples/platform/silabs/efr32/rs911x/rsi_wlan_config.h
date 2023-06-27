@@ -37,35 +37,24 @@
 #define RSI_FEATURE_BIT_MAP (FEAT_SECURITY_OPEN)
 
 //! TCP IP BYPASS feature check
-#ifdef RS911X_SOCKETS
-#define RSI_TCP_IP_BYPASS RSI_DISABLE
-
-#define RSI_TCP_IP_FEATURE_BIT_MAP                                                                                                 \
-    (TCP_IP_FEAT_DHCPV4_CLIENT |                             /*TCP_IP_FEAT_HTTP_CLIENT | */                                        \
-     TCP_IP_FEAT_EXTENSION_VALID | /*TCP_IP_FEAT_SSL     |*/ /*TCP_IP_FEAT_DNS_CLIENT |*/                                          \
-     0)
-//! To set custom feature select bit map
-#define RSI_CUSTOM_FEATURE_BIT_MAP FEAT_CUSTOM_FEAT_EXTENTION_VALID
-
-#else /* Don't use RSI_SOCKETS */
 #define RSI_TCP_IP_BYPASS RSI_ENABLE
 #define RSI_TCP_IP_FEATURE_BIT_MAP (TCP_IP_FEAT_BYPASS /*| TCP_IP_FEAT_EXTENSION_VALID*/)
-#endif
 
 //! To set Extended custom feature select bit map
-#if WIFI_ENABLE_SECURITY_WPA3
-#ifdef RSI_M4_INTERFACE
-#define RSI_EXT_CUSTOM_FEATURE_BIT_MAP (EXT_FEAT_256K_MODE | EXT_FEAT_IEEE_80211W)
-#else
+#if WIFI_ENABLE_SECURITY_WPA3_TRANSITION
+#ifdef CHIP_9117
+#define RSI_EXT_CUSTOM_FEATURE_BIT_MAP                                                                                             \
+    (EXT_FEAT_448K_M4SS_256K | EXT_FEAT_LOW_POWER_MODE | EXT_FEAT_XTAL_CLK_ENABLE | EXT_FEAT_IEEE_80211W)
+#else /* !CHIP_9117 */
 #define RSI_EXT_CUSTOM_FEATURE_BIT_MAP (EXT_FEAT_384K_MODE | EXT_FEAT_IEEE_80211W)
-#endif
-#else
-#ifdef RSI_M4_INTERFACE
-#define RSI_EXT_CUSTOM_FEATURE_BIT_MAP EXT_FEAT_256K_MODE
-#else
+#endif /* CHIP_9117 */
+#else  /* !WIFI_ENABLE_SECURITY_WPA3_TRANSITION */
+#ifdef CHIP_9117
+#define RSI_EXT_CUSTOM_FEATURE_BIT_MAP (EXT_FEAT_448K_M4SS_256K | EXT_FEAT_LOW_POWER_MODE | EXT_FEAT_XTAL_CLK_ENABLE)
+#else /* !CHIP_9117 */
 #define RSI_EXT_CUSTOM_FEATURE_BIT_MAP EXT_FEAT_384K_MODE
-#endif
-#endif
+#endif /* CHIP_9117 */
+#endif /* WIFI_ENABLE_SECURITY_WPA3_TRANSITION */
 
 //! To set Extended TCPIP feature select bit map
 #define RSI_EXT_TCPIP_FEATURE_BITMAP (/*EXT_FEAT_HTTP_OTAF_SUPPORT |*/ EXT_TCP_IP_SSL_16K_RECORD)
@@ -253,11 +242,11 @@
 #define RSI_POWER_LEVEL RSI_POWER_LEVEL_HIGH
 
 //! RSI_JOIN_FEAT_STA_BG_ONLY_MODE_ENABLE or RSI_JOIN_FEAT_LISTEN_INTERVAL_VALID
-#if WIFI_ENABLE_SECURITY_WPA3
-#define RSI_JOIN_FEAT_BIT_MAP RSI_JOIN_FEAT_MFP_CAPABLE_REQUIRED
+#if WIFI_ENABLE_SECURITY_WPA3_TRANSITION
+#define RSI_JOIN_FEAT_BIT_MAP RSI_JOIN_FEAT_MFP_CAPABLE_ONLY
 #else
 #define RSI_JOIN_FEAT_BIT_MAP 0
-#endif
+#endif /* WIFI_ENABLE_SECURITY_WPA3_TRANS */
 
 #define RSI_LISTEN_INTERVAL 0
 
@@ -309,7 +298,7 @@
 //! Power save command parameters
 /*=======================================================================*/
 //! set handshake type of power mode
-#define RSI_HAND_SHAKE_TYPE MSG_BASED
+#define RSI_HAND_SHAKE_TYPE GPIO_BASED
 
 //! 0 - LP, 1- ULP mode with RAM retention and 2 - ULP with Non RAM retention
 #define RSI_SELECT_LP_OR_ULP_MODE RSI_ULP_WITH_RAM_RET

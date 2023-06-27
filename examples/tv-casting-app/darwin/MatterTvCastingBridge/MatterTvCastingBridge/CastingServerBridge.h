@@ -1,6 +1,6 @@
 /**
  *
- *    Copyright (c) 2020-2022 Project CHIP Authors
+ *    Copyright (c) 2020-2023 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -36,6 +36,10 @@
 - (MatterError * _Nonnull)initializeApp:(AppParameters * _Nullable)appParameters
                             clientQueue:(dispatch_queue_t _Nonnull)clientQueue
                    initAppStatusHandler:(nullable void (^)(bool))initAppStatusHandler;
+
+- (void)setDacHolder:(DeviceAttestationCredentialsHolder * _Nonnull)deviceAttestationCredentials
+           clientQueue:(dispatch_queue_t _Nonnull)clientQueue
+    setDacHolderStatus:(void (^_Nonnull)(MatterError * _Nonnull))setDacHolderStatus;
 
 /*!
  @brief Browse for on-network commissioner TVs
@@ -98,7 +102,7 @@
 
  @return Onboarding payload
  */
-- (OnboardingPayload * _Nonnull)getOnboardingPaylod;
+- (OnboardingPayload * _Nonnull)getOnboardingPayload;
 
 /*!
  @brief Request opening of a basic commissioning window
@@ -185,7 +189,16 @@
  */
 - (void)disconnect:(dispatch_queue_t _Nonnull)clientQueue requestSentHandler:(nullable void (^)())requestSentHandler;
 
-/**
+/*!
+ @brief Purge data cached by the Matter casting library
+
+ @param clientQueue Queue to invoke callbacks on
+
+ @param responseHandler Called when purgeCache completes
+ */
+- (void)purgeCache:(dispatch_queue_t _Nonnull)clientQueue responseHandler:(void (^_Nonnull)(MatterError * _Nonnull))responseHandler;
+
+/*!
  @brief Start the Matter server and reconnect to a previously connected Video Player (if any). This API is async
 
  @param clientQueue Queue to invoke callbacks on

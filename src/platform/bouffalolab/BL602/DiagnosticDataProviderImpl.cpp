@@ -1,6 +1,6 @@
 /*
- *
- *    Copyright (c) 2021-2022 Project CHIP Authors
+ *    Copyright (c) 2022 Project CHIP Authors
+ *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,150 +15,50 @@
  *    limitations under the License.
  */
 
-/**
- *    @file
- *          Provides an implementation of the DiagnosticDataProvider object
- *          for k32w0 platform.
- */
-
-#include <platform/internal/CHIPDeviceLayerInternal.h>
-
-#include <DiagnosticDataProviderImpl.h>
-#include <crypto/CHIPCryptoPAL.h>
 #include <lib/support/CHIPMemString.h>
+#include <platform/DiagnosticDataProvider.h>
+#include <platform/bouffalolab/common/DiagnosticDataProviderImpl.h>
+#include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <lwip/tcpip.h>
 
 extern "C" {
+#include <bl_efuse.h>
+#include <bl_sys.h>
+
 #include <bl60x_fw_api.h>
 #include <bl60x_wifi_driver/bl_main.h>
 #include <bl60x_wifi_driver/wifi_mgmr.h>
-#include <bl_efuse.h>
-#include <bl_sys.h>
 #include <wifi_mgmr_ext.h>
+#include <wifi_mgmr_portable.h>
 }
-
-extern uint8_t _heap_size;
 
 namespace chip {
 namespace DeviceLayer {
 
-uint8_t MapAuthModeToSecurityType(int authmode)
-{
-    switch (authmode)
-    {
-    case WIFI_EVENT_BEACON_IND_AUTH_OPEN:
-        return 1;
-    case WIFI_EVENT_BEACON_IND_AUTH_WEP:
-        return 2;
-    case WIFI_EVENT_BEACON_IND_AUTH_WPA_PSK:
-        return 3;
-    case WIFI_EVENT_BEACON_IND_AUTH_WPA2_PSK:
-        return 4;
-    case WIFI_EVENT_BEACON_IND_AUTH_WPA3_SAE:
-        return 5;
-    default:
-        return 0;
-    }
-}
-
-DiagnosticDataProviderImpl & DiagnosticDataProviderImpl::GetDefaultInstance()
-{
-    static DiagnosticDataProviderImpl sInstance;
-    return sInstance;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetCurrentHeapFree(uint64_t & currentHeapFree)
-{
-    size_t freeHeapSize;
-
-    freeHeapSize    = xPortGetFreeHeapSize();
-    currentHeapFree = static_cast<uint64_t>(freeHeapSize);
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetCurrentHeapUsed(uint64_t & currentHeapUsed)
-{
-    currentHeapUsed = (uint32_t) &_heap_size - xPortGetFreeHeapSize();
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark)
-{
-    currentHeapHighWatermark = (uint32_t) &_heap_size - xPortGetMinimumEverFreeHeapSize();
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetRebootCount(uint16_t & rebootCount)
-{
-    uint32_t count = 0;
-
-    CHIP_ERROR err = ConfigurationMgr().GetRebootCount(count);
-
-    if (err == CHIP_NO_ERROR)
-    {
-        VerifyOrReturnError(count <= UINT16_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
-        rebootCount = static_cast<uint16_t>(count);
-    }
-
-    return err;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetUpTime(uint64_t & upTime)
-{
-    System::Clock::Timestamp currentTime = System::SystemClock().GetMonotonicTimestamp();
-    System::Clock::Timestamp startTime   = PlatformMgrImpl().GetStartTime();
-
-    if (currentTime >= startTime)
-    {
-        upTime = std::chrono::duration_cast<System::Clock::Seconds64>(currentTime - startTime).count();
-        return CHIP_NO_ERROR;
-    }
-
-    return CHIP_ERROR_INVALID_TIME;
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetTotalOperationalHours(uint32_t & totalOperationalHours)
-{
-    uint64_t upTime = 0;
-
-    if (GetUpTime(upTime) == CHIP_NO_ERROR)
-    {
-        uint32_t totalHours = 0;
-        if (ConfigurationMgr().GetTotalOperationalHours(totalHours) == CHIP_NO_ERROR)
-        {
-            VerifyOrReturnError(upTime / 3600 <= UINT32_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
-            totalOperationalHours = totalHours + static_cast<uint32_t>(upTime / 3600);
-            return CHIP_NO_ERROR;
-        }
-    }
-
-    return CHIP_ERROR_INVALID_TIME;
-}
-
 CHIP_ERROR DiagnosticDataProviderImpl::GetBootReason(BootReasonType & bootReason)
 {
-    BL_RST_REASON_E BL_RST_REASON = bl_sys_rstinfo_get();
+    BL_RST_REASON_E bootCause = bl_sys_rstinfo_get();
 
-    bootReason = BootReasonType::kUnspecified;
-
-    if (BL_RST_REASON == BL_RST_POWER_OFF)
+    if (bootCause == BL_RST_POWER_OFF)
     {
         bootReason = BootReasonType::kPowerOnReboot;
     }
-    else if (BL_RST_REASON == BL_RST_HARDWARE_WATCHDOG)
+    else if (bootCause == BL_RST_HARDWARE_WATCHDOG)
     {
         bootReason = BootReasonType::kHardwareWatchdogReset;
     }
-    else if (BL_RST_REASON == BL_RST_SOFTWARE_WATCHDOG)
+    else if (bootCause == BL_RST_SOFTWARE_WATCHDOG)
     {
         bootReason = BootReasonType::kSoftwareWatchdogReset;
     }
-    else if (BL_RST_REASON == BL_RST_SOFTWARE)
+    else if (bootCause == BL_RST_SOFTWARE)
     {
         bootReason = BootReasonType::kSoftwareReset;
+    }
+    else
+    {
+        bootReason = BootReasonType::kUnspecified;
     }
 
     return CHIP_NO_ERROR;
@@ -232,51 +132,67 @@ void DiagnosticDataProviderImpl::ReleaseNetworkInterfaces(NetworkInterface * net
     }
 }
 
-DiagnosticDataProvider & GetDiagnosticDataProviderImpl()
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBssId(MutableByteSpan & BssId)
 {
-    return DiagnosticDataProviderImpl::GetDefaultInstance();
-}
-
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBssId(ByteSpan & BssId)
-{
-    static uint8_t macAddress[kMaxHardwareAddrSize];
-
-    memcpy(macAddress, wifiMgmr.wifi_mgmr_stat_info.bssid, kMaxHardwareAddrSize);
-
-    return CHIP_NO_ERROR;
+    return CopySpanToMutableSpan(ByteSpan(wifiMgmr.wifi_mgmr_stat_info.bssid), BssId);
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum & securityType)
 {
-    using app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum;
-    securityType = SecurityTypeEnum::kUnspecified;
-    // int authmode;
+    if (ConnectivityMgrImpl()._IsWiFiStationConnected())
+    {
+        if (wifi_mgmr_security_type_is_open())
+        {
+            securityType = app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum::kNone;
+        }
+        else if (wifi_mgmr_security_type_is_wpa())
+        {
+            securityType = app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum::kWpa;
+        }
+        else if (wifi_mgmr_security_type_is_wpa2())
+        {
+            securityType = app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum::kWpa2;
+        }
+        else if (wifi_mgmr_security_type_is_wpa3())
+        {
+            securityType = app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum::kWpa3;
+        }
+        else
+        {
+            securityType = app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum::kWep;
+        }
 
-    // authmode     = mgmr_get_security_type();
-    // securityType = MapAuthModeToSecurityType(authmode);
-    return CHIP_NO_ERROR;
+        return CHIP_NO_ERROR;
+    }
+
+    return CHIP_ERROR_READ_FAILED;
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiVersion(uint8_t & wifiVersion)
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiVersion(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum & wifiVersion)
 {
-    wifiVersion = 0;
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiChannelNumber(uint16_t & channelNumber)
 {
-    channelNumber = 0;
+    if (ConnectivityMgrImpl()._IsWiFiStationConnected())
+    {
+        channelNumber = wifiMgmr.channel;
+        return CHIP_NO_ERROR;
+    }
 
-    // channelNumber = mgmr_get_current_channel_num();
-
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_READ_FAILED;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiRssi(int8_t & rssi)
 {
-    // rssi = mgmr_get_rssi();
+    if (ConnectivityMgrImpl()._IsWiFiStationConnected())
+    {
+        rssi = wifiMgmr.wlan_sta.sta.rssi;
+        return CHIP_NO_ERROR;
+    }
 
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_READ_FAILED;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBeaconLostCount(uint32_t & beaconLostCount)
@@ -351,13 +267,12 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiPacketUnicastTxCount(uint32_t & pa
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiOverrunCount(uint64_t & overrunCount)
 {
-    overrunCount = 0;
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::ResetWiFiNetworkDiagnosticsCounts()
 {
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBeaconRxCount(uint32_t & beaconRxCount)
@@ -374,5 +289,4 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBeaconRxCount(uint32_t & beaconRxC
 }
 
 } // namespace DeviceLayer
-wifi_diagnosis_info_t * info;
 } // namespace chip

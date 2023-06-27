@@ -32,14 +32,17 @@ tests:
     #  command: "WaitForCommissioning"
 
     - label: "Read attribute: ActionList"
+      PICS: ACT.C.AM-READ
       wait: "readAttribute"
       attribute: "ActionList"
 
     - label: "Read attribute: EndpointLists"
+      PICS: ACT.C.AM-READ
       wait: "readAttribute"
       attribute: "EndpointLists"
 
     - label: "Read attribute: SetupURL"
+      PICS: ACT.C.AO-READ
       wait: "readAttribute"
       attribute: "SetupURL"
 
@@ -535,7 +538,7 @@ tests:
           [1666952609.345811][217377:217377] CHIP:DMG: }
       cluster: "LogCommands"
       command: "UserPrompt"
-      PICS: PICS_SKIP_SAMPLE_APP
+      PICS: PICS_SKIP_SAMPLE_APP && ACT.C.AO-READ
       arguments:
           values:
               - name: "message"
@@ -550,7 +553,7 @@ tests:
           This cluster doesn't have any writable attributes
       cluster: "LogCommands"
       command: "UserPrompt"
-      PICS: PICS_SKIP_SAMPLE_APP
+      PICS: PICS_SKIP_SAMPLE_APP && ACT.C.AO-WRITE
       arguments:
           values:
               - name: "message"

@@ -40,6 +40,49 @@
 #define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING SL_MATTER_VERSION_STRING
 #endif
 
+/**
+ * CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION
+ *
+ * A monothonic number identifying the software version running on the device.
+ */
+#ifdef SL_MATTER_VERSION
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION SL_MATTER_VERSION
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION
+ *
+ * The hardware version number assigned to device or product by the device vendor.  This
+ * number is scoped to the device product id, and typically corresponds to a revision of the
+ * physical device, a change to its packaging, and/or a change to its marketing presentation.
+ * This value is generally *not* incremented for device software versions.
+ */
+#ifdef SL_HARDWARE_VERSION
+#define CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION SL_HARDWARE_VERSION
+#endif
+
+/**
+ *  Allow for some test/fall-back values to be used
+ * Production builds shall set to 0 or remove this option
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+#define CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS 1
+#endif
+
+#if CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+/**
+ *  @brief Fallback value for the basic information cluster's Vendor name attribute
+ *   if the actual vendor name is not provisioned in the device memory.
+ */
+#define CHIP_DEVICE_CONFIG_TEST_VENDOR_NAME "Silabs"
+
+/**
+ *  @brief Fallback value for the basic information cluster's product name attribute
+ *   if the actual vendor name is not provisioned in the device memory.
+ */
+#define CHIP_DEVICE_CONFIG_TEST_PRODUCT_NAME "SL_Sample"
+#endif // CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+
 #if defined(SL_WIFI)
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION 1
 #else
@@ -60,6 +103,11 @@
 #ifndef CHIP_DEVICE_CONFIG_ENABLE_IPV4
 #define CHIP_DEVICE_CONFIG_ENABLE_IPV4 0
 #endif /* CHIP_DEVICE_CONFIG_ENABLE_IPV4 */
+
+#ifdef CHIP_DEVICE_CONFIG_ENABLE_SED
+#define CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL chip::System::Clock::Milliseconds32(300)
+#define CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL chip::System::Clock::Milliseconds32(10)
+#endif /* CHIP_DEVICE_CONFIG_ENABLE_SED */
 
 #endif /* SL_WIFI */
 
@@ -91,12 +139,16 @@
 #endif // CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE
 
 #ifndef CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL
-#define CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL chip::System::Clock::Milliseconds32(SL_SLEEP_TIME_MS)
+#define CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_IDLE_INTERVAL)
 #endif // CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL
 
 #ifndef CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL
-#define CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL chip::System::Clock::Milliseconds32(200)
+#define CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_ACTIVE_INTERVAL)
 #endif // CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL
+
+#ifndef CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD
+#define CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD chip::System::Clock::Milliseconds32(SL_ACTIVE_MODE_THRESHOLD)
+#endif // CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD
 
 #ifndef CHIP_DEVICE_CONFIG_THREAD_TASK_STACK_SIZE
 #if defined(EFR32MG21)

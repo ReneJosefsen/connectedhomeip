@@ -54,10 +54,12 @@ using namespace ::chip::DeviceLayer;
 #include <crypto/CHIPCryptoPAL.h>
 // If building with the SiWx917-provided crypto backend, we can use the
 
-#include "SiWx917DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
+#include "SilabsTestEventTriggerDelegate.h"
+#include <string.h>
 
-#if EFR32_OTA_ENABLED
-void SI917MatterConfig::InitOTARequestorHandler(System::Layer * systemLayer, void * appState)
+#if SILABS_OTA_ENABLED
+void SilabsMatterConfig::InitOTARequestorHandler(System::Layer * systemLayer, void * appState)
 {
 #if 0 // TODO : OTA is not planned now for CCP
     OTAConfig::Init();
@@ -65,7 +67,8 @@ void SI917MatterConfig::InitOTARequestorHandler(System::Layer * systemLayer, voi
 }
 #endif
 
-void SI917MatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event, intptr_t arg){
+void SilabsMatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event, intptr_t arg)
+{
     // Initialize OTA only when Thread or WiFi connectivity is established
     /*if (((event->Type == DeviceEventType::kThreadConnectivityChange) &&
          (event->ThreadConnectivityChange.Result == kConnectivity_Established)) ||
@@ -79,7 +82,52 @@ void SI917MatterConfig::ConnectivityEventCallback(const ChipDeviceEvent * event,
     SILABS_LOG("Scheduling OTA Requestor initialization")
 }
 
-CHIP_ERROR SI917MatterConfig::InitMatter(const char * appName)
+#if SILABS_TEST_EVENT_TRIGGER_ENABLED
+static uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+                                                                                          0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+                                                                                          0xcc, 0xdd, 0xee, 0xff };
+
+static int hex_digit_to_int(char hex)
+{
+    if ('A' <= hex && hex <= 'F')
+    {
+        return 10 + hex - 'A';
+    }
+    if ('a' <= hex && hex <= 'f')
+    {
+        return 10 + hex - 'a';
+    }
+    if ('0' <= hex && hex <= '9')
+    {
+        return hex - '0';
+    }
+    return -1;
+}
+
+static size_t hex_string_to_binary(const char * hex_string, uint8_t * buf, size_t buf_size)
+{
+    size_t num_char = strlen(hex_string);
+    if (num_char != buf_size * 2)
+    {
+        return 0;
+    }
+    for (size_t i = 0; i < num_char; i += 2)
+    {
+        int digit0 = hex_digit_to_int(hex_string[i]);
+        int digit1 = hex_digit_to_int(hex_string[i + 1]);
+
+        if (digit0 < 0 || digit1 < 0)
+        {
+            return 0;
+        }
+        buf[i / 2] = (digit0 << 4) + digit1;
+    }
+
+    return buf_size;
+}
+#endif // SILABS_TEST_EVENT_TRIGGER_ENABLED
+
+CHIP_ERROR SilabsMatterConfig::InitMatter(const char * appName)
 {
     CHIP_ERROR err;
 
@@ -112,11 +160,11 @@ CHIP_ERROR SI917MatterConfig::InitMatter(const char * appName)
     }
     ReturnErrorOnFailure(PlatformMgr().InitChipStack());
 
-    SetDeviceInstanceInfoProvider(&SIWx917::SIWx917DeviceDataProvider::GetDeviceDataProvider());
-    SetCommissionableDataProvider(&SIWx917::SIWx917DeviceDataProvider::GetDeviceDataProvider());
+    SetDeviceInstanceInfoProvider(&Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider());
+    SetCommissionableDataProvider(&Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider());
 
 #ifdef SIWX917_USE_COMISSIONABLE_DATA
-    err = SIWx917::SIWx917DeviceDataProvider::GetDeviceDataProvider().FlashFactoryData();
+    err = Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider().FlashFactoryData();
     if (err != CHIP_NO_ERROR)
     {
         SILABS_LOG("Flashing to the device failed");
@@ -130,6 +178,17 @@ CHIP_ERROR SI917MatterConfig::InitMatter(const char * appName)
 
     // Create initParams with SDK example defaults here
     static chip::CommonCaseDeviceServerInitParams initParams;
+
+#if SILABS_TEST_EVENT_TRIGGER_ENABLED
+    if (hex_string_to_binary(SILABS_TEST_EVENT_TRIGGER_ENABLE_KEY, sTestEventTriggerEnableKey,
+                             sizeof(sTestEventTriggerEnableKey)) == 0)
+    {
+        SILABS_LOG("Failed to convert the EnableKey string to octstr type value");
+        memset(sTestEventTriggerEnableKey, 0, sizeof(sTestEventTriggerEnableKey));
+    }
+    static SilabsTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+#endif // SILABS_TEST_EVENT_TRIGGER_ENABLED
 
     // Initialize the remaining (not overridden) providers to the SDK example defaults
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
@@ -159,7 +218,7 @@ CHIP_ERROR SI917MatterConfig::InitMatter(const char * appName)
 }
 
 #ifdef SL_WIFI
-void SI917MatterConfig::InitWiFi(void)
+void SilabsMatterConfig::InitWiFi(void)
 {
 #ifdef RS911X_WIFI
     /*
@@ -177,7 +236,4 @@ void SI917MatterConfig::InitWiFi(void)
 extern "C" void vApplicationIdleHook(void)
 {
     // FreeRTOS Idle callback
-
-    // Check CHIP Config nvm3 and repack flash if necessary.
-    Internal::SilabsConfig::RepackNvm3Flash();
 }
