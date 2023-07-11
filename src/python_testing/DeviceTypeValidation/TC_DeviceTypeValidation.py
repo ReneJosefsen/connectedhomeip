@@ -23,18 +23,18 @@ import argparse
 sys.path.append(os.path.dirname(sys.path[0]))
 
 from matter_testing_support import MatterBaseTest, default_matter_test_main, async_test_body
-from chip.interaction_model import Status
-import chip.exceptions
 import chip.clusters as Clusters
-from chip.clusters.Types import NullValue
-import logging
 from mobly import asserts
-
 from rich.console import Console
 
 console = None
 
-class DeviceTypeValidatorTest(MatterBaseTest):
+def getPicsElementId( picsStr, elementTypeStr, elementIdLen ):
+    elementIdStrIndex = picsStr.find(elementTypeStr) + len(elementTypeStr)
+    elementId = picsStr[elementIdStrIndex:elementIdStrIndex + elementIdLen]
+    return int(elementId, 16)
+
+class TC_DeviceTypeValidation(MatterBaseTest):
     @async_test_body
     async def test_descriptor(self):
 
@@ -71,53 +71,49 @@ class DeviceTypeValidatorTest(MatterBaseTest):
         partsListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(rootNodeEndpointID, Clusters.Descriptor.Attributes.PartsList)])
         partsList = partsListResponse[0][Clusters.Descriptor][Clusters.Descriptor.Attributes.PartsList]
         
-        '''
-        partsList = [1]
-        deviceType = [22, 267]
-        '''
         # Add endpoint 0 to the parts list, since this is not returned by the device
         partsList.insert(0, 0)
     
+        console.print(f"PartsList: {partsList}")
+
         for endpoint in partsList:
             console.print(f"[blue]Endpoint: {endpoint}")
 
             deviceTypeListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, Clusters.Descriptor.Attributes.DeviceTypeList)])
-            console.print(deviceTypeListResponse)
+            #console.print(deviceTypeListResponse)
             deviceTypeList = deviceTypeListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.DeviceTypeList]
 
             for deviceTypeStruct in deviceTypeList:
                 console.print(f"[blue]DeviceType: {deviceTypeStruct.deviceType}")
             
                 file = f"{deviceTypeRequirementInputPathStr}{deviceTypeDict[deviceTypeStruct.deviceType]['fileName']}"
-                console.print(file)
+                #console.print(file)
 
                 with open(file, 'r') as deviceTypeRequirementFile:
                     deviceTypeRequirementData = json.load(deviceTypeRequirementFile)
 
                     # Server clusteres
-                    requiredServerClusters = deviceTypeRequirementData["server_clusters"]
+                    requiredServerClusters = deviceTypeRequirementData['server_clusters']
                     #console.print(requiredServerClusters)
 
                     # Read server list
                     serverListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, Clusters.Descriptor.Attributes.ServerList)])
                     serverList = serverListResponse[endpoint][Clusters.Descriptor][Clusters.Descriptor.Attributes.ServerList]
-                    console.print(serverList)
+                    console.print(f"Server List: {serverList}")
 
                     #console.print(deviceTypeRequirementData)
 
                     for cluster in requiredServerClusters:
                         # Check if server cluster is available
-                        clusterID = int(cluster["id"], 16)
-                        console.print(clusterID)
+                        clusterId = int(cluster['id'], 16)
+                        console.print(f"Mandated cluster: {clusterId}")
 
                         # Check if cluster id is in the server list
-                        if clusterID not in serverList:
-                            console.print(f"[red]Cluster {clusterID} not found in server list")
-
-                        asserts.assert_true(clusterID in serverList, f"Cluster {clusterID} not found in server list")
+                        asserts.assert_true(clusterId in serverList, f"Cluster ({cluster['id']}) not found in server list ❌")
+                        console.print(f"[green]Cluster check passed ✅")
                         
-                        clusterClass = getattr(Clusters, devCtrl.GetClusterHandler().GetClusterInfoById(clusterID)['clusterName'])
-                        #console.print(devCtrl.GetClusterHandler().GetClusterInfoById(clusterID))
+                        clusterClass = getattr(Clusters, devCtrl.GetClusterHandler().GetClusterInfoById(clusterId)['clusterName'])
+                        #console.print(devCtrl.GetClusterHandler().GetClusterInfoById(clusterId))
 
                         # Check required elements on the server
                         mandatoryFeatures = cluster["mandatory_features"]
@@ -126,11 +122,20 @@ class DeviceTypeValidatorTest(MatterBaseTest):
                             # Read feature map from DUT
                             featureMapResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.FeatureMap)])
                             featureMap = featureMapResponse[endpoint][clusterClass][clusterClass.Attributes.FeatureMap]
-                            console.print(f"FeatureMap: {featureMap}")
+                            console.print(f"FeatureMap: {featureMap} / {featureMap:#010b}")
 
                             # Check if mandated feature is supported
                             for feature in mandatoryFeatures:
-                                console.print(feature["pics_code"])
+                                console.print(f"Mandated feature PICS: {feature['pics_code']}")
+                                featurePicsStr = ".S.F"
+                                featureIdSize = 2
+                                featureBitId = getPicsElementId(feature['pics_code'], featurePicsStr, featureIdSize)
+
+                                featureBitState = (featureMap >> featureBitId) & 1
+                                console.print(f"[blue]FeatureBit ({featureBitId}) state {featureBitState}")
+
+                                asserts.assert_true(featureBitState == 1, f"Feature ({featureBitId:#04x}) not found in feature map ❌")
+                                console.print(f"[green]Feature check passed ✅")
 
                         mandatoryAttributes = cluster["mandatory_attributes"]
                         if len(mandatoryAttributes) > 0:
@@ -141,7 +146,14 @@ class DeviceTypeValidatorTest(MatterBaseTest):
                             console.print(f"AttributeList: {attributeList}")
 
                             for attribute in mandatoryAttributes:
-                                console.print(attribute["pics_code"])
+                                console.print(f"Mandated attribute PICS: {attribute['pics_code']}")
+                                attributePicsStr = ".S.A"
+                                attributeIdSize = 4
+                                attributeId = getPicsElementId(attribute['pics_code'], attributePicsStr, attributeIdSize)
+
+                                console.print(f"[blue]AttributeID: {attributeId}")
+                                asserts.assert_true(attributeId in attributeList, f"Attribute ({attributeId:#06x}) not found in attribute list ❌")
+                                console.print(f"[green]Attribute check passed ✅")
 
                         mandatoryCommands = cluster["mandatory_commands"]
                         if len(mandatoryCommands) > 0:
@@ -155,9 +167,22 @@ class DeviceTypeValidatorTest(MatterBaseTest):
                             console.print(f"GeneratedCommandList: {generatedCommandList}")
 
                             for command in cluster["mandatory_commands"]:
-                                console.print(command["pics_code"])
-                    
+                                console.print(f"Mandated command PICS: {command['pics_code']}")
+                                commandPicsStr = ".S.C"
+                                commandIdSize = 2
+                                commandId = getPicsElementId(command['pics_code'], commandPicsStr, commandIdSize)
+                                
+                                console.print(f"[blue]CommandID: {commandId}")
 
+                                if ".Rsp" in command['pics_code']:
+                                    asserts.assert_true(commandId in acceptedCommandList, f"Command ({commandId:#04x}) not found in accepted command lists ❌")
+                                    console.print(f"[green]Accepted command check passed ✅")
+                                elif ".Tx" in command['pics_code']:
+                                    asserts.assert_true(commandId in generatedCommandList, f"Command ({commandId:#04x}) not found in generated command lists ❌")
+                                    console.print(f"[green]Generated command check passed ✅")
+                                else:
+                                    asserts.assert_true(False, f"[red]Invalid PICS code ❌")
+                                    
 
 
 parser = argparse.ArgumentParser()
