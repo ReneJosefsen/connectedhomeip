@@ -221,6 +221,12 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
 
             clusterClass = getattr(Clusters, devCtrl.GetClusterHandler().GetClusterInfoById(server)['clusterName'])
             clusterID = f"0x{server:04x}"
+
+            # Does the clusterInfoDict contain the found cluster ID?
+            if clusterID not in clusterInfoDict:
+                print(f"[red]Cluster ID ({clusterID}) not in list!")
+                continue
+
             clusterName = clusterInfoDict[clusterID]['Name']
             clusterPICS = f"{clusterInfoDict[clusterID]['PICS_Code']}{serverTag}"
 
