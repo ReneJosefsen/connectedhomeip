@@ -1,8 +1,4 @@
-import sys
 import os
-# Add path to get access to matter_testing_support.py from the parent folder
-sys.path.append(os.path.dirname(sys.path[0]))
-
 import random
 import builtins
 import atexit
