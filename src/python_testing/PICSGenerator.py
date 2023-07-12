@@ -19,13 +19,13 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     administratorCommissioningCluster = "Administrator Commissioning Cluster"
     otaProviderCluster = "OTA Software Update Provider Cluster"
     onOffCluster = "On/Off Cluster"
-    
+
     if administratorCommissioningCluster in clusterName:
         clusterName = "Multiple Fabrics"
 
     if otaProviderCluster in clusterName:
         clusterName = "OTA Software Update"
-    
+
     elif onOffCluster == clusterName:
         clusterName = clusterName.replace("/","-")
 
@@ -51,7 +51,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
         print(f"Open \"{xmlPath}{fileName}\"")
         tree = ET.parse(f"{xmlPath}{fileName}")
         root = tree.getroot()
-    except:
+    except ET.ParseError:
         print(f"[red]Could not find \"{fileName}\"")
         return
 
@@ -60,7 +60,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     usageNode = root.find('usage')
     for picsItem in usageNode:
         itemNumberElement = picsItem.find('itemNumber')
-        
+
         print(f"Searching for {itemNumberElement.text}")
 
         if itemNumberElement.text == f"{clusterPicsCode}":
@@ -143,7 +143,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
         try:
             condition = statusElement.attrib['cond']
             print(f"Checking {itemNumberElement.text} with conformance {statusElement.text} and condition {condition}")
-        except:
+        except ET.ParseError:
             condition = ""
             print(f"Checking {itemNumberElement.text} with conformance {statusElement.text}")
 
@@ -335,7 +335,7 @@ acceptedCommandTag = ".Rsp"
 generatedCommandTag = ".Tx"
 
 # List of globale attributes (server)
-# Does not read ClusterRevision [0xFFFD] (not relevant), EventList [0xFFFA] (Provisional)  
+# Does not read ClusterRevision [0xFFFD] (not relevant), EventList [0xFFFA] (Provisional)
 featureMapAttributeId = "0xFFFC"
 attributeListAttributeId = "0xFFFB"
 acceptedCommandListAttributeId = "0xFFF9"
@@ -344,7 +344,7 @@ generatedCommandListAttributeId = "0xFFF8"
 # Endpoint define
 rootNodeEndpointID = 0
 
-#### Load cluster info
+# Load cluster info
 inputJson = {}
 clusterInfoDict = {}
 
@@ -371,11 +371,11 @@ else:
 class DeviceMappingTest(MatterBaseTest):
     @async_test_body
     async def test_device_mapping(self):
-        
+
         # Create console to print
         global console
         console = Console()
-        
+
         # Run device mapping function
         await DeviceMapping(self.default_controller, self.dut_node_id, baseOutputPathStr)
 
