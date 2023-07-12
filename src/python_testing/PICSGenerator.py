@@ -1,21 +1,14 @@
 import os
-import random
-import builtins
-import atexit
-import logging
 import json
 import pathlib
 import argparse
 import xml.etree.ElementTree as ET
-
-from binascii import unhexlify
-
 from matter_testing_support import MatterBaseTest, default_matter_test_main, async_test_body
 import chip.clusters as Clusters
-
 from rich.console import Console
 
 console = None
+
 
 def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, attributePicsList, acceptedCommandPicsList, generatedCommandPicsList, outputPathStr):
 
@@ -23,15 +16,15 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     fileName = ""
 
     # Map clusters to common XML template if needed
-    deviceManagementClusterList = ["Basic Information Cluster", "Node Operational Credentials Cluster", "Network Commissioning Cluster"]
     administratorCommissioningCluster = "Administrator Commissioning Cluster"
-    onOffCluster = "On/Off"
+    otaProviderCluster = "OTA Software Update Provider Cluster"
+    onOffCluster = "On/Off Cluster"
     
-    if any(x in clusterName for x in deviceManagementClusterList):
-        clusterName = "Device Management"
-
-    elif administratorCommissioningCluster in clusterName:
+    if administratorCommissioningCluster in clusterName:
         clusterName = "Multiple Fabrics"
+
+    if otaProviderCluster in clusterName:
+        clusterName = "OTA Software Update"
     
     elif onOffCluster == clusterName:
         clusterName = clusterName.replace("/","-")
@@ -63,7 +56,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
         return
 
     # Usage PICS
-    #print(clusterPicsCode)
+    # print(clusterPicsCode)
     usageNode = root.find('usage')
     for picsItem in usageNode:
         itemNumberElement = picsItem.find('itemNumber')
@@ -73,7 +66,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
         if itemNumberElement.text == f"{clusterPicsCode}":
             print("Found usage PICS value in XML template")
             supportElement = picsItem.find('support')
-            #print(f"Support: {supportElement.text}")
+            # print(f"Support: {supportElement.text}")
             supportElement.text = "true"
 
             # Since usage PICS (server or client) is not a list, we can break out when a match is found,
@@ -81,7 +74,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
             break
 
     # Feature PICS
-    #print(featurePicsList)
+    # print(featurePicsList)
     featureNode = root.find("./clusterSide[@type='server']/features")
     for picsItem in featureNode:
         itemNumberElement = picsItem.find('itemNumber')
@@ -94,8 +87,8 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
             supportElement.text = "true"
 
     # Attributes PICS
-    #TODO: Only check if list is not empty
-    #print(attributePicsList)
+    # TODO: Only check if list is not empty
+    # print(attributePicsList)
     serverAttributesNode = root.find("./clusterSide[@type='server']/attributes")
     for picsItem in serverAttributesNode:
         itemNumberElement = picsItem.find('itemNumber')
@@ -108,8 +101,8 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
             supportElement.text = "true"
 
     # AcceptedCommandList PICS
-    #TODO: Only check if list is not empty
-    #print(acceptedCommandPicsList)
+    # TODO: Only check if list is not empty
+    # print(acceptedCommandPicsList)
     serverCommandsReceivedNode = root.find("./clusterSide[@type='server']/commandsReceived")
     for picsItem in serverCommandsReceivedNode:
         itemNumberElement = picsItem.find('itemNumber')
@@ -122,8 +115,8 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
             supportElement.text = "true"
 
     # GeneratedCommandList PICS
-    #print(generatedCommandPicsList)
-    #TODO: Only check if list is not empty
+    # print(generatedCommandPicsList)
+    # TODO: Only check if list is not empty
     serverCommandsGeneratedNode = root.find("./clusterSide[@type='server']/commandsGenerated")
     for picsItem in serverCommandsGeneratedNode:
         itemNumberElement = picsItem.find('itemNumber')
@@ -162,13 +155,13 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
                 supportElement = picsItem.find('support')
                 supportElement.text = "true"
                 continue
-            
+
             if condition in featurePicsList:
                 print("Found event mandated by feature")
                 supportElement = picsItem.find('support')
                 supportElement.text = "true"
                 continue
-            
+
             if condition == "":
                 print("Event is mandated without a condition")
                 continue
@@ -176,10 +169,11 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # Write XML file
     tree.write(f"{outputPathStr}/{fileName}")
 
+
 async def DeviceMapping(devCtrl, nodeID, outputPathStr):
 
-    #### Device mapping ####
-    print(f"[blue]Perform device mapping")
+    # --- Device mapping --- #
+    print("[blue]Perform device mapping")
     # Determine how many endpoints to map
     # Test step 1 - Read parts list
 
@@ -229,17 +223,17 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
             print(f"{clusterName} - {clusterPICS}")
 
             # Print PICS for specific server from dict
-            #print(clusterInfoDict[f"0x{server:04x}"])
+            # print(clusterInfoDict[f"0x{server:04x}"])
 
-            ## Read feature map
+            # Read feature map
             featureMapResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, clusterClass.Attributes.FeatureMap)])
-            #print(f"FeatureMap: {featureMapResponse[endpoint][clusterClass][clusterClass.Attributes.FeatureMap]}")
+            # print(f"FeatureMap: {featureMapResponse[endpoint][clusterClass][clusterClass.Attributes.FeatureMap]}")
 
             featureMapValue = featureMapResponse[endpoint][clusterClass][clusterClass.Attributes.FeatureMap]
             featureMapBitString = "{:08b}".format(featureMapValue).lstrip("0")
             for bitLocation in range(len(featureMapBitString)):
                 if featureMapValue >> bitLocation & 1 == 1:
-                    #print(f"{clusterPICS}{featureTag}{bitLocation:02x}")
+                    # print(f"{clusterPICS}{featureTag}{bitLocation:02x}")
                     featurePicsList.append(f"{clusterPICS}{featureTag}{bitLocation:02x}")
 
             print("Collected feature PICS:")
@@ -248,12 +242,12 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
             # Read attribute list
             attributeListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, clusterClass.Attributes.AttributeList)])
             attributeList = attributeListResponse[endpoint][clusterClass][clusterClass.Attributes.AttributeList]
-            #print(f"AttributeList: {attributeList}")
+            # print(f"AttributeList: {attributeList}")
 
             # Convert attribute to PICS code
             for attribute in attributeList:
                 if (attribute != 0xfff8 and attribute != 0xfff9 and attribute != 0xfffa and attribute != 0xfffb and attribute != 0xfffc and attribute != 0xfffd):
-                    #print(f"{clusterPICS}{attributeTag}{attribute:04x}")
+                    # print(f"{clusterPICS}{attributeTag}{attribute:04x}")
                     attributePicsList.append(f"{clusterPICS}{attributeTag}{attribute:04x}")
                 '''
                 else:
@@ -266,11 +260,11 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
             # Read AcceptedCommandList
             acceptedCommandListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, clusterClass.Attributes.AcceptedCommandList)])
             acceptedCommandList = acceptedCommandListResponse[endpoint][clusterClass][clusterClass.Attributes.AcceptedCommandList]
-            #print(f"AcceptedCommandList: {acceptedCommandList}")
+            # print(f"AcceptedCommandList: {acceptedCommandList}")
 
             # Convert accepted command to PICS code
             for acceptedCommand in acceptedCommandList:
-                #print(f"{clusterPICS}{commandTag}{acceptedCommand:02x}{acceptedCommandTag}")
+                # print(f"{clusterPICS}{commandTag}{acceptedCommand:02x}{acceptedCommandTag}")
                 acceptedCommandListPicsList.append(f"{clusterPICS}{commandTag}{acceptedCommand:02x}{acceptedCommandTag}")
 
             print("Collected accepted command PICS:")
@@ -279,11 +273,11 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
             # Read GeneratedCommandList
             generatedCommandListResponse = await devCtrl.ReadAttribute(nodeID, [(endpoint, clusterClass.Attributes.GeneratedCommandList)])
             generatedCommandList = generatedCommandListResponse[endpoint][clusterClass][clusterClass.Attributes.GeneratedCommandList]
-            #print(f"GeneratedCommandList: {generatedCommandList}")
+            # print(f"GeneratedCommandList: {generatedCommandList}")
 
             # Convert accepted command to PICS code
             for generatedCommand in generatedCommandList:
-                #print(f"{clusterPICS}{commandTag}{generatedCommand:02x}{generatedCommandTag}")
+                # print(f"{clusterPICS}{commandTag}{generatedCommand:02x}{generatedCommandTag}")
                 generatedCommandListPicsList.append(f"{clusterPICS}{commandTag}{generatedCommand:02x}{generatedCommandTag}")
 
             print("Collected generated command PICS:")
@@ -305,6 +299,7 @@ async def DeviceMapping(devCtrl, nodeID, outputPathStr):
 
             GenerateDevicePicsXmlFiles(clusterName, clusterPICS, [], [], [], [], endpointOutputPathStr)
 
+
 def cleanDirectory(pathToClean):
     for entry in pathToClean.iterdir():
         if entry.is_file():
@@ -313,6 +308,7 @@ def cleanDirectory(pathToClean):
             cleanDirectory(entry)
             pathlib.Path(entry).rmdir()
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--cluster-data', required=True)
 parser.add_argument('--pics-template', required=True)
@@ -320,13 +316,13 @@ parser.add_argument('--pics-output', required=True)
 args, unknown = parser.parse_known_args()
 
 basePath = os.path.dirname(__file__)
-clusterInfoInputPathStr = args.cluster_data #os.path.join(basePath, 'clusterData', 'Specification_version master da1249d.json')
+clusterInfoInputPathStr = args.cluster_data
 
-xmlTemplatePathStr = args.pics_template #os.path.join(basePath, 'PICS', 'XML_version master Version V15/')
+xmlTemplatePathStr = args.pics_template
 if not xmlTemplatePathStr.endswith('/'):
     xmlTemplatePathStr += '/'
 
-baseOutputPathStr = args.pics_output #os.path.join(basePath, 'output/')
+baseOutputPathStr = args.pics_output
 if not baseOutputPathStr.endswith('/'):
     baseOutputPathStr += '/'
 
@@ -357,11 +353,11 @@ with open(clusterInfoInputPathStr, 'r') as clusterInfoInputFile:
 
 for cluster in clusterInfoJson["ClusterIdentifiers"]:
     clusterInfoDict[clusterInfoJson["ClusterIdentifiers"][f"{cluster}"]["Identifier"].lower()] = {
-        "Name":cluster,
-        "PICS_Code":clusterInfoJson["ClusterIdentifiers"][f"{cluster}"]["PICS Code"],
+        "Name": cluster,
+        "PICS_Code": clusterInfoJson["ClusterIdentifiers"][f"{cluster}"]["PICS Code"],
     }
 
-#### Load PICS XML templates
+# Load PICS XML templates
 xmlFileList = os.listdir(xmlTemplatePathStr)
 
 # Setup output path
@@ -370,6 +366,7 @@ if not baseOutputPath.exists():
     baseOutputPath.mkdir()
 else:
     cleanDirectory(baseOutputPath)
+
 
 class DeviceMappingTest(MatterBaseTest):
     @async_test_body
@@ -381,6 +378,7 @@ class DeviceMappingTest(MatterBaseTest):
         
         # Run device mapping function
         await DeviceMapping(self.default_controller, self.dut_node_id, baseOutputPathStr)
+
 
 if __name__ == "__main__":
     default_matter_test_main()
