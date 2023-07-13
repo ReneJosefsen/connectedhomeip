@@ -33,6 +33,19 @@ from rich.console import Console
 console = None
 
 
+async def RevertACL(self, dev_ctrl, acl, storedAclTargets):
+    console.print("Reverting ACL entry to original state")
+    
+    # Revert ACL to the original state
+    acl[0].targets = storedAclTargets
+    # acl[0].targets = NullValue
+    # console.print(acl)
+
+    await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
+    deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+    console.print(deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
+
+
 class TC_DeviceValidation(MatterBaseTest):
     @async_test_body
     async def test_descriptor(self):
@@ -67,17 +80,37 @@ class TC_DeviceValidation(MatterBaseTest):
         '''
 
         # Perform wildcard read to get all attributes from device
+        console.print("[blue]Performing wildcard read on device")
         deviceAttributeResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [('*')])
-        # console.print(deviceAttributeResponse)
+        console.print(deviceAttributeResponse)
+
+        # Limit the ACL to check for command support later in the script
+        # This is done here, so we only need to do it once.
+        console.print("[blue]Setting ACL entry to only allow ACL cluster access")
+
+        # Read the current ACL configuration
+        deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+        # console.print(deviceResponse)
+        acl = deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
+        storedAclTargets = acl[0].targets
+        acl[0].targets = [Clusters.AccessControl.Structs.AccessControlTargetStruct(cluster=31)]
+
+        # Adjust ACL to only allow access to ACL cluster
+        # This will make is possible to check if a command is supported,
+        # based on the error code returned by the device
+        await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
+        deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+        console.print(deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
 
         # Read parts list of device and manually add endpoint 0 to parts list
         readPartsList = deviceAttributeResponse[0][Clusters.Objects.Descriptor][Clusters.Objects.Descriptor.Attributes.PartsList]
         # Add endpoint 0 to the parts list, since this is not returned by the device
         readPartsList.insert(0, 0)
+        console.print(f"[blue]Received PartsList of device: {readPartsList}")
 
         # Loop through each endpoint in the response from the wildcard read
         for endpoint in deviceAttributeResponse:
-            # console.print(f"[blue]Endpoint: {endpoint}")
+            console.print(f"[blue]Colleting data for endpoint: {endpoint}")
 
             # Capture the found endpoint from wildcard read
             receivedParts.append(endpoint)
@@ -88,7 +121,7 @@ class TC_DeviceValidation(MatterBaseTest):
 
             # Loop through the servers on the specific endpoint in the response from the wildcard read
             for server in deviceAttributeResponse[endpoint]:
-                # console.print(f"[blue]Server: {server}")
+                console.print(f"[blue]Colleting data for cluster: {server}")
                 # console.print(f"Server ID: {server.id}")
 
                 # Store the server in a list to compare
@@ -132,25 +165,16 @@ class TC_DeviceValidation(MatterBaseTest):
                 readAttributeList.sort()
                 readListOfAttributes.sort()
 
-                console.print("[blue]Verify attribute list")
+                console.print(f"[blue]Verify AttributeList")
                 console.print(readAttributeList)
                 console.print(readListOfAttributes)
-                asserts.assert_equal(readAttributeList, readListOfAttributes, "The list of received list of attributes does not match attributeList")
 
-                # Read the current ACL configuration
-                deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-                # console.print(deviceResponse)
-                acl = deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
-                storedAclTargets = acl[0].targets
-                acl[0].targets = [Clusters.AccessControl.Structs.AccessControlTargetStruct(cluster=31)]
-                # console.print(acl)
+                if readAttributeList != readListOfAttributes:
+                    # Revert ACL and trigger failure
+                    await RevertACL(self, dev_ctrl, acl, storedAclTargets)
+                    asserts.fail("The list of received list of attributes does not match attributeList ❌")
 
-                # Adjust ACL to only allow access to ACL cluster
-                # This will make is possible to check if a command is supported,
-                # based on the error code returned by the device
-                await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
-                deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-                # console.print(deviceResponse)
+                console.print("[green]AttributeList check passed ✅")
 
                 commandInClusterList.clear()
                 commandListFromDevice.clear()
@@ -183,40 +207,48 @@ class TC_DeviceValidation(MatterBaseTest):
                         if e.status == Status.UnsupportedAccess:
                             commandListFromDevice.append(commandClass.command_id)
 
-                # Revert ACL to the original state
-                acl[0].targets = storedAclTargets
-                # acl[0].targets = NullValue
-                # console.print(acl)
-
-                await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
-                deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-                # console.print(deviceResponse)
-
                 # Sort lists
                 readAttributeList.sort()
                 commandListFromDevice.sort()
 
-                console.print("[blue]Verify Accepted Command List")
+                console.print(f"[blue]Verify AcceptedCommandList")
                 console.print(readCommandList)
                 console.print(commandListFromDevice)
-                asserts.assert_equal(readCommandList, commandListFromDevice, "The checked list of commands does not match the AcceptedCommandList")
+
+                if readCommandList != commandListFromDevice:
+                    # Revert ACL and trigger failure
+                    await RevertACL(self, dev_ctrl, acl, storedAclTargets)
+                    asserts.fail("The checked list of commands does not match the AcceptedCommandList ❌")
+
+                console.print("[green]AcceptedCommandList check passed ✅")
 
             # Sort lists
             readServerList.sort()
             readListOfServers.sort()
 
-            console.print("[blue]Verify Server List")
+            console.print(f"[blue]Verify ServerList on endpoint: {endpoint}")
             console.print(readServerList)
             console.print(readListOfServers)
-            asserts.assert_equal(readServerList, readListOfServers, "The received list of servers does not match ServerList")
+
+            if readServerList != readListOfServers:
+                # Revert ACL and trigger failure
+                await RevertACL(self, dev_ctrl, acl, storedAclTargets)
+                asserts.fail("The received list of servers does not match ServerList ❌")
+
+            console.print("[green]ServerList check passed ✅")
+
+        # Revert ACL back to the initial state
+        await RevertACL(self, dev_ctrl, acl, storedAclTargets)
 
         # Sort lists
         readPartsList.sort()
         receivedParts.sort()
-        console.print("[blue]Verify parts list")
+        console.print("[blue]Verify PartsList of device: ")
         console.print(readPartsList)
         console.print(receivedParts)
-        asserts.assert_equal(readPartsList, receivedParts, "The list of received list of parts does not match PartsList")
+
+        asserts.assert_equal(readPartsList, receivedParts, "The list of received list of parts does not match PartsList ❌")
+        console.print("[green]PartsList check passed ✅")
 
         # Read events
         # TODO: Determine how to verify the received events
