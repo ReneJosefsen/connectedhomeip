@@ -1,4 +1,3 @@
-import sys
 import os
 import argparse
 import xml.etree.ElementTree as ET
@@ -13,10 +12,10 @@ PICSPathStr = args.PICS
 if not PICSPathStr.endswith('/'):
     PICSPathStr += '/'
 
-#### Load PICS XML templates
+# Load PICS XML templates
 xmlFileList = os.listdir(PICSPathStr)
 
-#print(xmlFileList)
+# print(xmlFileList)
 
 for fileName in xmlFileList:
 
@@ -24,7 +23,7 @@ for fileName in xmlFileList:
     if not fileName.lower().endswith('.xml'):
         print(f"[red]Ignoring \"{fileName}\"")
         continue
-        
+
     # Custom handler for base xml
     if fileName.lower() == 'base.xml':
         print(f"[red]Ignoring \"{fileName}\"")
@@ -36,7 +35,7 @@ for fileName in xmlFileList:
         print(f"Open \"{PICSPathStr}{fileName}\"")
         tree = ET.parse(f"{PICSPathStr}{fileName}")
         root = tree.getroot()
-    except:
+    except ET.ParseError:
         print(f"[red]Could not find \"{fileName}\"")
 
     # Usage PICS
