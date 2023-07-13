@@ -35,33 +35,35 @@ console = None
 
 async def RevertACL(self, dev_ctrl, acl, storedAclTargets):
     console.print("Reverting ACL entry to original state")
-    
+
     # Revert ACL to the original state
     acl[0].targets = storedAclTargets
     # acl[0].targets = NullValue
     # console.print(acl)
 
     await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
-    deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-    console.print(deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
+    aclResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+    console.print(aclResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
 
 
 class TC_DeviceValidation(MatterBaseTest):
     @async_test_body
     async def test_descriptor(self):
 
-        readPartsList = []
-        receivedParts = []
+        listOfSupportedEndpoints = []
+        partsListFromWildcardRead = []
 
-        readListOfServers = []
-        readServerList = []
+        listOfSupportedServers = []
+        serverListFromWildcardRead = []
 
-        readListOfAttributes = []
-        readAttributeList = []
+        listOfSupportedAttributes = []
+        attributeListFromWildcardRead = []
 
-        commandInClusterList = []
-        commandListFromDevice = []
-        readCommandList = []
+        eventListFromWildcardRead = []
+
+        listOfCommandsFromSDK = []
+        listOfSupportedCommands = []
+        commandListFromWildcardRead = []
 
         # Create console to print
         global console
@@ -70,28 +72,25 @@ class TC_DeviceValidation(MatterBaseTest):
         # Run descriptor validation test
         dev_ctrl = self.default_controller
 
-        '''
         # DEBUG REVERT ACL
-        deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-        acl = deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
-        acl[0].targets = NullValue
-        await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
+        aclResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+        acl = aclResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
+        await RevertACL(self, dev_ctrl, acl, NullValue)
         # DBEUG REVERT END
-        '''
 
         # Perform wildcard read to get all attributes from device
         console.print("[blue]Performing wildcard read on device")
-        deviceAttributeResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [('*')])
-        console.print(deviceAttributeResponse)
+        wildcardResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [('*')])
+        # console.print(wildcardResponse)
 
         # Limit the ACL to check for command support later in the script
         # This is done here, so we only need to do it once.
         console.print("[blue]Setting ACL entry to only allow ACL cluster access")
 
         # Read the current ACL configuration
-        deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-        # console.print(deviceResponse)
-        acl = deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
+        aclResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+        # console.print(aclResponse)
+        acl = aclResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
         storedAclTargets = acl[0].targets
         acl[0].targets = [Clusters.AccessControl.Structs.AccessControlTargetStruct(cluster=31)]
 
@@ -99,46 +98,47 @@ class TC_DeviceValidation(MatterBaseTest):
         # This will make is possible to check if a command is supported,
         # based on the error code returned by the device
         await dev_ctrl.WriteAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl(acl))])
-        deviceResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-        console.print(deviceResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
+        aclResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
+        console.print(aclResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl])
 
         # Read parts list of device and manually add endpoint 0 to parts list
-        readPartsList = deviceAttributeResponse[0][Clusters.Objects.Descriptor][Clusters.Objects.Descriptor.Attributes.PartsList]
+        partsListFromWildcardRead = wildcardResponse[0][Clusters.Objects.Descriptor][Clusters.Objects.Descriptor.Attributes.PartsList]
         # Add endpoint 0 to the parts list, since this is not returned by the device
-        readPartsList.insert(0, 0)
-        console.print(f"[blue]Received PartsList of device: {readPartsList}")
+        partsListFromWildcardRead.insert(0, 0)
+        console.print(f"[blue]Received PartsList of device: {partsListFromWildcardRead}")
 
         # Loop through each endpoint in the response from the wildcard read
-        for endpoint in deviceAttributeResponse:
+        for endpoint in wildcardResponse:
             console.print(f"[blue]Colleting data for endpoint: {endpoint}")
 
             # Capture the found endpoint from wildcard read
-            receivedParts.append(endpoint)
+            listOfSupportedEndpoints.append(endpoint)
 
             # Clear the server lists to be used for comparison.
-            readListOfServers.clear()
-            readServerList.clear()
+            listOfSupportedServers.clear()
+            serverListFromWildcardRead.clear()
 
             # Loop through the servers on the specific endpoint in the response from the wildcard read
-            for server in deviceAttributeResponse[endpoint]:
-                console.print(f"[blue]Colleting data for cluster: {server}")
+            for server in wildcardResponse[endpoint]:
+                console.print(f"[blue]Colleting data for cluster: {server.id:#06X} - {server}")
                 # console.print(f"Server ID: {server.id}")
 
                 # Store the server in a list to compare
-                readListOfServers.append(server.id)
+                listOfSupportedServers.append(server.id)
 
                 # Capture the serverList attribute from the descriptor cluster.
                 # This is captured here, since it then does not need to perform an additional read.
                 if Clusters.Objects.Descriptor == server:
-                    readServerList = deviceAttributeResponse[endpoint][server][Clusters.Objects.Descriptor.Attributes.ServerList]
+                    serverListFromWildcardRead = wildcardResponse[endpoint][server][Clusters.Objects.Descriptor.Attributes.ServerList]
 
                 # Clear the attribute and command lists to be used for comparison.
-                readListOfAttributes.clear()
-                readAttributeList.clear()
-                readCommandList.clear()
+                listOfSupportedAttributes.clear()
+                attributeListFromWildcardRead.clear()
+                eventListFromWildcardRead.clear()
+                commandListFromWildcardRead.clear()
 
                 # Loop through the attributes on the specific server in the response from the wildcard read
-                for attribute in deviceAttributeResponse[endpoint][server]:
+                for attribute in wildcardResponse[endpoint][server]:
                     # console.print(f"[blue]Attribute: {attribute}")
 
                     if Clusters.Attribute.DataVersion == attribute:
@@ -146,76 +146,86 @@ class TC_DeviceValidation(MatterBaseTest):
                         continue
 
                     # console.print(f"Attribute ID: {attribute.attribute_id}")
-                    # console.print(deviceAttributeResponse[endpoint][server][attribute])
+                    # console.print(wildcardResponse[endpoint][server][attribute])
 
                     # Capture the attribute id to compare against attributeList
-                    readListOfAttributes.append(attribute.attribute_id)
+                    listOfSupportedAttributes.append(attribute.attribute_id)
 
-                    # Collect the attribute and command list
+                    # Collect the AttributeList
                     if attribute.attribute_id == 65531:
                         # Capture the attribute list from the specific cluster
                         # This is captured here, since it then does not need to perform an additional read.
-                        readAttributeList = deviceAttributeResponse[endpoint][server][attribute]
+                        attributeListFromWildcardRead = wildcardResponse[endpoint][server][attribute]
+
+                    # Collect the EventList
+                    elif attribute.attribute_id == 65530:
+                        # Capture the command list from the specific cluster
+                        # This is captured here, since it then does not need to perform an additional read.
+                        eventListFromWildcardRead = wildcardResponse[endpoint][server][attribute]
+
+                    # Collect the AcceptedCommandList
                     elif attribute.attribute_id == 65529:
                         # Capture the command list from the specific cluster
                         # This is captured here, since it then does not need to perform an additional read.
-                        readCommandList = deviceAttributeResponse[endpoint][server][attribute]
+                        commandListFromWildcardRead = wildcardResponse[endpoint][server][attribute]
 
                 # Sort lists
-                readAttributeList.sort()
-                readListOfAttributes.sort()
+                attributeListFromWildcardRead.sort()
+                listOfSupportedAttributes.sort()
 
-                console.print(f"[blue]Verify AttributeList")
-                console.print(readAttributeList)
-                console.print(readListOfAttributes)
+                # -- Verify attributes
+                console.print("[blue]Verify AttributeList")
+                console.print(attributeListFromWildcardRead)
+                console.print(listOfSupportedAttributes)
 
-                if readAttributeList != readListOfAttributes:
+                if attributeListFromWildcardRead != listOfSupportedAttributes:
                     # Revert ACL and trigger failure
                     await RevertACL(self, dev_ctrl, acl, storedAclTargets)
                     asserts.fail("The list of received list of attributes does not match attributeList ❌")
 
                 console.print("[green]AttributeList check passed ✅")
 
-                commandInClusterList.clear()
-                commandListFromDevice.clear()
+                # -- Verify accepted commands
+                listOfCommandsFromSDK.clear()
+                listOfSupportedCommands.clear()
 
                 try:
-                    commandInClusterList = [func for func in dir(server.Commands) if not func.startswith("__")]
+                    listOfCommandsFromSDK = [func for func in dir(server.Commands) if not func.startswith("__")]
                 except Exception:
-                    # console.log("No commands in cluster, moving on")
+                    # console.print("No commands in cluster, moving on")
                     continue
 
-                # console.log(commandInClusterList)
+                # console.print(listOfCommandsFromSDK)
 
-                for command in commandInClusterList:
+                for command in listOfCommandsFromSDK:
                     commandClass = getattr(server.Commands, f"{command}")
-                    # console.log(commandClass)
-                    # console.log(commandClass.command_id)
+                    # console.print(commandClass)
+                    # console.print(commandClass.command_id)
 
                     if commandClass.is_client is False:
-                        # console.log("Not handling response commands, moving on")
+                        # console.print("Not handling response commands, moving on")
                         continue
 
                     try:
                         if commandClass == chip.clusters.Objects.AdministratorCommissioning.Commands.OpenBasicCommissioningWindow or commandClass == chip.clusters.Objects.AdministratorCommissioning.Commands.OpenCommissioningWindow or commandClass == chip.clusters.Objects.AdministratorCommissioning.Commands.RevokeCommissioning:
-                            deviceResponse = await dev_ctrl.SendCommand(self.dut_node_id, endpoint, commandClass(), timedRequestTimeoutMs=10)
+                            await dev_ctrl.SendCommand(self.dut_node_id, endpoint, commandClass(), timedRequestTimeoutMs=10)
                         else:
-                            deviceResponse = await dev_ctrl.SendCommand(self.dut_node_id, endpoint, commandClass())
+                            await dev_ctrl.SendCommand(self.dut_node_id, endpoint, commandClass())
                     except chip.interaction_model.InteractionModelError as e:
                         # console.print(e.status)
 
                         if e.status == Status.UnsupportedAccess:
-                            commandListFromDevice.append(commandClass.command_id)
+                            listOfSupportedCommands.append(commandClass.command_id)
 
                 # Sort lists
-                readAttributeList.sort()
-                commandListFromDevice.sort()
+                attributeListFromWildcardRead.sort()
+                listOfSupportedCommands.sort()
 
-                console.print(f"[blue]Verify AcceptedCommandList")
-                console.print(readCommandList)
-                console.print(commandListFromDevice)
+                console.print("[blue]Verify AcceptedCommandList")
+                console.print(commandListFromWildcardRead)
+                console.print(listOfSupportedCommands)
 
-                if readCommandList != commandListFromDevice:
+                if commandListFromWildcardRead != listOfSupportedCommands:
                     # Revert ACL and trigger failure
                     await RevertACL(self, dev_ctrl, acl, storedAclTargets)
                     asserts.fail("The checked list of commands does not match the AcceptedCommandList ❌")
@@ -223,14 +233,14 @@ class TC_DeviceValidation(MatterBaseTest):
                 console.print("[green]AcceptedCommandList check passed ✅")
 
             # Sort lists
-            readServerList.sort()
-            readListOfServers.sort()
+            serverListFromWildcardRead.sort()
+            listOfSupportedServers.sort()
 
             console.print(f"[blue]Verify ServerList on endpoint: {endpoint}")
-            console.print(readServerList)
-            console.print(readListOfServers)
+            console.print(serverListFromWildcardRead)
+            console.print(listOfSupportedServers)
 
-            if readServerList != readListOfServers:
+            if serverListFromWildcardRead != listOfSupportedServers:
                 # Revert ACL and trigger failure
                 await RevertACL(self, dev_ctrl, acl, storedAclTargets)
                 asserts.fail("The received list of servers does not match ServerList ❌")
@@ -241,13 +251,13 @@ class TC_DeviceValidation(MatterBaseTest):
         await RevertACL(self, dev_ctrl, acl, storedAclTargets)
 
         # Sort lists
-        readPartsList.sort()
-        receivedParts.sort()
+        partsListFromWildcardRead.sort()
+        listOfSupportedEndpoints.sort()
         console.print("[blue]Verify PartsList of device: ")
-        console.print(readPartsList)
-        console.print(receivedParts)
+        console.print(partsListFromWildcardRead)
+        console.print(listOfSupportedEndpoints)
 
-        asserts.assert_equal(readPartsList, receivedParts, "The list of received list of parts does not match PartsList ❌")
+        asserts.assert_equal(partsListFromWildcardRead, listOfSupportedEndpoints, "The list of received list of parts does not match PartsList ❌")
         console.print("[green]PartsList check passed ✅")
 
         # Read events
