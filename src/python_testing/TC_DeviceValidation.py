@@ -72,12 +72,6 @@ class TC_DeviceValidation(MatterBaseTest):
         # Run descriptor validation test
         dev_ctrl = self.default_controller
 
-        # DEBUG REVERT ACL
-        aclResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [(0, Clusters.AccessControl.Attributes.Acl)])
-        acl = aclResponse[0][Clusters.Objects.AccessControl][Clusters.Objects.AccessControl.Attributes.Acl]
-        await RevertACL(self, dev_ctrl, acl, NullValue)
-        # DBEUG REVERT END
-
         # Perform wildcard read to get all attributes from device
         console.print("[blue]Performing wildcard read on device")
         wildcardResponse = await dev_ctrl.ReadAttribute(self.dut_node_id, [('*')])
