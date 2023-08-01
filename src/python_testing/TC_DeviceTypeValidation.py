@@ -132,7 +132,7 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                         except KeyError:
                             excludedFeatures = []
 
-                        if len(mandatoryFeatures) > 0 or len(excludedFeatures) > 0:
+                        if mandatoryFeatures or excludedFeatures:
 
                             # Read feature map from DUT
                             featureMapResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.FeatureMap)])
@@ -162,7 +162,7 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                                 featureBitState = (featureMap >> featureBitId) & 1
                                 console.print(f"[blue]FeatureBit ({featureBitId}) state {featureBitState}")
 
-                                #asserts.assert_true(featureBitState == 0, f"Excluded feature ({featureBitId:#04x}) found in feature map ❌")
+                                asserts.assert_true(featureBitState == 0, f"Excluded feature ({featureBitId:#04x}) found in feature map ❌")
                                 console.print("[green]Feature check passed ✅")
 
                         mandatoryAttributes = cluster["mandatory_attributes"]
@@ -173,7 +173,7 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                         except KeyError:
                             excludedAttributes = []
 
-                        if len(mandatoryAttributes) > 0 or len(excludedAttributes) > 0:
+                        if mandatoryAttributes or excludedAttributes:
 
                             # Read attribute list
                             attributeListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.AttributeList)])
@@ -197,7 +197,7 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                                     attributeId = getPicsElementId(attribute['pics_code'], attributePicsStr, attributeIdSize)
 
                                 console.print(f"[blue]AttributeID: {attributeId}")
-                                #asserts.assert_true(attributeId not in attributeList, f"Excluded attribute ({attributeId:#06x}) found in attribute list ❌")
+                                asserts.assert_true(attributeId not in attributeList, f"Excluded attribute ({attributeId:#06x}) found in attribute list ❌")
                                 console.print("[green]Attribute check passed ✅")
                                     
                         mandatoryCommands = cluster["mandatory_commands"]
@@ -208,7 +208,7 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                         except KeyError:
                             excludedCommands = []
 
-                        if len(mandatoryCommands) > 0 or len(excludedCommands) > 0:
+                        if mandatoryCommands or excludedCommands:
 
                             acceptedCommandListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.AcceptedCommandList)])
                             acceptedCommandList = acceptedCommandListResponse[endpoint][clusterClass][clusterClass.Attributes.AcceptedCommandList]
