@@ -34,7 +34,15 @@ def getPicsElementId(picsStr, elementTypeStr, elementIdLen):
 
 class TC_DeviceTypeValidation(MatterBaseTest):
     @async_test_body
-    async def test_descriptor(self):
+    async def test_TC_DeviceTypeValidation(self):
+
+        # Test defines
+        featurePicsStr = ".S.F"
+        featureIdSize = 2
+        attributePicsStr = ".S.A"
+        attributeIdSize = 4
+        commandPicsStr = ".S.C"
+        commandIdSize = 2                        
 
         # Endpoint define
         rootNodeEndpointID = 0
@@ -51,11 +59,13 @@ class TC_DeviceTypeValidation(MatterBaseTest):
 
         # Store the device type requirement JSON list
         deviceTypeRequirementFileList = os.listdir(deviceTypeRequirementInputPathStr)
-        # console.log(deviceTypeRequirementJson)
+        # console.log(deviceTypeRequirementFileList)
 
         for deviceTypeRequirementFileName in deviceTypeRequirementFileList:
             file = f"{deviceTypeRequirementInputPathStr}{deviceTypeRequirementFileName}"
             with open(file, 'r') as deviceTypeRequirementFile:
+                # console.log(file)
+
                 deviceTypeRequirementData = json.load(deviceTypeRequirementFile)
                 deviceTypeID = deviceTypeRequirementData['id']
 
@@ -115,7 +125,14 @@ class TC_DeviceTypeValidation(MatterBaseTest):
 
                         # Check required elements on the server
                         mandatoryFeatures = cluster["mandatory_features"]
-                        if len(mandatoryFeatures) > 0:
+
+                        # Since excluded_features might not be in all files, if not present, assume empty
+                        try:
+                            excludedFeatures = cluster["excluded_features"]
+                        except KeyError:
+                            excludedFeatures = []
+
+                        if len(mandatoryFeatures) > 0 or len(excludedFeatures) > 0:
 
                             # Read feature map from DUT
                             featureMapResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.FeatureMap)])
@@ -125,18 +142,38 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                             # Check if mandated feature is supported
                             for feature in mandatoryFeatures:
                                 console.print(f"Mandated feature PICS: {feature['pics_code']}")
-                                featurePicsStr = ".S.F"
-                                featureIdSize = 2
+                                
                                 featureBitId = getPicsElementId(feature['pics_code'], featurePicsStr, featureIdSize)
 
                                 featureBitState = (featureMap >> featureBitId) & 1
                                 console.print(f"[blue]FeatureBit ({featureBitId}) state {featureBitState}")
 
-                                asserts.assert_true(featureBitState == 1, f"Feature ({featureBitId:#04x}) not found in feature map ❌")
+                                asserts.assert_true(featureBitState == 1, f"Mandated feature ({featureBitId:#04x}) not found in feature map ❌")
+                                console.print("[green]Feature check passed ✅")
+
+                            for feature in excludedFeatures:
+                                console.print(f"Excluded feature PICS: {feature['pics_code']}")
+
+                                try:
+                                    featureBitId = int(feature["id"], 16)
+                                except KeyError:
+                                    featureBitId = getPicsElementId(feature['pics_code'], featurePicsStr, featureIdSize)
+                                
+                                featureBitState = (featureMap >> featureBitId) & 1
+                                console.print(f"[blue]FeatureBit ({featureBitId}) state {featureBitState}")
+
+                                #asserts.assert_true(featureBitState == 0, f"Excluded feature ({featureBitId:#04x}) found in feature map ❌")
                                 console.print("[green]Feature check passed ✅")
 
                         mandatoryAttributes = cluster["mandatory_attributes"]
-                        if len(mandatoryAttributes) > 0:
+
+                        # Since excluded_attributes might not be in all files, if not present, assume empty
+                        try:
+                            excludedAttributes = cluster["excluded_attributes"]
+                        except KeyError:
+                            excludedAttributes = []
+
+                        if len(mandatoryAttributes) > 0 or len(excludedAttributes) > 0:
 
                             # Read attribute list
                             attributeListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.AttributeList)])
@@ -145,16 +182,33 @@ class TC_DeviceTypeValidation(MatterBaseTest):
 
                             for attribute in mandatoryAttributes:
                                 console.print(f"Mandated attribute PICS: {attribute['pics_code']}")
-                                attributePicsStr = ".S.A"
-                                attributeIdSize = 4
                                 attributeId = getPicsElementId(attribute['pics_code'], attributePicsStr, attributeIdSize)
 
                                 console.print(f"[blue]AttributeID: {attributeId}")
-                                asserts.assert_true(attributeId in attributeList, f"Attribute ({attributeId:#06x}) not found in attribute list ❌")
+                                asserts.assert_true(attributeId in attributeList, f"Mandated attribute ({attributeId:#06x}) not found in attribute list ❌")
                                 console.print("[green]Attribute check passed ✅")
 
+                            for attribute in excludedAttributes:
+                                console.print(f"Excluded attribute PICS: {attribute['pics_code']}")
+
+                                try:
+                                    attributeId = int(attribute["id"], 16)
+                                except KeyError:
+                                    attributeId = getPicsElementId(attribute['pics_code'], attributePicsStr, attributeIdSize)
+
+                                console.print(f"[blue]AttributeID: {attributeId}")
+                                #asserts.assert_true(attributeId not in attributeList, f"Excluded attribute ({attributeId:#06x}) found in attribute list ❌")
+                                console.print("[green]Attribute check passed ✅")
+                                    
                         mandatoryCommands = cluster["mandatory_commands"]
-                        if len(mandatoryCommands) > 0:
+
+                        # Since excluded_commands might not be in all files, if not present, assume empty
+                        try:
+                            excludedCommands = cluster["excluded_commands"]
+                        except KeyError:
+                            excludedCommands = []
+
+                        if len(mandatoryCommands) > 0 or len(excludedCommands) > 0:
 
                             acceptedCommandListResponse = await devCtrl.ReadAttribute(self.dut_node_id, [(endpoint, clusterClass.Attributes.AcceptedCommandList)])
                             acceptedCommandList = acceptedCommandListResponse[endpoint][clusterClass][clusterClass.Attributes.AcceptedCommandList]
@@ -164,19 +218,36 @@ class TC_DeviceTypeValidation(MatterBaseTest):
                             generatedCommandList = generatedCommandListResponse[endpoint][clusterClass][clusterClass.Attributes.GeneratedCommandList]
                             console.print(f"GeneratedCommandList: {generatedCommandList}")
 
-                            for command in cluster["mandatory_commands"]:
+                            for command in mandatoryCommands:
                                 console.print(f"Mandated command PICS: {command['pics_code']}")
-                                commandPicsStr = ".S.C"
-                                commandIdSize = 2
                                 commandId = getPicsElementId(command['pics_code'], commandPicsStr, commandIdSize)
 
                                 console.print(f"[blue]CommandID: {commandId}")
 
                                 if ".Rsp" in command['pics_code']:
-                                    asserts.assert_true(commandId in acceptedCommandList, f"Command ({commandId:#04x}) not found in accepted command lists ❌")
+                                    asserts.assert_true(commandId in acceptedCommandList, f"Mandated command ({commandId:#04x}) not found in accepted command lists ❌")
                                     console.print("[green]Accepted command check passed ✅")
                                 elif ".Tx" in command['pics_code']:
-                                    asserts.assert_true(commandId in generatedCommandList, f"Command ({commandId:#04x}) not found in generated command lists ❌")
+                                    asserts.assert_true(commandId in generatedCommandList, f"Mandated command ({commandId:#04x}) not found in generated command lists ❌")
+                                    console.print("[green]Generated command check passed ✅")
+                                else:
+                                    asserts.assert_true(False, "[red]Invalid PICS code ❌")
+
+                            for command in excludedCommands:
+                                console.print(f"Excluded command PICS: {command['pics_code']}")
+
+                                try:
+                                    commandId = int(command["id"], 16)
+                                except KeyError:
+                                    commandId = getPicsElementId(command['pics_code'], commandPicsStr, commandIdSize)
+
+                                console.print(f"[blue]CommandID: {commandId}")
+
+                                if ".Rsp" in command['pics_code']:
+                                    asserts.assert_true(commandId not in acceptedCommandList, f"Excluded command ({commandId:#04x}) found in accepted command lists ❌")
+                                    console.print("[green]Accepted command check passed ✅")
+                                elif ".Tx" in command['pics_code']:
+                                    asserts.assert_true(commandId not in generatedCommandList, f"Excluded command ({commandId:#04x}) found in generated command lists ❌")
                                     console.print("[green]Generated command check passed ✅")
                                 else:
                                     asserts.assert_true(False, "[red]Invalid PICS code ❌")
