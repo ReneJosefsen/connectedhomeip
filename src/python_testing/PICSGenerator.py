@@ -16,12 +16,8 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     fileName = ""
 
     # Map clusters to common XML template if needed
-    administratorCommissioningCluster = "Administrator Commissioning Cluster"
     otaProviderCluster = "OTA Software Update Provider Cluster"
     onOffCluster = "On/Off Cluster"
-
-    if administratorCommissioningCluster in clusterName:
-        clusterName = "Multiple Fabrics"
 
     if otaProviderCluster in clusterName:
         clusterName = "OTA Software Update"
@@ -75,7 +71,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
 
     # Feature PICS
     # print(featurePicsList)
-    featureNode = root.find("./clusterSide[@type='server']/features")
+    featureNode = root.find("./clusterSide[@type='Server']/features")
     for picsItem in featureNode:
         itemNumberElement = picsItem.find('itemNumber')
 
@@ -89,7 +85,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # Attributes PICS
     # TODO: Only check if list is not empty
     # print(attributePicsList)
-    serverAttributesNode = root.find("./clusterSide[@type='server']/attributes")
+    serverAttributesNode = root.find("./clusterSide[@type='Server']/attributes")
     for picsItem in serverAttributesNode:
         itemNumberElement = picsItem.find('itemNumber')
 
@@ -103,7 +99,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # AcceptedCommandList PICS
     # TODO: Only check if list is not empty
     # print(acceptedCommandPicsList)
-    serverCommandsReceivedNode = root.find("./clusterSide[@type='server']/commandsReceived")
+    serverCommandsReceivedNode = root.find("./clusterSide[@type='Server']/commandsReceived")
     for picsItem in serverCommandsReceivedNode:
         itemNumberElement = picsItem.find('itemNumber')
 
@@ -117,7 +113,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # GeneratedCommandList PICS
     # print(generatedCommandPicsList)
     # TODO: Only check if list is not empty
-    serverCommandsGeneratedNode = root.find("./clusterSide[@type='server']/commandsGenerated")
+    serverCommandsGeneratedNode = root.find("./clusterSide[@type='Server']/commandsGenerated")
     for picsItem in serverCommandsGeneratedNode:
         itemNumberElement = picsItem.find('itemNumber')
 
@@ -135,7 +131,7 @@ def GenerateDevicePicsXmlFiles(clusterName, clusterPicsCode, featurePicsList, at
     # This implementation marks an event as supported if:
     # 1) Event is mandatody
     # 2) The event is mandatory based on a feature that is supported (Cross check against feature list) (Not supported yet)
-    serverEventsNode = root.find("./clusterSide[@type='server']/Events")
+    serverEventsNode = root.find("./clusterSide[@type='Server']/events")
     for picsItem in serverEventsNode:
         itemNumberElement = picsItem.find('itemNumber')
         statusElement = picsItem.find('status')
