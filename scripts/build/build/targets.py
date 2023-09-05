@@ -130,6 +130,7 @@ def BuildHostTarget():
         TargetPart('address-resolve-tool', app=HostApp.ADDRESS_RESOLVE),
         TargetPart('contact-sensor', app=HostApp.CONTACT_SENSOR),
         TargetPart('dishwasher', app=HostApp.DISHWASHER),
+        TargetPart('refrigerator', app=HostApp.REFRIGERATOR),
     ]
 
     if (HostBoard.NATIVE.PlatformName() == 'darwin'):
@@ -434,6 +435,7 @@ def BuildASRTarget():
         TargetPart('thermostat', app=ASRApp.THERMOSTAT),
         TargetPart('ota-requestor', app=ASRApp.OTA_REQUESTOR),
         TargetPart('dishwasher', app=ASRApp.DISHWASHER),
+        TargetPart('refrigerator', app=ASRApp.REFRIGERATOR),
     ])
 
     # modifiers
@@ -602,6 +604,8 @@ def BuildBouffalolabTarget():
                    board=BouffalolabBoard.BL706_NIGHT_LIGHT, module_type="BL706C-22"),
         TargetPart('BL706-ETH',
                    board=BouffalolabBoard.BL706_ETH, module_type="BL706C-22"),
+        TargetPart('BL706-WIFI',
+                   board=BouffalolabBoard.BL706_WIFI, module_type="BL706C-22"),
         TargetPart('BL704L-DVK', board=BouffalolabBoard.BL704L_DVK, module_type="BL704L"),
     ])
 
