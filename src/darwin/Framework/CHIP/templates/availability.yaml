@@ -54,6 +54,13 @@
 #              Please examine codegen carefully when using "removed" to make
 #              sure all the things that should have been removed have been.
 #
+# * "swiftUnavailable": Can contain clusters, commands, attributes, etc as
+#                       described above for "introduced" and "deprecated".  This
+#                       can be used to mark APIs with NS_SWIFT_UNAVAILABLE,
+#                       typically when an API was renamed between two names that
+#                       map to the same Swift name and then both names were
+#                       deprecated.
+#
 # * "provisional": Can contain clusters, commands, attributes, etc as described
 #                  above for "introduced" and "deprecated".  Items can be
 #                  defined as provisional to prevent code generation for them.
@@ -67,10 +74,10 @@
 
 - release: "Initial release"
   versions:
-      ios: "16.1"
-      macos: "13.0"
-      watchos: "9.1"
-      tvos: "16.1"
+      iOS: "16.1"
+      macOS: "13.0"
+      watchOS: "9.1"
+      tvOS: "16.1"
   introduced:
       clusters:
           - Identify
@@ -3055,10 +3062,17 @@
               - EffectVariantEnum
               - IdentifyTypeEnum
           OnOff:
-              - OnOffDelayedAllOffEffectVariant
-              - OnOffDyingLightEffectVariant
-              - OnOffEffectIdentifier
-              - OnOffStartUpOnOff
+              # DelayedOnOffEffectVariantEnum, DyingLightEffectVariantEnum,
+              # EffectIdentifierEnum, and StartUpOnOffEnum were originally named
+              # OnOffDelayedAllOffEffectVariant,
+              # OnOffDelayedAllOffEffectVariant, OnOffEffectIdentifier, and
+              # OnOffStartUpOnOff, but we generate the same API for the names
+              # with/without "Enum" at the end, and with/without the cluster
+              # name at the beginning, so the name can just change here.
+              - DelayedAllOffEffectVariantEnum
+              - DyingLightEffectVariantEnum
+              - EffectIdentifierEnum
+              - StartUpOnOffEnum
           LevelControl:
               - MoveMode
               - StepMode
@@ -3225,12 +3239,18 @@
               # end, so the name can just change here.
               - LightSensorTypeEnum
           Channel:
-              - ChannelStatusEnum
+              # StatusEnum was originally named ChannelStatusEnum, but we
+              # generate the same API for the names with/without the cluster
+              # name at the beginning, so the name can just change here.
+              - StatusEnum
               - LineupInfoTypeEnum
           TargetNavigator:
               - TargetNavigatorStatusEnum
           MediaPlayback:
-              - MediaPlaybackStatusEnum
+              # StatusEnum was originally named MediaPlaybackStatusEnum, but we
+              # generate the same API for the names with/without the cluster
+              # name at the beginning, so the name can just change here.
+              - StatusEnum
               - PlaybackStateEnum
           MediaInput:
               - InputTypeEnum
@@ -3244,7 +3264,10 @@
           AudioOutput:
               - OutputTypeEnum
           ApplicationLauncher:
-              - ApplicationLauncherStatusEnum
+              # StatusEnum was originally named ApplicationLauncherStatusEnum, but we
+              # generate the same API for the names with/without the cluster name at the
+              # beginning, so the name can just change here.
+              - StatusEnum
           ApplicationBasic:
               - ApplicationStatusEnum
           TestCluster:
@@ -3276,16 +3299,23 @@
                   - Display
                   - Actuator
           OnOff:
-              OnOffDelayedAllOffEffectVariant:
+              # DelayedOnOffEffectVariantEnum, DyingLightEffectVariantEnum,
+              # EffectIdentifierEnum, and StartUpOnOffEnum were originally named
+              # OnOffDelayedAllOffEffectVariant,
+              # OnOffDelayedAllOffEffectVariant, OnOffEffectIdentifier, and
+              # OnOffStartUpOnOff, but we generate the same API for the names
+              # with/without "Enum" at the end, and with/without the cluster
+              # name at the beginning, so the name can just change here.
+              DelayedAllOffEffectVariantEnum:
                   - FadeToOffIn0p8Seconds
                   - NoFade
                   - 50PercentDimDownIn0p8SecondsThenFadeToOffIn12Seconds
-              OnOffDyingLightEffectVariant:
+              DyingLightEffectVariantEnum:
                   - 20PercenterDimUpIn0p5SecondsThenFadeToOffIn1Second
-              OnOffEffectIdentifier:
+              EffectIdentifierEnum:
                   - DelayedAllOff
                   - DyingLight
-              OnOffStartUpOnOff:
+              StartUpOnOffEnum:
                   - Off
                   - On
                   - TogglePreviousOnOff
@@ -3955,7 +3985,10 @@
                   - Photodiode
                   - CMOS
           Channel:
-              ChannelStatusEnum:
+              # StatusEnum was originally named ChannelStatusEnum, but we
+              # generate the same API for the names with/without the cluster
+              # name at the beginning, so the name can just change here.
+              StatusEnum:
                   - Success
                   - MultipleMatches
                   - NoMatches
@@ -3967,7 +4000,10 @@
                   - TargetNotFound
                   - NotAllowed
           MediaPlayback:
-              MediaPlaybackStatusEnum:
+              # StatusEnum was originally named MediaPlaybackStatusEnum, but we
+              # generate the same API for the names with/without the cluster
+              # name at the beginning, so the name can just change here.
+              StatusEnum:
                   - Success
                   - InvalidStateForCommand
                   - NotAllowed
@@ -4116,7 +4152,10 @@
                   - Internal
                   - Other
           ApplicationLauncher:
-              ApplicationLauncherStatusEnum:
+              # StatusEnum was originally named ApplicationLauncherStatusEnum, but we
+              # generate the same API for the names with/without the cluster name at the
+              # beginning, so the name can just change here.
+              StatusEnum:
                   - Success
                   - AppNotAvailable
                   - SystemBusy
@@ -4132,13 +4171,6 @@
                   - ValueA
                   - ValueB
                   - ValueC
-          FaultInjection:
-              FaultType:
-                  - Unspecified
-                  - SystemFault
-                  - InetFault
-                  - ChipFault
-                  - CertFault
       bitmaps:
           Groups:
               - GroupClusterFeature
@@ -4663,10 +4695,6 @@
           clusters:
               - PulseWidthModulation
               - TimeSynchronization
-              - ProxyConfiguration
-              - ProxyDiscovery
-              - ProxyValid
-              - FaultInjection
           attributes:
               PulseWidthModulation:
                   - GeneratedCommandList
@@ -4690,40 +4718,10 @@
                   - LocalTime
                   - TimeZoneDatabase
                   - NtpServerPort
-              ProxyConfiguration:
-                  - GeneratedCommandList
-                  - AcceptedCommandList
-                  - AttributeList
-                  - FeatureMap
-                  - ClusterRevision
-              ProxyDiscovery:
-                  - GeneratedCommandList
-                  - AcceptedCommandList
-                  - AttributeList
-                  - FeatureMap
-                  - ClusterRevision
-              ProxyValid:
-                  - GeneratedCommandList
-                  - AcceptedCommandList
-                  - AttributeList
-                  - FeatureMap
-                  - ClusterRevision
-              FaultInjection:
-                  - GeneratedCommandList
-                  - AcceptedCommandList
-                  - AttributeList
-                  - FeatureMap
-                  - ClusterRevision
           commands:
-              FaultInjection:
-                  - FailAtFault
-                  - FailRandomlyAtFault
               TimeSynchronization:
                   - SetUtcTime
       command payloads:
-          FaultInjection:
-              - FailAtFault
-              - FailRandomlyAtFault
           TimeSynchronization:
               - SetUtcTime
       global attributes:
@@ -4739,17 +4737,13 @@
       clusters:
           - PulseWidthModulation
           - TimeSynchronization
-          - ProxyConfiguration
-          - ProxyDiscovery
-          - ProxyValid
-          - FaultInjection
 
 - release: "First dot-release"
   versions:
-      ios: "16.2"
-      macos: "13.1"
-      watchos: "9.2"
-      tvos: "16.2"
+      iOS: "16.2"
+      macOS: "13.1"
+      watchOS: "9.2"
+      tvOS: "16.2"
   introduced:
       attributes:
           TestCluster:
@@ -4802,10 +4796,10 @@
 
 - release: "First major API revamp"
   versions:
-      ios: "16.4"
-      macos: "13.3"
-      watchos: "9.4"
-      tvos: "16.4"
+      iOS: "16.4"
+      macOS: "13.3"
+      watchOS: "9.4"
+      tvOS: "16.4"
   introduced:
       clusters:
           - OTASoftwareUpdateProvider
@@ -6355,6 +6349,13 @@
       commands:
           BasicInformation:
               - MfgSpecificPing
+      command fields:
+          # Cases where the cluster/command got renamed and the fields got
+          # renamed, so the old command name never had the new fields.
+          OtaSoftwareUpdateProvider:
+              QueryImage:
+                  - vendorID
+                  - productID
       enums:
           # DoorLockUserStatus (non-spec) and UserStatusEnum (from the spec) end
           # up with the same enum name (MTRDoorLockUserStatus), so just remove
@@ -6740,10 +6741,10 @@
 
 - release: "First after major API revamp"
   versions:
-      ios: "16.5"
-      macos: "13.4"
-      watchos: "9.5"
-      tvos: "16.5"
+      iOS: "16.5"
+      macOS: "13.4"
+      watchOS: "9.5"
+      tvOS: "16.5"
   introduced:
       ids:
           attributes:
@@ -7047,477 +7048,17 @@
                   LocalOperation: Local
 
 - release: "Fall 2023"
-  versions: "future"
+  versions:
+      iOS: "17.0"
+      macOS: "14.0"
+      watchOS: "10.0"
+      tvOS: "17.0"
   introduced:
-      clusters:
-          - AirQuality
-          # Replaceable Monitoring clusters
-          - HEPAFilterMonitoring
-          - ActivatedCarbonFilterMonitoring
-          # Concentration Measurement clusters
-          - CarbonDioxideConcentrationMeasurement
-          - CarbonMonoxideConcentrationMeasurement
-          - FormaldehydeConcentrationMeasurement
-          - NitrogenDioxideConcentrationMeasurement
-          - OzoneConcentrationMeasurement
-          - PM10ConcentrationMeasurement
-          - PM1ConcentrationMeasurement
-          - PM25ConcentrationMeasurement
-          - RadonConcentrationMeasurement
-          - TotalVolatileOrganicCompoundsConcentrationMeasurement
-          - OperationalState
-          - RefrigeratorAlarm
-          - TemperatureControl
-          - SmokeCOAlarm
       attributes:
-          Scenes:
-              - EventList
-              - SceneTableSize
-              - RemainingCapacity
-          OnOff:
-              - EventList
-          OnOffSwitchConfiguration:
-              - EventList
-          LevelControl:
-              - EventList
-          BinaryInputBasic:
-              - EventList
-          PulseWidthModulation:
-              - EventList
-          Descriptor:
-              - EventList
-          Binding:
-              - EventList
-          Identify:
-              - EventList
-          AccessControl:
-              - EventList
-          Actions:
-              - EventList
-          OTASoftwareUpdateProvider:
-              - EventList
-          OTASoftwareUpdateRequestor:
-              - EventList
-          LocalizationConfiguration:
-              - EventList
-          TimeFormatLocalization:
-              - EventList
-          UnitLocalization:
-              - EventList
-          PowerSourceConfiguration:
-              - EventList
-          PowerSource:
-              - EventList
-          GeneralCommissioning:
-              - EventList
-          NetworkCommissioning:
-              - EventList
-          DiagnosticLogs:
-              - EventList
-          GeneralDiagnostics:
-              - EventList
-          SoftwareDiagnostics:
-              - EventList
-          ThreadNetworkDiagnostics:
-              - EventList
-          WiFiNetworkDiagnostics:
-              - EventList
-          EthernetNetworkDiagnostics:
-              - EventList
-          TimeSynchronization:
-              - EventList
-          Switch:
-              - EventList
-          AdministratorCommissioning:
-              - EventList
-          OperationalCredentials:
-              - EventList
-          GroupKeyManagement:
-              - EventList
-          FixedLabel:
-              - EventList
-          UserLabel:
-              - EventList
-          ProxyConfiguration:
-              - EventList
-          ProxyDiscovery:
-              - EventList
-          ProxyValid:
-              - EventList
-          BooleanState:
-              - EventList
-          ModeSelect:
-              - EventList
-          DoorLock:
-              - EventList
-          WindowCovering:
-              - EventList
-          BarrierControl:
-              - EventList
-          PumpConfigurationAndControl:
-              - EventList
-          FanControl:
-              - EventList
-              - AirflowDirection
-          ThermostatUserInterfaceConfiguration:
-              - EventList
-          ColorControl:
-              - EventList
-          BallastConfiguration:
-              - EventList
-          IlluminanceMeasurement:
-              - EventList
-          TemperatureMeasurement:
-              - EventList
-          PressureMeasurement:
-              - EventList
-          Thermostat:
-              - EventList
-          FlowMeasurement:
-              - EventList
-          RelativeHumidityMeasurement:
-              - EventList
-          OccupancySensing:
-              - EventList
-          WakeOnLAN:
-              - EventList
-          Channel:
-              - EventList
-          Groups:
-              - EventList
-          TargetNavigator:
-              - EventList
-          MediaPlayback:
-              - EventList
-          MediaInput:
-              - EventList
-          LowPower:
-              - EventList
-          KeypadInput:
-              - EventList
-          ContentLauncher:
-              - EventList
-          AudioOutput:
-              - EventList
-          ApplicationLauncher:
-              - EventList
-          ApplicationBasic:
-              - EventList
-          AccountLogin:
-              - EventList
-          ElectricalMeasurement:
-              - EventList
-          UnitTesting:
-              - EventList
-          FaultInjection:
-              - EventList
-          AirQuality:
-              - AirQuality
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
           BasicInformation:
-              - EventList
               - ProductAppearance
           BridgedDeviceBasicInformation:
-              - EventList
               - ProductAppearance
-          HEPAFilterMonitoring:
-              - Condition
-              - DegradationDirection
-              - ChangeIndication
-              - InPlaceIndicator
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          ActivatedCarbonFilterMonitoring:
-              - Condition
-              - DegradationDirection
-              - ChangeIndication
-              - InPlaceIndicator
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          CarbonDioxideConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          CarbonMonoxideConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          FormaldehydeConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          NitrogenDioxideConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          OzoneConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          PM10ConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          PM1ConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          PM25ConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          RadonConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          TotalVolatileOrganicCompoundsConcentrationMeasurement:
-              - MeasuredValue
-              - MinMeasuredValue
-              - MaxMeasuredValue
-              - PeakMeasuredValue
-              - PeakMeasuredValueWindow
-              - AverageMeasuredValue
-              - AverageMeasuredValueWindow
-              - Uncertainty
-              - MeasurementUnit
-              - MeasurementMedium
-              - LevelValue
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          OperationalState:
-              - PhaseList
-              - CurrentPhase
-              - CountdownTime
-              - OperationalStateList
-              - OperationalState
-              - OperationalError
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          RefrigeratorAlarm:
-              - Mask
-              - State
-              - Supported
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          TemperatureControl:
-              - TemperatureSetpoint
-              - MinTemperature
-              - MaxTemperature
-              - Step
-              - SelectedTemperatureLevel
-              - SupportedTemperatureLevels
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-          SmokeCOAlarm:
-              - ExpressedState
-              - SmokeState
-              - COState
-              - BatteryAlert
-              - DeviceMuted
-              - TestInProgress
-              - HardwareFaultAlert
-              - EndOfServiceAlert
-              - InterconnectSmokeAlarm
-              - InterconnectCOAlarm
-              - ContaminationState
-              - SensitivityLevel
-              - ExpiryDate
-              - GeneratedCommandList
-              - AcceptedCommandList
-              - AttributeList
-              - EventList
-              - FeatureMap
-              - ClusterRevision
-      commands:
-          HEPAFilterMonitoring:
-              - ResetCondition
-          ActivatedCarbonFilterMonitoring:
-              - ResetCondition
-          FanControl:
-              - Step
-          OperationalState:
-              - Pause
-              - Stop
-              - Start
-              - Resume
-              - OperationalCommandResponse
-          TemperatureControl:
-              - SetTemperature
-          DoorLock:
-              - UnboltDoor
-          SmokeCOAlarm:
-              - SelfTestRequest
-      command fields:
-          DoorLock:
-              UnboltDoor:
-                  - pinCode
-          FanControl:
-              Step:
-                  - direction
-                  - wrap
-                  - lowestOff
-          OperationalState:
-              OperationalCommandResponse:
-                  - commandResponseState
-          TemperatureControl:
-              SetTemperature:
-                  - targetTemperature
-                  - targetTemperatureLevel
       structs:
           AccessControl:
               - AccessControlTargetStruct
@@ -7529,9 +7070,6 @@
               - WiFiInterfaceScanResultStruct
               - ThreadInterfaceScanResultStruct
               - NetworkInfoStruct
-          OperationalState:
-              - OperationalStateStruct
-              - ErrorStateStruct
           ThreadNetworkDiagnostics:
               - NeighborTableStruct
               - RouteTableStruct
@@ -7569,14 +7107,6 @@
               NetworkInfoStruct:
                   - networkID
                   - connected
-          OperationalState:
-              OperationalStateStruct:
-                  - operationalStateID
-                  - operationalStateLabel
-              ErrorStateStruct:
-                  - errorStateID
-                  - errorStateLabel
-                  - errorStateDetails
           ThreadNetworkDiagnostics:
               NeighborTableStruct:
                   - extAddress
@@ -7604,41 +7134,7 @@
                   - age
                   - allocated
                   - linkEstablished
-      events:
-          OperationalState:
-              - OperationalError
-              - OperationCompletion
-          RefrigeratorAlarm:
-              - Notify
-          SmokeCOAlarm:
-              - SmokeAlarm
-              - COAlarm
-              - LowBattery
-              - HardwareFault
-              - EndOfService
-              - SelfTestComplete
-              - AlarmMuted
-              - MuteEnded
-              - InterconnectSmokeAlarm
-              - InterconnectCOAlarm
-              - AllClear
-      event fields:
-          OperationalState:
-              OperationalError:
-                  - errorState
-              OperationCompletion:
-                  - completionErrorCode
-                  - totalOperationalTime
-                  - pausedTime
-          RefrigeratorAlarm:
-              Notify:
-                  - active
-                  - inactive
-                  - state
-                  - mask
       enums:
-          AirQuality:
-              - AirQualityEnum
           BasicInformation:
               - ColorEnum
               - ProductFinishEnum
@@ -7646,74 +7142,9 @@
               - ColorEnum
               - ProductFinishEnum
           FanControl:
-              - DirectionEnum
-              - AirflowDirectionEnum
-          HEPAFilterMonitoring:
-              - ChangeIndicationEnum
-              - DegradationDirectionEnum
-          ActivatedCarbonFilterMonitoring:
-              - ChangeIndicationEnum
-              - DegradationDirectionEnum
-          CarbonDioxideConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          CarbonMonoxideConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          FormaldehydeConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          NitrogenDioxideConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          OzoneConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          PM10ConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          PM1ConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          PM25ConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          RadonConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          TotalVolatileOrganicCompoundsConcentrationMeasurement:
-              - LevelValueEnum
-              - MeasurementUnitEnum
-              - MeasurementMediumEnum
-          OperationalState:
-              - OperationalStateEnum
-              - ErrorStateEnum
-          SmokeCOAlarm:
-              - AlarmStateEnum
-              - ContaminationStateEnum
-              - EndOfServiceEnum
-              - ExpressedStateEnum
-              - MuteStateEnum
-              - SensitivityEnum
+              - FanModeEnum
+              - FanModeSequenceEnum
       enum values:
-          AirQuality:
-              AirQualityEnum:
-                  - Unknown
-                  - Good
-                  - Fair
-                  - Moderate
-                  - Poor
-                  - VeryPoor
-                  - ExtremelyPoor
           BasicInformation:
               ColorEnum:
                   - Black
@@ -7775,282 +7206,27 @@
                   - Fabric
                   - Other
           FanControl:
-              DirectionEnum:
-                  - Increase
-                  - Decrease
-              AirflowDirectionEnum:
-                  - Forward
-                  - Reverse
+              FanModeEnum:
+                  - Off
+                  - Low
+                  - Medium
+                  - High
+                  - On
+                  - Auto
+                  - Smart
+              FanModeSequenceEnum:
+                  - OffLowMedHigh
+                  - OffLowHigh
+                  - OffLowMedHighAuto
+                  - OffLowHighAuto
+                  - OffOnAuto
+                  - OffOn
           NetworkCommissioning:
               # WiFiBandEnum was originally just named WiFiBand, but we generate
               # the same API for both of those names, so the name can just
               # change here.
               WiFiBandEnum:
                   - 1G
-          HEPAFilterMonitoring:
-              ChangeIndicationEnum:
-                  - OK
-                  - Warning
-                  - Critical
-              DegradationDirectionEnum:
-                  - Up
-                  - Down
-          ActivatedCarbonFilterMonitoring:
-              ChangeIndicationEnum:
-                  - OK
-                  - Warning
-                  - Critical
-              DegradationDirectionEnum:
-                  - Up
-                  - Down
-          CarbonDioxideConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          CarbonMonoxideConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          FormaldehydeConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          NitrogenDioxideConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          OzoneConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          PM10ConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          PM1ConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          PM25ConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          RadonConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          TotalVolatileOrganicCompoundsConcentrationMeasurement:
-              LevelValueEnum:
-                  - Unknown
-                  - Low
-                  - Medium
-                  - High
-                  - Critical
-              MeasurementUnitEnum:
-                  - PPM
-                  - PPB
-                  - PPT
-                  - MGM3
-                  - UGM3
-                  - NGM3
-                  - PM3
-                  - BQM3
-              MeasurementMediumEnum:
-                  - Gas
-                  - Liquid
-                  - Soil
-          DoorLock:
-              DlLockState:
-                  - Unlatched
-              DlLockType:
-                  - Eurocylinder
-              LockOperationTypeEnum:
-                  - Unlatch
-          OperationalState:
-              OperationalStateEnum:
-                  - Stopped
-                  - Running
-                  - Paused
-                  - Error
-              ErrorStateEnum:
-                  - NoError
-                  - UnableToStartOrResume
-                  - UnableToCompleteOperation
-                  - CommandInvalidInState
-          SmokeCOAlarm:
-              AlarmStateEnum:
-                  - Normal
-                  - Warning
-                  - Critical
-              ContaminationStateEnum:
-                  - Normal
-                  - Low
-                  - Warning
-                  - Critical
-              EndOfServiceEnum:
-                  - Expired
-                  - Normal
-              ExpressedStateEnum:
-                  - Normal
-                  - SmokeAlarm
-                  - COAlarm
-                  - BatteryAlert
-                  - Testing
-                  - HardwareFault
-                  - EndOfService
-                  - InterconnectSmoke
-                  - InterconnectCO
-              MuteStateEnum:
-                  - NotMuted
-                  - Muted
-              SensitivityEnum:
-                  - High
-                  - Standard
-                  - Low
           WiFiNetworkDiagnostics:
               WiFiVersionEnum:
                   - Ah
@@ -8059,8 +7235,6 @@
                   - LightOutput
                   - VisibleIndicator
       bitmaps:
-          AirQuality:
-              - Feature
           Groups:
               - Feature
               - NameSupportBitmap
@@ -8072,47 +7246,18 @@
               - Feature
           Scenes:
               - Feature
-          HEPAFilterMonitoring:
-              - Feature
-          ActivatedCarbonFilterMonitoring:
-              - Feature
-          CarbonDioxideConcentrationMeasurement:
-              - Feature
-          CarbonMonoxideConcentrationMeasurement:
-              - Feature
-          FormaldehydeConcentrationMeasurement:
-              - Feature
-          NitrogenDioxideConcentrationMeasurement:
-              - Feature
-          OzoneConcentrationMeasurement:
-              - Feature
-          PM10ConcentrationMeasurement:
-              - Feature
-          PM1ConcentrationMeasurement:
-              - Feature
-          PM25ConcentrationMeasurement:
-              - Feature
-          RadonConcentrationMeasurement:
-              - Feature
-          TotalVolatileOrganicCompoundsConcentrationMeasurement:
-              - Feature
-          RefrigeratorAlarm:
-              - AlarmMap
-          TemperatureControl:
-              - Feature
-          SmokeCOAlarm:
-              - Feature
-      bitmap values:
-          AirQuality:
-              Feature:
-                  - Fair
-                  - Moderate
-                  - VeryPoor
-                  - ExtremelyPoor
           FanControl:
-              Feature:
-                  - Step
-                  - AirflowDirection
+              - RockBitmap
+              - WindBitmap
+      bitmap values:
+          FanControl:
+              RockBitmap:
+                  - RockLeftRight
+                  - RockUpDown
+                  - RockRound
+              WindBitmap:
+                  - SleepWind
+                  - NaturalWind
           Groups:
               Feature:
                   - GroupNames
@@ -8146,120 +7291,12 @@
           Thermostat:
               Feature:
                   - LocalTemperatureNotExposed
-          HEPAFilterMonitoring:
-              Feature:
-                  - Condition
-                  - Warning
-          ActivatedCarbonFilterMonitoring:
-              Feature:
-                  - Condition
-                  - Warning
-          CarbonDioxideConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          CarbonMonoxideConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          FormaldehydeConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          NitrogenDioxideConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          OzoneConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          PM10ConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          PM1ConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          PM25ConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          RadonConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          TotalVolatileOrganicCompoundsConcentrationMeasurement:
-              Feature:
-                  - NumericMeasurement
-                  - LevelIndication
-                  - MediumLevel
-                  - CriticalLevel
-                  - PeakMeasurement
-                  - AverageMeasurement
-          DoorLock:
-              # Feature was originally named DoorLockFeature, but we generate the
-              # same API for both of those names, so the name can just change
-              # here.
-              Feature:
-                  - Unbolt
-          RefrigeratorAlarm:
-              AlarmMap:
-                  - DoorOpen
-          TemperatureControl:
-              Feature:
-                  - TemperatureNumber
-                  - TemperatureLevel
-                  - TemperatureStep
-          SmokeCOAlarm:
-              Feature:
-                  - SmokeAlarm
-                  - COAlarm
       ids:
           attributes:
               TimeSynchronization:
                   - TrustedTimeSource
                   - DefaultNTP
                   - NTPServerAvailable
-      global attributes:
-          - EventList
   deprecated:
       clusters:
           # We apparently forgot to deprecate BridgedDeviceBasic when we
@@ -8280,6 +7317,10 @@
           ThreadNetworkDiagnostics:
               - NeighborTable
               - RouteTable
+      enums:
+          FanControl:
+              - FanModeType
+              - FanModeSequenceType
       bitmaps:
           Groups:
               - GroupClusterFeature
@@ -8289,6 +7330,9 @@
               - PressureFeature
           PumpConfigurationAndControl:
               - PumpFeature
+          FanControl:
+              - RockSupportMask
+              - WindSupportMask
       bitmap values:
           ModeSelect:
               Feature:
@@ -8312,6 +7356,10 @@
           ThreadNetworkDiagnostics:
               NeighborTableStruct: NeighborTable
               RouteTableStruct: RouteTable
+      enums:
+          FanControl:
+              FanModeEnum: FanModeType
+              FanModeSequenceEnum: FanModeSequenceType
       enum values:
           TimeSynchronization:
               TimeSourceEnum:
@@ -8340,51 +7388,48 @@
               Feature: PressureFeature
           PumpConfigurationAndControl:
               Feature: PumpFeature
+          FanControl:
+              RockBitmap: RockSupportMask
+              WindBitmap: WindSupportMask
       bitmap values:
           ModeSelect:
               Feature:
                   OnOff: DEPONOFF
+  swiftUnavailable:
+      bitmap values:
+          NetworkCommissioning:
+              WiFiSecurity:
+                  # The bitmap got renamed to WiFiSecurityBitmap, so now both
+                  # the Wpa* and WPA* names on WiFiSecurity are deprecated.
+                  # They get mapped to Swift with identical names, which leads
+                  # to the names being ambiguous.  Mark the "Wpa*" as
+                  # unavailable to Swift to work around this.
+                  - WpaPersonal
+                  - Wpa2Personal
+                  - Wpa3Personal
   provisional:
       clusters:
-          # Officially marked provisional: many concentration measurement clusters
-          - BromateConcentrationMeasurement
-          - BromodichloromethaneConcentrationMeasurement
-          - BromoformConcentrationMeasurement
-          - ChloraminesConcentrationMeasurement
-          - ChlorineConcentrationMeasurement
-          - ChlorodibromomethaneConcentrationMeasurement
-          - ChloroformConcentrationMeasurement
-          - CopperConcentrationMeasurement
-          - DissolvedOxygenConcentrationMeasurement
-          - EthyleneConcentrationMeasurement
-          - EthyleneOxideConcentrationMeasurement
-          - FecalColiformEColiConcentrationMeasurement
-          - FluorideConcentrationMeasurement
-          - HaloaceticAcidsConcentrationMeasurement
-          - HydrogenConcentrationMeasurement
-          - HydrogenSulfideConcentrationMeasurement
-          - LeadConcentrationMeasurement
-          - ManganeseConcentrationMeasurement
-          - NitricOxideConcentrationMeasurement
-          - OxygenConcentrationMeasurement
-          - SodiumConcentrationMeasurement
-          - SulfateConcentrationMeasurement
-          - SulfurDioxideConcentrationMeasurement
-          - TotalColiformBacteriaConcentrationMeasurement
-          - TotalTrihalomethanesConcentrationMeasurement
-          - TurbidityConcentrationMeasurement
-          # Officially marked provisional: many replaceable monitoring clusters
-          - CeramicFilterMonitoring
-          - ElectrostaticFilterMonitoring
-          - UVFilterMonitoring
-          - IonizingFilterMonitoring
-          - ZeoliteFilterMonitoring
-          - OzoneFilterMonitoring
-          - WaterTankMonitoring
-          - FuelTankMonitoring
-          - InkCartridgeMonitoring
-          - TonerCartridgeMonitoring
-          # Not ready to be public API yet.
+          ## Not ready at cutoff
+          - AirQuality
+          # Replaceable Monitoring clusters
+          - HEPAFilterMonitoring
+          - ActivatedCarbonFilterMonitoring
+          # Concentration Measurement clusters
+          - CarbonDioxideConcentrationMeasurement
+          - CarbonMonoxideConcentrationMeasurement
+          - FormaldehydeConcentrationMeasurement
+          - NitrogenDioxideConcentrationMeasurement
+          - OzoneConcentrationMeasurement
+          - PM10ConcentrationMeasurement
+          - PM1ConcentrationMeasurement
+          - PM25ConcentrationMeasurement
+          - RadonConcentrationMeasurement
+          - TotalVolatileOrganicCompoundsConcentrationMeasurement
+          - OperationalState
+          - RefrigeratorAlarm
+          - TemperatureControl
+          - SmokeCOAlarm
+          ## Not ready to be public API yet.
           - ICDManagement
           - LaundryWasherMode
           - RefrigeratorAndTemperatureControlledCabinetMode
@@ -8394,7 +7439,66 @@
           - LaundryWasherControls
           - RVCOperationalState
           - DishwasherAlarm
-      # Once we actually unmark TimeSynchronization as provisional, all these bits should go away too, and we should instead
+          - SampleMEI
+      attributes:
+          Scenes:
+              # New scenes bits not stable yet.
+              - SceneTableSize
+              - RemainingCapacity
+          FanControl:
+              # New Fan Control bits not stable yet.
+              - AirflowDirection
+      commands:
+          FanControl:
+              # Not stable yet
+              - Step
+          DoorLock:
+              # Not stable yet
+              - UnboltDoor
+      enums:
+          FanControl:
+              # Not stable yet.
+              - StepDirectionEnum
+              - AirflowDirectionEnum
+      enum values:
+          DoorLock:
+              # Not stable yet
+              DlLockState:
+                  - Unlatched
+              DlLockType:
+                  - Eurocylinder
+              LockOperationTypeEnum:
+                  - Unlatch
+          TimeSynchronization:
+              TimeSourceEnum:
+                  - NonMatterSNTP
+                  - NonMatterNTP
+                  - MatterSNTP
+                  - MatterNTP
+                  - MixedNTP
+                  - NonMatterSNTPNTS
+                  - NonMatterNTPNTS
+                  - MatterSNTPNTS
+                  - MatterNTPNTS
+                  - MixedNTPNTS
+                  - PTP
+                  - GNSS
+      bitmap values:
+          DoorLock:
+              # Not stable yet
+              # Feature was originally named DoorLockFeature, but we generate the
+              # same API for both of those names, so the name can just change
+              # here.
+              Feature:
+                  - Unbolt
+          FanControl:
+              # Not stable yet
+              Feature:
+                  - Step
+                  - AirflowDirection
+      global attributes:
+          - EventList
+      # Once we actually unmark TimeSynchronization as provisional, all these bits except EventList should go away too, and we should instead
       # mark things as introduced/deprecated as needed.  The "ids" entries should go away, in particular.
       ids:
           attributes:
@@ -8402,6 +7506,15 @@
                   - TimeZoneListMaxSize
                   - DSTOffsetListMaxSize
                   - SupportsDNSResolve
+                  # Because we are special-casing ids for TimeSynchronization
+                  # above, we need to explicitly mark the EventList id
+                  # provisional.
+                  - EventList
+              PulseWidthModulation:
+                  # Because we are special-casing ids for PulseWidthModulation
+                  # above, we need to explicitly mark the EventList id
+                  # provisional.
+                  - EventList
           commands:
               TimeSynchronization:
                   - SetUTCTime
@@ -8417,18 +7530,300 @@
                   - TimeZoneStatus
                   - TimeFailure
                   - MissingTrustedTimeSource
-      enum values:
+
+- release: "Fall 2023 #2"
+  versions:
+      iOS: "17.1"
+      macOS: "14.1"
+      watchOS: "10.1"
+      tvOS: "17.1"
+  introduced:
+      bitmaps:
+          TimeFormatLocalization:
+              - Feature
+      bitmap values:
+          OnOff:
+              Feature:
+                  - DeadFront
+          TimeFormatLocalization:
+              Feature:
+                  - CalendarFormat
+  provisional:
+      attributes:
+          # New things, not quite finalized.
+          PowerSource:
+              - EndpointList
+          Descriptor:
+              - TagList
+      structs:
+          # New things, not quite finalized.
+          Descriptor:
+              - SemanticTagStruct
+      struct fields:
+          # New things, not quite finalized.
+          Descriptor:
+              SemanticTagStruct:
+                  - mfgCode
+                  - namespaceID
+                  - tag
+                  - label
+      bitmaps:
+          # CacheAndSync is provisional in the spec.
+          GroupKeyManagement:
+              - Feature
+          # New things, not quite finalized.
+          Descriptor:
+              - Feature
+      bitmap values:
+          # New things, not quite finalized.
+          Descriptor:
+              Feature:
+                  - TagList
+          # CacheAndSync is provisional in the spec.
+          GroupKeyManagement:
+              Feature:
+                  - CacheAndSync
+          # Scenes are generally provisional for now.
+          Scenes:
+              Feature:
+                  - Explicit
+                  - TableSize
+                  - FabricScenes
+  removed:
+      clusters:
+          # Clusters that really should just not be exposed, even if they're in our XML.
+          - FaultInjection
+          # Clusters that are not going to end up shipping in their current form,
+          # so we should not be exposing the bits we expose now.
+          - ProxyConfiguration
+          - ProxyDiscovery
+          - ProxyValid
+
+- release: "Fall 2023 #3"
+  versions:
+      iOS: "17.2"
+      macOS: "14.2"
+      watchOS: "10.2"
+      tvOS: "17.2"
+  introduced:
+      command payloads:
           TimeSynchronization:
-              TimeSourceEnum:
-                  - NonMatterSNTP
-                  - NonMatterNTP
-                  - MatterSNTP
-                  - MatterNTP
-                  - MixedNTP
-                  - NonMatterSNTPNTS
-                  - NonMatterNTPNTS
-                  - MatterSNTPNTS
-                  - MatterNTPNTS
-                  - MixedNTPNTS
-                  - PTP
-                  - GNSS
+              - SetUTCTime
+      command fields:
+          TimeSynchronization:
+              SetUTCTime:
+                  - utcTime
+                  - granularity
+                  - timeSource
+      enums:
+          OTASoftwareUpdateProvider:
+              - StatusEnum
+              - ApplyUpdateActionEnum
+              - DownloadProtocolEnum
+          OTASoftwareUpdateRequestor:
+              - AnnouncementReasonEnum
+              - UpdateStateEnum
+              - ChangeReasonEnum
+      enum values:
+          OTASoftwareUpdateProvider:
+              StatusEnum:
+                  - UpdateAvailable
+                  - Busy
+                  - NotAvailable
+                  - DownloadProtocolNotSupported
+              ApplyUpdateActionEnum:
+                  - Proceed
+                  - AwaitNextAction
+                  - Discontinue
+              DownloadProtocolEnum:
+                  - BDXSynchronous
+                  - BDXAsynchronous
+                  - HTTPS
+                  - VendorSpecific
+          OTASoftwareUpdateRequestor:
+              AnnouncementReasonEnum:
+                  - SimpleAnnouncement
+                  - UpdateAvailable
+                  - UrgentUpdateAvailable
+              UpdateStateEnum:
+                  - Unknown
+                  - Idle
+                  - Querying
+                  - DelayedOnQuery
+                  - Downloading
+                  - Applying
+                  - DelayedOnApply
+                  - RollingBack
+                  - DelayedOnUserConsent
+              ChangeReasonEnum:
+                  - Unknown
+                  - Success
+                  - Failure
+                  - TimeOut
+                  - DelayByProvider
+          OnOff:
+              DelayedAllOffEffectVariantEnum:
+                  - DelayedOffFastFade
+                  - DelayedOffSlowFade
+              DyingLightEffectVariantEnum:
+                  - DyingLightFadeOff
+              StartUpOnOffEnum:
+                  - Toggle
+      bitmaps:
+          OnOff:
+              - OnOffControlBitmap
+      bitmap values:
+          OnOff:
+              Feature:
+                  - DeadFrontBehavior
+              OnOffControlBitmap:
+                  - AcceptOnlyWhenOn
+  deprecated:
+      enums:
+          OTASoftwareUpdateProvider:
+              - OTAQueryStatus
+              - OTAApplyUpdateAction
+              - OTADownloadProtocol
+          OTASoftwareUpdateRequestor:
+              - OTAAnnouncementReason
+              - OTAUpdateStateEnum
+              - OTAChangeReasonEnum
+      enum values:
+          OnOff:
+              DelayedAllOffEffectVariantEnum:
+                  - FadeToOffIn0p8Seconds
+                  - 50PercentDimDownIn0p8SecondsThenFadeToOffIn12Seconds
+              DyingLightEffectVariantEnum:
+                  - 20PercenterDimUpIn0p5SecondsThenFadeToOffIn1Second
+              StartUpOnOffEnum:
+                  - TogglePreviousOnOff
+      bitmaps:
+          OnOff:
+              - OnOffControl
+      bitmap values:
+          OnOff:
+              Feature:
+                  - DeadFront
+  provisional:
+      bitmaps:
+          BarrierControl:
+              - BarrierControlCapabilities
+              - BarrierControlSafetyStatus
+          BallastConfiguration:
+              # The BallastConfiguration cluster is provisional for now, but not marked that way.
+              - BallastStatusBitmap
+              - LampAlarmModeBitmap
+      attributes:
+          GeneralDiagnostics:
+              # Not in the spec yet.
+              - AverageWearCount
+  renames:
+      enums:
+          OTASoftwareUpdateProvider:
+              StatusEnum: OTAQueryStatus
+              ApplyUpdateActionEnum: OTAApplyUpdateAction
+              DownloadProtocolEnum: OTADownloadProtocol
+          OTASoftwareUpdateRequestor:
+              AnnouncementReasonEnum: OTAAnnouncementReason
+              UpdateStateEnum: OTAUpdateStateEnum
+              ChangeReasonEnum: OTAChangeReasonEnum
+      enum values:
+          OnOff:
+              DelayedAllOffEffectVariantEnum:
+                  DelayedOffFastFade: FadeToOffIn0p8Seconds
+                  DelayedOffSlowFade: 50PercentDimDownIn0p8SecondsThenFadeToOffIn12Seconds
+              DyingLightEffectVariantEnum:
+                  DyingLightFadeOff: 20PercenterDimUpIn0p5SecondsThenFadeToOffIn1Second
+              StartUpOnOffEnum:
+                  Toggle: TogglePreviousOnOff
+      bitmaps:
+          OnOff:
+              OnOffControlBitmap: OnOffControl
+      bitmap values:
+          OnOff:
+              Feature:
+                  DeadFrontBehavior: DeadFront
+
+- release: "Future"
+  versions: "future"
+  introduced:
+      event fields:
+          WiFiNetworkDiagnostics:
+              AssociationFailure:
+                  - associationFailureCause
+      bitmaps:
+          Scenes:
+              - CopyModeBitmap
+              - NameSupportBitmap
+          AdministratorCommissioning:
+              - Feature
+      bitmap values:
+          PumpConfigurationAndControl:
+              PumpStatusBitmap:
+                  - SupplyFault
+          Scenes:
+              CopyModeBitmap:
+                  - CopyAllScenes
+              NameSupportBitmap:
+                  - SceneNames
+          SoftwareDiagnostics:
+              Feature:
+                  - Watermarks
+          AdministratorCommissioning:
+              Feature:
+                  - Basic
+  deprecated:
+      event fields:
+          WiFiNetworkDiagnostics:
+              AssociationFailure:
+                  - associationFailure
+      bitmaps:
+          Scenes:
+              - ScenesCopyMode
+      bitmap values:
+          PumpConfigurationAndControl:
+              PumpStatusBitmap:
+                  - Supplyfault
+          SoftwareDiagnostics:
+              Feature:
+                  - WaterMarks
+  provisional:
+      clusters:
+          # Targeting Spring 2024 Matter release
+          - MicrowaveOvenControl
+          - MicrowaveOvenMode
+      attributes:
+          NetworkCommissioning:
+              # Targeting Spring 2024 Matter release
+              - SupportedWiFiBands
+              - SupportedThreadFeatures
+              - ThreadVersion
+      commands:
+          GeneralDiagnostics:
+              # Targeting Spring 2024 Matter release
+              - TimeSnapshot
+              - TimeSnapshotResponse
+      bitmaps:
+          NetworkCommissioning:
+              # Targeting Spring 2024 Matter release
+              - ThreadCapabilitiesBitmap
+      bitmap values:
+          OnOff:
+              Feature:
+                  # Targeting Spring 2024 Matter release
+                  - OffOnly
+  renames:
+      event fields:
+          WiFiNetworkDiagnostics:
+              AssociationFailure:
+                  associationFailureCause: associationFailure
+      bitmaps:
+          Scenes:
+              CopyModeBitmap: ScenesCopyMode
+      bitmap values:
+          PumpConfigurationAndControl:
+              PumpStatusBitmap:
+                  SupplyFault: Supplyfault
+          SoftwareDiagnostics:
+              Feature:
+                  Watermarks: WaterMarks

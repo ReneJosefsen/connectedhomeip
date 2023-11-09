@@ -48,8 +48,10 @@ struct CommonResolutionData
     uint16_t port                         = 0;
     char hostName[kHostNameMaxLength + 1] = {};
     bool supportsTcp                      = false;
+    Optional<bool> isICDOperatingAsLIT;
     Optional<System::Clock::Milliseconds32> mrpRetryIntervalIdle;
     Optional<System::Clock::Milliseconds32> mrpRetryIntervalActive;
+    Optional<System::Clock::Milliseconds16> mrpRetryActiveThreshold;
 
     CommonResolutionData() { Reset(); }
 
@@ -59,10 +61,12 @@ struct CommonResolutionData
     {
         const ReliableMessageProtocolConfig defaultConfig = GetDefaultMRPConfig();
         return ReliableMessageProtocolConfig(GetMrpRetryIntervalIdle().ValueOr(defaultConfig.mIdleRetransTimeout),
-                                             GetMrpRetryIntervalActive().ValueOr(defaultConfig.mActiveRetransTimeout));
+                                             GetMrpRetryIntervalActive().ValueOr(defaultConfig.mActiveRetransTimeout),
+                                             GetMrpRetryActiveThreshold().ValueOr(defaultConfig.mActiveThresholdTime));
     }
     Optional<System::Clock::Milliseconds32> GetMrpRetryIntervalIdle() const { return mrpRetryIntervalIdle; }
     Optional<System::Clock::Milliseconds32> GetMrpRetryIntervalActive() const { return mrpRetryIntervalActive; }
+    Optional<System::Clock::Milliseconds16> GetMrpRetryActiveThreshold() const { return mrpRetryActiveThreshold; }
 
     bool IsDeviceTreatedAsSleepy(const ReliableMessageProtocolConfig * defaultMRPConfig) const
     {
@@ -78,12 +82,14 @@ struct CommonResolutionData
     void Reset()
     {
         memset(hostName, 0, sizeof(hostName));
-        mrpRetryIntervalIdle   = NullOptional;
-        mrpRetryIntervalActive = NullOptional;
-        numIPs                 = 0;
-        port                   = 0;
-        supportsTcp            = false;
-        interfaceId            = Inet::InterfaceId::Null();
+        mrpRetryIntervalIdle    = NullOptional;
+        mrpRetryIntervalActive  = NullOptional;
+        mrpRetryActiveThreshold = NullOptional;
+        isICDOperatingAsLIT     = NullOptional;
+        numIPs                  = 0;
+        port                    = 0;
+        supportsTcp             = false;
+        interfaceId             = Inet::InterfaceId::Null();
         for (auto & addr : ipAddress)
         {
             addr = chip::Inet::IPAddress::Any;
@@ -124,7 +130,23 @@ struct CommonResolutionData
         {
             ChipLogDetail(Discovery, "\tMrp Interval active: not present");
         }
+        if (mrpRetryActiveThreshold.HasValue())
+        {
+            ChipLogDetail(Discovery, "\tMrp Active Threshold: %u ms", mrpRetryActiveThreshold.Value().count());
+        }
+        else
+        {
+            ChipLogDetail(Discovery, "\tMrp Active Threshold: not present");
+        }
         ChipLogDetail(Discovery, "\tTCP Supported: %d", supportsTcp);
+        if (isICDOperatingAsLIT.HasValue())
+        {
+            ChipLogDetail(Discovery, "\tThe ICD operates in %s", isICDOperatingAsLIT.Value() ? "LIT" : "SIT");
+        }
+        else
+        {
+            ChipLogDetail(Discovery, "\tICD: not present");
+        }
     }
 };
 
@@ -136,9 +158,9 @@ struct OperationalNodeData
     void Reset() { peerId = PeerId(); }
 };
 
-constexpr size_t kMaxDeviceNameLen         = 32;
-constexpr size_t kMaxRotatingIdLen         = 50;
-constexpr size_t kMaxPairingInstructionLen = 128;
+inline constexpr size_t kMaxDeviceNameLen         = 32;
+inline constexpr size_t kMaxRotatingIdLen         = 50;
+inline constexpr size_t kMaxPairingInstructionLen = 128;
 
 /// Data that is specific to commisionable/commissioning node discovery
 struct CommissionNodeData

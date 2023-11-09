@@ -43,14 +43,14 @@
 #include "route_hook/asr_route_hook.h"
 #endif
 
-static const char * TAG = "app-devicecallbacks";
-
 using namespace ::chip;
 using namespace ::chip::Inet;
 using namespace ::chip::System;
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::Logging;
+
+extern LEDWidget sLightLED;
 
 uint32_t identifyTimerCount;
 constexpr uint32_t kIdentifyTimerDelayMS = 250;
@@ -147,13 +147,30 @@ void DeviceCallbacks::OnInternetConnectivityChange(const ChipDeviceEvent * event
 void DeviceCallbacks::OnOnOffPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
     VerifyOrExit(attributeId == chip::app::Clusters::OnOff::Attributes::OnOff::Id,
-                 ChipLogError(DeviceLayer, TAG, "Unhandled Attribute ID: '0x%04x", attributeId));
-    VerifyOrExit(endpointId == 1 || endpointId == 2,
-                 ChipLogError(DeviceLayer, TAG, "Unexpected EndPoint ID: `0x%02x'", endpointId));
+                 ChipLogError(DeviceLayer, "Unhandled Attribute ID: '0x%04lx", attributeId));
+    VerifyOrExit(endpointId == 1 || endpointId == 2, ChipLogError(DeviceLayer, "Unexpected EndPoint ID: `0x%02x'", endpointId));
 
-    // At this point we can assume that value points to a bool value.
-    // statusLED1.Set(*value);
+    switch (attributeId)
+    {
+    case chip::app::Clusters::OnOff::Attributes::OnOff::Id: {
+        ChipLogProgress(Zcl, "ON/OFF level: %u ", *value);
+        // At this point we can assume that value points to a bool value.
+        sLightLED.Set(*value);
+    }
+    break;
 
+    case chip::app::Clusters::OnOff::Attributes::OnTime::Id:
+    case chip::app::Clusters::OnOff::Attributes::OffWaitTime::Id:
+    case chip::app::Clusters::OnOff::Attributes::StartUpOnOff::Id:
+    case chip::app::Clusters::OnOff::Attributes::GlobalSceneControl::Id: {
+        ChipLogProgress(Zcl, "Unprocessed attribute ID: %" PRIx32, attributeId);
+    }
+    break;
+
+    default:
+        ChipLogProgress(Zcl, "Unknown attribute ID: %" PRIx32, attributeId);
+        return;
+    } // switch (attributeId)
 exit:
     return;
 }
@@ -169,8 +186,8 @@ void IdentifyTimerHandler(Layer * systemLayer, void * appState, CHIP_ERROR error
 void DeviceCallbacks::OnIdentifyPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
     VerifyOrExit(attributeId == chip::app::Clusters::Identify::Attributes::IdentifyTime::Id,
-                 ChipLogError(DeviceLayer, "[%s] Unhandled Attribute ID: '0x%04lx", TAG, attributeId));
-    VerifyOrExit(endpointId == 1, ChipLogError(DeviceLayer, "[%s] Unexpected EndPoint ID: `0x%02x'", TAG, endpointId));
+                 ChipLogError(DeviceLayer, "Unhandled Attribute ID: '0x%04lx", attributeId));
+    VerifyOrExit(endpointId == 1, ChipLogError(DeviceLayer, "Unexpected EndPoint ID: `0x%02x'", endpointId));
 
     // timerCount represents the number of callback executions before we stop the timer.
     // value is expressed in seconds and the timer is fired every 250ms, so just multiply value by 4.

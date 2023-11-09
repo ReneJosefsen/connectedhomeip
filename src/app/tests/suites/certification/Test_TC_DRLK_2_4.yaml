@@ -35,6 +35,7 @@ tests:
 
     - label: "Create new user"
       command: "SetUser"
+      PICS: DRLK.S.F08 && DRLK.S.F00
       timedInteractionTimeoutMs: 1000
       arguments:
           values:
@@ -55,6 +56,7 @@ tests:
 
     - label: "Read the user back and verify its fields"
       command: "GetUser"
+      PICS: DRLK.S.F08 && DRLK.S.F00
       arguments:
           values:
               - name: "UserIndex"
@@ -84,6 +86,7 @@ tests:
 
     - label: "Create new PIN credential and lock/unlock user"
       command: "SetCredential"
+      PICS: DRLK.S.F08 && DRLK.S.F00
       timedInteractionTimeoutMs: 1000
       arguments:
           values:
@@ -109,6 +112,7 @@ tests:
                 value: 2
 
     - label: "Verify created PIN credential"
+      PICS: DRLK.S.F08 && DRLK.S.F00
       command: "GetCredentialStatus"
       arguments:
           values:
@@ -127,22 +131,28 @@ tests:
               - name: "NextCredentialIndex"
                 value: null
 
-    - label: "TH writes AutoRelockTime attribute value as 10 seconds on the DUT"
-      PICS: DRLK.S.A0023.Write && PICS_SDK_CI_ONLY
+    - label:
+          "Step 1a: TH writes AutoRelockTime attribute value as 10 seconds on
+          the DUT"
+      PICS: DRLK.S.M.AutoRelockTimeAttributeWritable && PICS_SDK_CI_ONLY
       command: "writeAttribute"
       attribute: "AutoRelockTime"
       arguments:
           value: 10
 
-    - label: "TH writes AutoRelockTime attribute value as 60 seconds on the DUT"
-      PICS: DRLK.S.A0023.Write && PICS_SKIP_SAMPLE_APP
+    - label:
+          "Step 1b: TH writes AutoRelockTime attribute value as 60 seconds on
+          the DUT"
+      PICS: DRLK.S.M.AutoRelockTimeAttributeWritable && PICS_SKIP_SAMPLE_APP
       command: "writeAttribute"
       attribute: "AutoRelockTime"
       arguments:
           value: 60
 
-    - label: "TH writes AutoRelockTime attribute value as 10 seconds on the DUT"
-      PICS: PICS_SDK_CI_ONLY && !DRLK.S.A0023.Write
+    - label:
+          "Step 1c: TH writes AutoRelockTime attribute value as 10 seconds on
+          the DUT"
+      PICS: PICS_SDK_CI_ONLY && !DRLK.S.M.AutoRelockTimeAttributeWritable
       command: "writeAttribute"
       attribute: "AutoRelockTime"
       arguments:
@@ -150,8 +160,10 @@ tests:
       response:
           error: UNSUPPORTED_WRITE
 
-    - label: "TH writes AutoRelockTime attribute value as 60 seconds on the DUT"
-      PICS: PICS_SKIP_SAMPLE_APP && !DRLK.S.A0023.Write
+    - label:
+          "Step 1d: TH writes AutoRelockTime attribute value as 60 seconds on
+          the DUT"
+      PICS: PICS_SKIP_SAMPLE_APP && !DRLK.S.M.AutoRelockTimeAttributeWritable
       command: "writeAttribute"
       attribute: "AutoRelockTime"
       arguments:
@@ -159,7 +171,9 @@ tests:
       response:
           error: UNSUPPORTED_WRITE
 
-    - label: "TH sends the Unlock with Timeout argument value as 10 seconds"
+    - label:
+          "Step 2a: TH sends the Unlock with Timeout argument value as 10
+          seconds"
       PICS: DRLK.S.C03.Rsp && PICS_SDK_CI_ONLY
       command: "UnlockWithTimeout"
       timedInteractionTimeoutMs: 1000
@@ -170,8 +184,11 @@ tests:
               - name: "PINCode"
                 value: "123456"
 
-    - label: "TH sends the Unlock with Timeout argument value as 60 seconds"
-      PICS: DRLK.S.C03.Rsp && PICS_SKIP_SAMPLE_APP
+    - label:
+          "Step 2b: TH sends the Unlock with Timeout argument value as 60
+          seconds"
+      PICS:
+          " DRLK.S.F08 && DRLK.S.F00 && DRLK.S.C03.Rsp && PICS_SKIP_SAMPLE_APP "
       command: "UnlockWithTimeout"
       timedInteractionTimeoutMs: 1000
       arguments:
@@ -180,6 +197,19 @@ tests:
                 value: 60
               - name: "PINCode"
                 value: "123456"
+
+    - label:
+          "Step 2b: TH sends the Unlock with Timeout argument value as 60
+          seconds"
+      PICS:
+          " (!DRLK.S.F08 || !DRLK.S.F00) && DRLK.S.C03.Rsp &&
+          PICS_SKIP_SAMPLE_APP "
+      command: "UnlockWithTimeout"
+      timedInteractionTimeoutMs: 1000
+      arguments:
+          values:
+              - name: "Timeout"
+                value: 60
 
     - label: "Wait for AutoRelockTime Expires"
       cluster: "DelayCommands"
@@ -200,7 +230,7 @@ tests:
               - name: "ms"
                 value: 70000
 
-    - label: "TH reads LockState attribute"
+    - label: "Step 2c: TH reads LockState attribute"
       PICS: DRLK.S.A0000 && DRLK.S.C03.Rsp
       command: "readAttribute"
       attribute: "LockState"
@@ -209,6 +239,7 @@ tests:
 
     - label: "Cleanup the created user"
       command: "ClearUser"
+      PICS: DRLK.S.F08 && DRLK.S.F00
       timedInteractionTimeoutMs: 1000
       arguments:
           values:
@@ -216,7 +247,7 @@ tests:
                 value: 1
 
     - label: "Clean the created credential"
-      PICS: DRLK.S.C26.Rsp
+      PICS: DRLK.S.F08 && DRLK.S.F00 && DRLK.S.C26.Rsp
       command: "ClearCredential"
       timedInteractionTimeoutMs: 1000
       arguments:

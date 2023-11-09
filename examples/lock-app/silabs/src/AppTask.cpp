@@ -190,7 +190,7 @@ CHIP_ERROR AppTask::Init()
     if (!ConnectivityMgr().IsThreadProvisioned())
 #endif /* !SL_WIFI */
     {
-        GetLCD().ShowQRCode(true, true);
+        GetLCD().ShowQRCode(true);
     }
 #endif // QR_CODE_ENABLED
 #endif
@@ -219,7 +219,7 @@ void AppTask::AppTaskMain(void * pvParameter)
         appError(err);
     }
 
-#if !(defined(CHIP_DEVICE_CONFIG_ENABLE_SED) && CHIP_DEVICE_CONFIG_ENABLE_SED)
+#if !(defined(CHIP_CONFIG_ENABLE_ICD_SERVER) && CHIP_CONFIG_ENABLE_ICD_SERVER)
     sAppTask.StartStatusLEDTimer();
 #endif
 
@@ -352,11 +352,9 @@ void AppTask::UpdateClusterState(intptr_t context)
     bool unlocked        = LockMgr().NextState();
     DlLockState newState = unlocked ? DlLockState::kUnlocked : DlLockState::kLocked;
 
-    OperationSourceEnum source = OperationSourceEnum::kUnspecified;
-
     // write the new lock value
     EmberAfStatus status =
-        DoorLockServer::Instance().SetLockState(1, newState, source) ? EMBER_ZCL_STATUS_SUCCESS : EMBER_ZCL_STATUS_FAILURE;
+        DoorLockServer::Instance().SetLockState(1, newState) ? EMBER_ZCL_STATUS_SUCCESS : EMBER_ZCL_STATUS_FAILURE;
 
     if (status != EMBER_ZCL_STATUS_SUCCESS)
     {

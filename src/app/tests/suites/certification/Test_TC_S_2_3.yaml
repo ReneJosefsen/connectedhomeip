@@ -23,8 +23,8 @@ config:
     cluster: "Scenes"
     endpoint: 1
     G1:
-        type: int16u
-        defaultValue: 0x0001
+        type: group_id
+        defaultValue: 0x0101
 
 tests:
     - label: "Wait for the commissioned device to be retrieved"
@@ -43,11 +43,40 @@ tests:
           values:
               - name: "SceneTableSize"
                 saveAs: maxScenes
-          constraints:
-              type: uint16
+
+    - label: "Arithmetic operation to get the maxScenes - 1"
+      cluster: "Unit Testing"
+      command: "TestAddArguments"
+      arguments:
+          values:
+              - name: "arg1"
+                value: maxScenes - 1
+              - name: "arg2"
+                value: 0
+      response:
+          values:
+              - name: "returnValue"
+                saveAs: maxScenesMinusOne
+                value: maxScenes - 1
+
+    - label: "Arithmetic operation to get the fabric Capacity"
+      cluster: "Unit Testing"
+      command: "TestAddArguments"
+      arguments:
+          values:
+              - name: "arg1"
+                value: maxScenesMinusOne / 2
+              - name: "arg2"
+                value: 0
+      response:
+          values:
+              - name: "returnValue"
+                saveAs: fabricCapacity
+                value: maxScenesMinusOne / 2
 
     - label:
-          "preparation step for using commands from Groups cluster: Add KeySet"
+          "Step 0a: preparation step for using commands from Groups cluster: Add
+          KeySet"
       cluster: "Group Key Management"
       endpoint: 0
       command: "KeySetWrite"
@@ -59,16 +88,16 @@ tests:
                         GroupKeySetID: 0x01a1,
                         GroupKeySecurityPolicy: 0,
                         EpochKey0: "\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf",
-                        EpochStartTime0: 0,
+                        EpochStartTime0: 1110000,
                         EpochKey1: "\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf",
-                        EpochStartTime1: 0,
+                        EpochStartTime1: 1110001,
                         EpochKey2: "\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf",
-                        EpochStartTime2: 0,
+                        EpochStartTime2: 1110002,
                     }
 
     - label:
-          "Preparation step for using commands from Groups cluster: Write Group
-          Keys"
+          "Step 0b: Preparation step for using commands from Groups cluster:
+          Write Group Keys"
       cluster: "Group Key Management"
       endpoint: 0
       command: "writeAttribute"
@@ -77,7 +106,8 @@ tests:
           value: [{ FabricIndex: 1, GroupId: G1, GroupKeySetID: 0x01a1 }]
 
     - label:
-          "TH sends a AddGroup command to DUT with the GroupID field set to G1."
+          "Step 1a: TH sends a AddGroup command to DUT with the GroupID field
+          set to G1."
       PICS: G.S.C00.Rsp
       cluster: "Groups"
       command: "AddGroup"
@@ -86,17 +116,42 @@ tests:
               - name: "GroupID"
                 value: G1
               - name: "GroupName"
-                value: "Group1"
+                value: "Group #1"
       response:
           values:
               - name: "Status"
-                value: 0
+                value: 0x00
               - name: "GroupID"
                 value: G1
 
+    - label: "Install ACLs"
+      cluster: "Access Control"
+      endpoint: 0
+      command: "writeAttribute"
+      attribute: "ACL"
+      arguments:
+          value: [
+                  # Any CASE can administer
+                  {
+                      FabricIndex: 0,
+                      Privilege: 5, # administer
+                      AuthMode: 2, # case
+                      Subjects: null,
+                      Targets: null,
+                  },
+                  # Any group can manage
+                  {
+                      FabricIndex: 0,
+                      Privilege: 4, # manage
+                      AuthMode: 3, # group
+                      Subjects: null,
+                      Targets: null,
+                  },
+              ]
+
     - label:
-          "TH sends a RemoveAllScenes command to DUT with the GroupID field set
-          to G1."
+          "Step 1b: TH sends a RemoveAllScenes command to DUT with the GroupID
+          field set to G1."
       PICS: S.S.C03.Rsp
       command: "RemoveAllScenes"
       arguments:
@@ -106,13 +161,13 @@ tests:
       response:
           values:
               - name: "Status"
-                value: 0
+                value: 0x00
               - name: "GroupID"
                 value: G1
 
     - label:
-          "TH sends a GetSceneMembership command to DUT with the GroupID field
-          set to G1."
+          "Step 1c: TH sends a GetSceneMembership command to DUT with the
+          GroupID field set to G1."
       PICS: S.S.C06.Rsp
       command: "GetSceneMembership"
       arguments:
@@ -124,16 +179,17 @@ tests:
               - name: "Status"
                 value: 0x00
               - name: "Capacity"
-                value: (maxScenes/2)
+                value: fabricCapacity
               - name: "GroupID"
                 value: G1
               - name: "SceneList"
                 value: []
 
     - label:
-          "TH sends a EnhancedAddScene command to DUT with the GroupID field set
-          to G1, the SceneID field set to 0x01, the TransitionTime field set to
-          0x000a (1s) and a set of extension fields appropriate to AC1."
+          "Step 2a: TH sends a EnhancedAddScene command to DUT with the GroupID
+          field set to G1, the SceneID field set to 0x01, the TransitionTime
+          field set to 0x000a (1s) and a set of extension fields appropriate to
+          AC1."
       PICS: S.S.C40.Rsp && PICS_SDK_CI_ONLY
       command: "EnhancedAddScene"
       arguments:
@@ -141,7 +197,7 @@ tests:
               - name: "GroupID"
                 value: G1
               - name: "SceneID"
-                value: 0x0001
+                value: 0x01
               - name: "TransitionTime"
                 value: 0x000a
               - name: "SceneName"
@@ -157,16 +213,7 @@ tests:
                         {
                             ClusterID: 0x0008,
                             AttributeValueList:
-                                [
-                                    {
-                                        AttributeID: 0x0000,
-                                        AttributeValue: 0x64,
-                                    },
-                                    {
-                                        AttributeID: 0x0001,
-                                        AttributeValue: 0x00,
-                                    },
-                                ],
+                                [{ AttributeID: 0x0000, AttributeValue: 0x64 }],
                         },
                     ]
       response:
@@ -179,17 +226,18 @@ tests:
                 value: 0x01
 
     - label:
-          "TH sends a AddScene command to DUT with the GroupID field set to G1,
-          the SceneID field set to 0x01, the TransitionTime field set to 0x0001
-          (1s) and a set of extension fields appropriate to AC1."
-      PICS: (!S.S.C40.Rsp) && PICS_SDK_CI_ONLY
+          "Step 2b: TH sends a AddScene command to DUT with the GroupID field
+          set to G1, the SceneID field set to 0x01, the TransitionTime field set
+          to 0x0001 (1s) and a set of extension fields appropriate to AC1."
+      # This step is overwriting Step 2a, we need to add PICS !S.S.C40.Rsp here, see issue: https://github.com/CHIP-Specifications/chip-test-plans/issues/3509
+      PICS: S.S.C00.Rsp && PICS_SDK_CI_ONLY
       command: "AddScene"
       arguments:
           values:
               - name: "GroupID"
                 value: G1
               - name: "SceneID"
-                value: 0x0001
+                value: 0x01
               - name: "TransitionTime"
                 value: 0x0001
               - name: "SceneName"
@@ -205,16 +253,7 @@ tests:
                         {
                             ClusterID: 0x0008,
                             AttributeValueList:
-                                [
-                                    {
-                                        AttributeID: 0x0000,
-                                        AttributeValue: 0x64,
-                                    },
-                                    {
-                                        AttributeID: 0x0001,
-                                        AttributeValue: 0x00,
-                                    },
-                                ],
+                                [{ AttributeID: 0x0000, AttributeValue: 0x64 }],
                         },
                     ]
       response:
@@ -227,9 +266,9 @@ tests:
                 value: 0x01
 
     - label:
-          "TH sends a EnhancedAddScene command to DUT with the GroupID field set
-          to G1, the SceneID field set to 0x01, the TransitionTime field set to
-          0x000a and a set of extension fields appropriate to AC1."
+          "Step 2a: TH sends a EnhancedAddScene command to DUT with the GroupID
+          field set to G1, the SceneID field set to 0x01, the TransitionTime
+          field set to 0x000a and a set of extension fields appropriate to AC1."
       verification: |
           Execute the following command in TH to generate the pre-condition to execute this test case:
 
@@ -272,7 +311,7 @@ tests:
           [1670970505.890328][5742:5744] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_0005 Command 0x0000_0040
           [1670970505.890458][5742:5744] CHIP:TOO:   EnhancedAddSceneResponse: {
           [1670970505.890551][5742:5744] CHIP:TOO:     status: 0
-          [1670970505.890608][5742:5744] CHIP:TOO:     groupId: 1
+          [1670970505.890608][5742:5744] CHIP:TOO:     groupId: 257
           [1670970505.890717][5742:5744] CHIP:TOO:     sceneId: 1
           [1670970505.890774][5742:5744] CHIP:TOO:    }
       cluster: "LogCommands"
@@ -289,9 +328,9 @@ tests:
                 value: "y"
 
     - label:
-          "TH sends a AddScene command to DUT with the GroupID field set to G1,
-          the SceneID field set to 0x01, the TransitionTime field set to 0x0001
-          and a set of extension fields appropriate to AC1."
+          "Step 2b: TH sends a AddScene command to DUT with the GroupID field
+          set to G1, the SceneID field set to 0x01, the TransitionTime field set
+          to G1 and a set of extension fields appropriate to AC1."
       verification: |
           Execute the following command in TH to generate the pre-condition to execute this test case:
 
@@ -334,12 +373,13 @@ tests:
           [1670970505.890328][5742:5744] CHIP:TOO: Endpoint: 1 Cluster: 0x0000_0005 Command 0x0000_0000
           [1670970505.890458][5742:5744] CHIP:TOO:   AddSceneResponse: {
           [1670970505.890551][5742:5744] CHIP:TOO:     status: 0
-          [1670970505.890608][5742:5744] CHIP:TOO:     groupId: 1
+          [1670970505.890608][5742:5744] CHIP:TOO:     groupId: 257
           [1670970505.890717][5742:5744] CHIP:TOO:     sceneId: 1
           [1670970505.890774][5742:5744] CHIP:TOO:    }
       cluster: "LogCommands"
       command: "UserPrompt"
-      PICS: (!S.S.C40.Rsp) && PICS_SKIP_SAMPLE_APP
+      # This step is overwriting Step 2a, we need to add PICS !S.S.C40.Rsp here, see issue: https://github.com/CHIP-Specifications/chip-test-plans/issues/3509
+      PICS: S.S.C00.Rsp && PICS_SKIP_SAMPLE_APP
       arguments:
           values:
               - name: "message"
@@ -351,8 +391,8 @@ tests:
                 value: "y"
 
     - label:
-          "TH sends a EnhancedViewScene command to DUT with the GroupID field
-          set to G1 and the SceneID field set to 0x01."
+          "Step 3a: TH sends a EnhancedViewScene command to DUT with the GroupID
+          field set to G1 and the SceneID field set to 0x01."
       PICS: S.S.C41.Rsp && PICS_SDK_CI_ONLY
       command: "EnhancedViewScene"
       arguments:
@@ -382,23 +422,15 @@ tests:
                         {
                             ClusterID: 0x0008,
                             AttributeValueList:
-                                [
-                                    {
-                                        AttributeID: 0x0000,
-                                        AttributeValue: 0x64,
-                                    },
-                                    {
-                                        AttributeID: 0x0001,
-                                        AttributeValue: 0x00,
-                                    },
-                                ],
+                                [{ AttributeID: 0x0000, AttributeValue: 0x64 }],
                         },
                     ]
 
     - label:
-          "TH sends a ViewScene command to DUT with the GroupID field set to G1
-          and the SceneID field set to 0x01."
-      PICS: (!S.S.C41.Rsp) && PICS_SDK_CI_ONLY
+          "Step 3b: TH sends a ViewScene command to DUT with the GroupID field
+          set to G1 and the SceneID field set to 0x01."
+      # This step is redundant with Step 3a, we should add PICS !S.S.C41.Rsp here, see issue: https://github.com/CHIP-Specifications/chip-test-plans/issues/3509
+      PICS: S.S.C01.Rsp && PICS_SDK_CI_ONLY
       command: "ViewScene"
       arguments:
           values:
@@ -427,22 +459,13 @@ tests:
                         {
                             ClusterID: 0x0008,
                             AttributeValueList:
-                                [
-                                    {
-                                        AttributeID: 0x0000,
-                                        AttributeValue: 0x64,
-                                    },
-                                    {
-                                        AttributeID: 0x0001,
-                                        AttributeValue: 0x00,
-                                    },
-                                ],
+                                [{ AttributeID: 0x0000, AttributeValue: 0x64 }],
                         },
                     ]
 
     - label:
-          "TH sends a EnhancedViewScene command to DUT with the GroupID field
-          set to G1 and the SceneID field set to 0x01."
+          "Step 3a: TH sends a EnhancedViewScene command to DUT with the GroupID
+          field set to G1 and the SceneID field set to 0x01."
       PICS: S.S.C41.Rsp && PICS_SKIP_SAMPLE_APP
       verification: |
           Execute the following command in TH to generate the pre-condition to execute this test case:
@@ -453,7 +476,7 @@ tests:
 
           Verify that the extension fields in the log match the ones expected and that
           Status = 0x00
-          GroupID = 0x0001
+          GroupID = G1
           SceneID = 0x01
           TransitionTime = 0x000a
       cluster: "LogCommands"
@@ -469,9 +492,10 @@ tests:
               - name: "expectedValue"
                 value: "y"
     - label:
-          "TH sends a ViewScene command to DUT with the GroupID field set to G1
-          and the SceneID field set to 0x01."
-      PICS: (!S.S.C41.Rsp) && PICS_SKIP_SAMPLE_APP
+          "Step 3b: TH sends a ViewScene command to DUT with the GroupID field
+          set to G1 and the SceneID field set to 0x01."
+      # This step is redundant with Step 3a, we should add PICS !S.S.C41.Rsp here, see issue: https://github.com/CHIP-Specifications/chip-test-plans/issues/3509
+      PICS: S.S.C01.Rsp && PICS_SKIP_SAMPLE_APP
       verification: |
           Execute the following command in TH to generate the pre-condition to execute this test case:
 
@@ -481,7 +505,7 @@ tests:
 
           Verify that the extension fields in the log match the ones expected and that
           Status = 0x00
-          GroupID = 0x0001
+          GroupID = G1
           SceneID = 0x01
           TransitionTime = 0x0001
       cluster: "LogCommands"
@@ -498,8 +522,8 @@ tests:
                 value: "y"
 
     - label:
-          "TH sends a GetSceneMembership command to DUT with the GroupID field
-          set to G1."
+          "Step 4: TH sends a GetSceneMembership command to DUT with the GroupID
+          field set to G1."
       PICS: S.S.C06.Rsp
       command: "GetSceneMembership"
       arguments:
@@ -511,15 +535,15 @@ tests:
               - name: "Status"
                 value: 0x00
               - name: "Capacity"
-                value: (maxScenes/2) - 1
+                value: fabricCapacity - 1
               - name: "GroupID"
                 value: G1
               - name: "SceneList"
                 value: [0x01]
 
     - label:
-          "TH configures AC2 on DUT for all implemented application clusters
-          supporting scenes."
+          "Step 5a: TH configures AC2 on DUT for all implemented application
+          clusters supporting scenes."
       cluster: "Level Control"
       PICS: PICS_SDK_CI_ONLY
       command: "MoveToLevelWithOnOff"
@@ -535,8 +559,8 @@ tests:
                 value: 0
 
     - label:
-          "TH configures AC2 on DUT for all implemented application clusters
-          supporting scenes."
+          "Step 5a: TH configures AC2 on DUT for all implemented application
+          clusters supporting scenes."
       verification: |
           Is DUT configured with AC2?
       cluster: "LogCommands"
@@ -552,11 +576,12 @@ tests:
                 value: "y"
 
     - label:
-          "TH sends a RecallScene command to group G1 with the GroupID field set
-          to G1 and the scene ID field set to 0x01."
+          "Step 5b: TH sends a RecallScene command to group G1 with the GroupID
+          field set to G1 and the scene ID field set to 0x01."
       PICS: S.S.C05.Rsp
       command: "RecallScene"
-      groupId: 0x0001
+      # This value should be changed to G1 instead of 0x101 when it is supported, Issue opened here https://github.com/project-chip/connectedhomeip/issues/29637
+      groupId: 0x101
       arguments:
           values:
               - name: "GroupID"
@@ -564,18 +589,18 @@ tests:
               - name: "SceneID"
                 value: 0x01
 
-    - label: "Wait 1s"
+    - label: "Wait 1+ s"
       PICS: PICS_SDK_CI_ONLY
       cluster: "DelayCommands"
       command: "WaitForMs"
       arguments:
           values:
               - name: "ms"
-                value: 1000
+                value: 1250
 
     - label:
           "TH confirm the DUT reached AC1 (on level control cluster) after 1s"
-      PICS: PICS_SDK_CI_ONLY
+      PICS: PICS_SDK_CI_ONLY && S.S.C05.Rsp
       cluster: "Level Control"
       command: "readAttribute"
       attribute: "CurrentLevel"
@@ -596,13 +621,11 @@ tests:
                 value: "y"
 
     - label:
-          "TH sends a CopyScene command to DUT with the mode field set to 0x00,
-          the group identifier from field set to G1, the scene identifier from
-          field set to 0x01, the group identifier to field set to G1 and the
-          scene identifier to field set to 0x02."
+          "Step 6a: TH sends a CopyScene command to DUT with the mode field set
+          to 0x00, the group identifier from field set to G1, the scene
+          identifier from field set to 0x01, the group identifier to field set
+          to G1 and the scene identifier to field set to 0x02."
       PICS: S.S.C42.Rsp
-      verification: |
-          DUT sends a CopySceneResponse command to TH with the Status field set to 0x00 (SUCCESS), the group identifier from field set to G1 and the scene identifier from field set to 0x01.
       command: "CopyScene"
       arguments:
           values:
@@ -626,8 +649,8 @@ tests:
                 value: 0x01
 
     - label:
-          "TH sends a GetSceneMembership command to DUT with the GroupID field
-          set to G1."
+          "Step 6b: TH sends a GetSceneMembership command to DUT with the
+          GroupID field set to G1."
       PICS: S.S.C06.Rsp
       command: "GetSceneMembership"
       arguments:
@@ -639,8 +662,20 @@ tests:
               - name: "Status"
                 value: 0x00
               - name: "Capacity"
-                value: (maxScenes/2) - 2
+                value: fabricCapacity - 2
               - name: "GroupID"
                 value: G1
               - name: "SceneList"
                 value: [0x01, 0x02]
+
+    - label:
+          "Step 7: TH removes the Group key set that was added by sending a
+          KeySetRemove command to the GroupKeyManagement cluster with the
+          GroupKeySetID field set to 0x01a1"
+      cluster: "Group Key Management"
+      endpoint: 0
+      command: "KeySetRemove"
+      arguments:
+          values:
+              - name: GroupKeySetID
+                value: 0x01a1

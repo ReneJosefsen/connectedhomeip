@@ -15,11 +15,13 @@
  *    limitations under the License.
  */
 
+#include <cstring>
 #include <jni.h>
 #include <lib/support/CHIPJNIError.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/JniReferences.h>
 #include <lib/support/JniTypeWrappers.h>
+#include <string>
 
 namespace chip {
 
@@ -34,7 +36,7 @@ void JniReferences::SetJavaVm(JavaVM * jvm, const char * clsType)
     JNIEnv * env = GetEnvForCurrentThread();
     // Any chip.devicecontroller.* class will work here - just need something to call getClassLoader() on.
     jclass chipClass = env->FindClass(clsType);
-    VerifyOrReturn(chipClass != nullptr, ChipLogError(Support, "clsType can not found"));
+    VerifyOrReturn(chipClass != nullptr, ChipLogError(Support, "clsType can not be found"));
 
     jclass classClass              = env->FindClass("java/lang/Class");
     jclass classLoaderClass        = env->FindClass("java/lang/ClassLoader");
@@ -46,6 +48,36 @@ void JniReferences::SetJavaVm(JavaVM * jvm, const char * clsType)
     chip::JniReferences::GetInstance().GetClassRef(env, "java/util/List", mListClass);
     chip::JniReferences::GetInstance().GetClassRef(env, "java/util/ArrayList", mArrayListClass);
     chip::JniReferences::GetInstance().GetClassRef(env, "java/util/HashMap", mHashMapClass);
+
+    // Determine if the Java code has proper Java 8 support or not.
+    // The class and method chosen here are arbitrary, all we care about is
+    // looking up any method that has an Optional parameter.
+    jclass controllerParamsClass = env->FindClass("chip/devicecontroller/ControllerParams");
+    VerifyOrReturn(controllerParamsClass != nullptr, ChipLogError(Support, "controllerParamsClass is nullptr"));
+
+    jmethodID getCountryCodeMethod = env->GetMethodID(controllerParamsClass, "getCountryCode", "()Ljava/util/Optional;");
+    if (getCountryCodeMethod == nullptr)
+    {
+        // GetMethodID will have thrown an exception previously if it returned nullptr.
+        env->ExceptionClear();
+        VerifyOrReturn(env->GetMethodID(controllerParamsClass, "getCountryCode", "()Lj$/util/Optional;") != nullptr,
+                       ChipLogError(Support, "Method getCountryCode can not be found"));
+        use_java8_optional = false;
+    }
+    else
+    {
+        use_java8_optional = true;
+    }
+
+    if (use_java8_optional)
+    {
+        chip::JniReferences::GetInstance().GetClassRef(env, "java/util/Optional", mOptionalClass);
+    }
+    else
+    {
+        chip::JniReferences::GetInstance().GetClassRef(env, "j$/util/Optional", mOptionalClass);
+    }
+    VerifyOrReturn(mOptionalClass != nullptr, ChipLogError(Support, "mOptionalClass is nullptr"));
 }
 
 JNIEnv * JniReferences::GetEnvForCurrentThread()
@@ -76,11 +108,31 @@ JNIEnv * JniReferences::GetEnvForCurrentThread()
 
 CHIP_ERROR JniReferences::GetClassRef(JNIEnv * env, const char * clsType, jclass & outCls)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     jclass cls     = nullptr;
+    CHIP_ERROR err = GetLocalClassRef(env, clsType, cls);
+    ReturnErrorOnFailure(err);
+    outCls = (jclass) env->NewGlobalRef((jobject) cls);
+    VerifyOrReturnError(outCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
 
-    cls = env->FindClass(clsType);
-    env->ExceptionClear();
+    return err;
+}
+
+CHIP_ERROR JniReferences::GetLocalClassRef(JNIEnv * env, const char * clsType, jclass & outCls)
+{
+    jclass cls = nullptr;
+
+    // Try `j$/util/Optional` when enabling Java8. Check whether mOptionalClass
+    // is null because this method is used to originally set mOptionalClass.
+    if (mOptionalClass != nullptr && (strcmp(clsType, "java/util/Optional") == 0 || strcmp(clsType, "j$/util/Optional") == 0))
+    {
+        cls = mOptionalClass;
+    }
+
+    if (cls == nullptr)
+    {
+        cls = env->FindClass(clsType);
+        env->ExceptionClear();
+    }
 
     if (cls == nullptr)
     {
@@ -89,10 +141,8 @@ CHIP_ERROR JniReferences::GetClassRef(JNIEnv * env, const char * clsType, jclass
         VerifyOrReturnError(cls != nullptr && env->ExceptionCheck() != JNI_TRUE, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
     }
 
-    outCls = (jclass) env->NewGlobalRef((jobject) cls);
-    VerifyOrReturnError(outCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
-
-    return err;
+    outCls = cls;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR JniReferences::N2J_ByteArray(JNIEnv * env, const uint8_t * inArray, jsize inArrayLen, jbyteArray & outArray)
@@ -110,10 +160,21 @@ exit:
     return err;
 }
 
+static std::string StrReplaceAll(const std::string & source, const std::string & from, const std::string & to)
+{
+    std::string newString = source;
+    size_t pos            = 0;
+    while ((pos = newString.find(from, pos)) != std::string::npos)
+    {
+        newString.replace(pos, from.length(), to);
+        pos += to.length();
+    }
+    return newString;
+}
+
 CHIP_ERROR JniReferences::FindMethod(JNIEnv * env, jobject object, const char * methodName, const char * methodSignature,
                                      jmethodID * methodId)
 {
-    CHIP_ERROR err   = CHIP_NO_ERROR;
     jclass javaClass = nullptr;
     VerifyOrReturnError(env != nullptr && object != nullptr, CHIP_JNI_ERROR_NULL_OBJECT);
 
@@ -121,9 +182,24 @@ CHIP_ERROR JniReferences::FindMethod(JNIEnv * env, jobject object, const char * 
     VerifyOrReturnError(javaClass != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
 
     *methodId = env->GetMethodID(javaClass, methodName, methodSignature);
+    env->ExceptionClear();
+
+    if (*methodId != nullptr)
+    {
+        return CHIP_NO_ERROR;
+    }
+
+    std::string method_signature = methodSignature;
+    if (!use_java8_optional)
+    {
+        method_signature = StrReplaceAll(method_signature, "java/util/Optional", "j$/util/Optional");
+    }
+
+    *methodId = env->GetMethodID(javaClass, methodName, method_signature.data());
+
     VerifyOrReturnError(*methodId != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
 
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 void JniReferences::CallVoidInt(JNIEnv * env, jobject object, const char * methodName, jint argument)
@@ -174,27 +250,35 @@ void JniReferences::ReportError(JNIEnv * env, CHIP_ERROR cbErr, const char * fun
 void JniReferences::ThrowError(JNIEnv * env, jclass exceptionCls, CHIP_ERROR errToThrow)
 {
     env->ExceptionClear();
-    jmethodID constructor = env->GetMethodID(exceptionCls, "<init>", "(ILjava/lang/String;)V");
+    jmethodID constructor = env->GetMethodID(exceptionCls, "<init>", "(JLjava/lang/String;)V");
     VerifyOrReturn(constructor != NULL);
 
     jstring jerrStr = env->NewStringUTF(ErrorStr(errToThrow));
 
-    jthrowable outEx = (jthrowable) env->NewObject(exceptionCls, constructor, static_cast<jint>(errToThrow.AsInteger()), jerrStr);
+    jthrowable outEx = (jthrowable) env->NewObject(exceptionCls, constructor, static_cast<jlong>(errToThrow.AsInteger()), jerrStr);
     VerifyOrReturn(!env->ExceptionCheck());
     env->Throw(outEx);
 }
 
 CHIP_ERROR JniReferences::CreateOptional(jobject objectToWrap, jobject & outOptional)
 {
-    JNIEnv * env = GetEnvForCurrentThread();
-    jclass optionalCls;
-    chip::JniReferences::GetInstance().GetClassRef(env, "java/util/Optional", optionalCls);
-    VerifyOrReturnError(optionalCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
-    chip::JniClass jniClass(optionalCls);
+    VerifyOrReturnError(mOptionalClass != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
 
-    jmethodID ofMethod = env->GetStaticMethodID(optionalCls, "ofNullable", "(Ljava/lang/Object;)Ljava/util/Optional;");
+    JNIEnv * const env = GetEnvForCurrentThread();
+    VerifyOrReturnError(env != nullptr, CHIP_JNI_ERROR_NO_ENV);
+
+    jmethodID ofMethod = nullptr;
+    if (use_java8_optional)
+    {
+        ofMethod = env->GetStaticMethodID(mOptionalClass, "ofNullable", "(Ljava/lang/Object;)Ljava/util/Optional;");
+    }
+    else
+    {
+        ofMethod = env->GetStaticMethodID(mOptionalClass, "ofNullable", "(Ljava/lang/Object;)Lj$/util/Optional;");
+    }
     VerifyOrReturnError(ofMethod != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
-    outOptional = env->CallStaticObjectMethod(optionalCls, ofMethod, objectToWrap);
+
+    outOptional = env->CallStaticObjectMethod(mOptionalClass, ofMethod, objectToWrap);
 
     VerifyOrReturnError(!env->ExceptionCheck(), CHIP_JNI_ERROR_EXCEPTION_THROWN);
 
@@ -203,13 +287,12 @@ CHIP_ERROR JniReferences::CreateOptional(jobject objectToWrap, jobject & outOpti
 
 CHIP_ERROR JniReferences::GetOptionalValue(jobject optionalObj, jobject & optionalValue)
 {
-    JNIEnv * env = GetEnvForCurrentThread();
-    jclass optionalCls;
-    chip::JniReferences::GetInstance().GetClassRef(env, "java/util/Optional", optionalCls);
-    VerifyOrReturnError(optionalCls != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
-    chip::JniClass jniClass(optionalCls);
+    VerifyOrReturnError(mOptionalClass != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND);
 
-    jmethodID isPresentMethod = env->GetMethodID(optionalCls, "isPresent", "()Z");
+    JNIEnv * const env = GetEnvForCurrentThread();
+    VerifyOrReturnError(env != nullptr, CHIP_JNI_ERROR_NO_ENV);
+
+    jmethodID isPresentMethod = env->GetMethodID(mOptionalClass, "isPresent", "()Z");
     VerifyOrReturnError(isPresentMethod != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
     jboolean isPresent = optionalObj && env->CallBooleanMethod(optionalObj, isPresentMethod);
 
@@ -219,7 +302,7 @@ CHIP_ERROR JniReferences::GetOptionalValue(jobject optionalObj, jobject & option
         return CHIP_NO_ERROR;
     }
 
-    jmethodID getMethod = env->GetMethodID(optionalCls, "get", "()Ljava/lang/Object;");
+    jmethodID getMethod = env->GetMethodID(mOptionalClass, "get", "()Ljava/lang/Object;");
     VerifyOrReturnError(getMethod != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND);
     optionalValue = env->CallObjectMethod(optionalObj, getMethod);
     return CHIP_NO_ERROR;

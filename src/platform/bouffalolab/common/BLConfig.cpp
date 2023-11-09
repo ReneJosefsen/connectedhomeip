@@ -15,25 +15,42 @@
  *    limitations under the License.
  */
 
+#include <easyflash.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/bouffalolab/common/BLConfig.h>
-
-#include <lib/core/CHIPEncoding.h>
-#include <lib/support/CHIPMem.h>
-#include <lib/support/CHIPMemString.h>
-#include <lib/support/CodeUtils.h>
-#include <lib/support/logging/CHIPLogging.h>
-
-#include <easyflash.h>
 
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {
 
-CHIP_ERROR BLConfig::Init()
+void BLConfig::Init(void)
 {
-    return CHIP_NO_ERROR;
+    env_node_obj node;
+
+    easyflash_init();
+    ef_load_env_cache();
+
+    if (ef_get_env_obj(kBLKey_factoryResetFlag, &node))
+    {
+        ef_print_env_cb([](env_node_obj_t env, void * arg1, void * arg2) {
+            if (ENV_WRITE == env->status)
+            {
+                env->name[env->name_len] = '\0';
+                if (strncmp(kBLKey_factoryResetFlag, env->name, sizeof(env->name) - 1))
+                {
+                    /** delete all key=value except factory reset flag */
+                    ef_del_and_save_env(env->name);
+                }
+            }
+
+            return false;
+        });
+
+        ef_del_and_save_env(kBLKey_factoryResetFlag);
+        ef_env_set_default();
+        ef_load_env_cache();
+    }
 }
 
 CHIP_ERROR BLConfig::ReadConfigValue(const char * key, uint8_t * val, size_t size, size_t & readsize)
@@ -123,9 +140,21 @@ CHIP_ERROR BLConfig::WriteConfigValue(const char * key, uint8_t * val, size_t si
 
     ef_port_env_lock();
 
-    if (size && val)
+    if (size)
     {
-        ret = ef_set_env_blob(key, val, size);
+        if (val)
+        {
+            ret = ef_set_env_blob(key, val, size);
+        }
+        else
+        {
+            ret = EF_ENV_ARG_ERR;
+        }
+    }
+    else
+    {
+        uint32_t value_null = 0;
+        ret                 = ef_set_env_blob(key, &value_null, size);
     }
 
     ef_port_env_unlock();
@@ -177,9 +206,8 @@ CHIP_ERROR BLConfig::ClearConfigValue(const char * key)
 
 CHIP_ERROR BLConfig::FactoryResetConfig(void)
 {
-    // Only reset config section information
-
-    ef_env_set_default();
+    /** set __factory_reset_pending here, let do factory reset operation during startup  */
+    ef_set_and_save_env(kBLKey_factoryResetFlag, "pending");
 
     return CHIP_NO_ERROR;
 }
@@ -252,11 +280,22 @@ CHIP_ERROR BLConfig::WriteKVS(const char * key, const void * value, size_t value
 
     ef_port_env_lock();
 
-    if (value && value_size)
+    if (value_size)
     {
-        ret = ef_set_env_blob(key, value, value_size);
+        if (value)
+        {
+            ret = ef_set_env_blob(key, value, value_size);
+        }
+        else
+        {
+            ret = EF_ENV_ARG_ERR;
+        }
     }
-
+    else
+    {
+        uint32_t value_null = 0;
+        ret                 = ef_set_env_blob(key, &value_null, value_size);
+    }
     ef_port_env_unlock();
 
     if (ret == EF_NO_ERR)

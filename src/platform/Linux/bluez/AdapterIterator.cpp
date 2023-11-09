@@ -17,10 +17,9 @@
 
 #include "AdapterIterator.h"
 
-#if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
-
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
+#include <platform/GLibTypeDeleter.h>
 #include <platform/PlatformManager.h>
 
 namespace chip {
@@ -53,12 +52,12 @@ CHIP_ERROR AdapterIterator::Initialize(AdapterIterator * self)
     VerifyOrDie(g_main_context_get_thread_default() != nullptr);
 
     CHIP_ERROR err = CHIP_NO_ERROR;
-    GError * error = nullptr;
+    GAutoPtr<GError> error;
 
-    self->mManager = g_dbus_object_manager_client_new_for_bus_sync(G_BUS_TYPE_SYSTEM, G_DBUS_OBJECT_MANAGER_CLIENT_FLAGS_NONE,
-                                                                   BLUEZ_INTERFACE, "/", bluez_object_manager_client_get_proxy_type,
-                                                                   nullptr /* unused user data in the Proxy Type Func */,
-                                                                   nullptr /*destroy notify */, nullptr /* cancellable */, &error);
+    self->mManager = g_dbus_object_manager_client_new_for_bus_sync(
+        G_BUS_TYPE_SYSTEM, G_DBUS_OBJECT_MANAGER_CLIENT_FLAGS_NONE, BLUEZ_INTERFACE, "/",
+        bluez_object_manager_client_get_proxy_type, nullptr /* unused user data in the Proxy Type Func */,
+        nullptr /*destroy notify */, nullptr /* cancellable */, &MakeUniquePointerReceiver(error).Get());
 
     VerifyOrExit(self->mManager != nullptr, ChipLogError(DeviceLayer, "Failed to get DBUS object manager for listing adapters.");
                  err = CHIP_ERROR_INTERNAL);
@@ -70,7 +69,6 @@ exit:
     if (error != nullptr)
     {
         ChipLogError(DeviceLayer, "DBus error: %s", error->message);
-        g_error_free(error);
     }
 
     return err;
@@ -139,5 +137,3 @@ bool AdapterIterator::Next()
 } // namespace Internal
 } // namespace DeviceLayer
 } // namespace chip
-
-#endif

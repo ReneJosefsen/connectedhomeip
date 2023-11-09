@@ -16,23 +16,21 @@
  */
 
 #define __ZEPHYR__ 1
+#define CONFIG_EVENTFD 0
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 
-#include "BLEManagerImpl.h"
-
 #include <ble/CHIPBleServiceData.h>
 #include <lib/support/CHIPMemString.h>
-#include <lib/support/CodeUtils.h>
-#include <lib/support/logging/CHIPLogging.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 #include <platform/internal/BLEManager.h>
 #if CHIP_ENABLE_ADDITIONAL_DATA_ADVERTISING
 #include <setup_payload/AdditionalDataPayloadGenerator.h>
 #endif
 
 extern "C" {
-#ifdef BL702L
+#if CHIP_DEVICE_LAYER_TARGET_BL702L
 #include <btble_lib_api.h>
 #else
 #include <ble_lib_api.h>
@@ -41,6 +39,8 @@ extern "C" {
 
 #include <bluetooth/addr.h>
 #include <hci_driver.h>
+
+#include "BLEManagerImpl.h"
 
 using namespace ::chip;
 using namespace ::chip::Ble;
@@ -125,7 +125,7 @@ CHIP_ERROR BLEManagerImpl::_Init()
     memset(mSubscribedConns, 0, sizeof(mSubscribedConns));
 
     ReturnErrorOnFailure(InitRandomStaticAddress());
-#ifdef BL702L
+#if CHIP_DEVICE_LAYER_TARGET_BL702L
     btble_controller_init(configMAX_PRIORITIES - 1);
 #else
     ble_controller_init(configMAX_PRIORITIES - 1);
@@ -145,6 +145,12 @@ CHIP_ERROR BLEManagerImpl::_Init()
     PlatformMgr().ScheduleWork(DriveBLEState, 0);
 
     return CHIP_NO_ERROR;
+}
+
+void BLEManagerImpl::_Shutdown()
+{
+    // Release BLE Stack resources
+    mFlags.Set(Flags::kChipoBleShutDown);
 }
 
 void BLEManagerImpl::DriveBLEState(intptr_t arg)
@@ -270,7 +276,7 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
 
     if (!isAdvertisingRerun)
     {
-#if CONFIG_BT_PRIVACY
+#ifdef CONFIG_BT_PRIVACY
         static_assert(CHIP_DEVICE_CONFIG_DISCOVERY_TIMEOUT_SECS <= CONFIG_BT_RPA_TIMEOUT,
                       "BLE advertising timeout is too long relative to RPA timeout");
         // Generate new private BLE address
@@ -436,7 +442,7 @@ CHIP_ERROR BLEManagerImpl::HandleGAPDisconnect(const ChipDeviceEvent * event)
         {
         case BT_HCI_ERR_REMOTE_USER_TERM_CONN:
             // Do not treat proper connection termination as an error and exit.
-            VerifyOrExit(!ConfigurationMgr().IsFullyProvisioned(), );
+            VerifyOrExit(!ConfigurationMgr().IsFullyProvisioned(), BLEMgrImpl()._Shutdown());
             disconReason = BLE_ERROR_REMOTE_DEVICE_DISCONNECTED;
             break;
         case BT_HCI_ERR_LOCALHOST_TERM_CONN:
@@ -458,7 +464,19 @@ exit:
     ChipDeviceEvent disconnectEvent;
     disconnectEvent.Type = DeviceEventType::kCHIPoBLEConnectionClosed;
     ReturnErrorOnFailure(PlatformMgr().PostEvent(&disconnectEvent));
-
+    if (mFlags.Has(Flags::kChipoBleShutDown))
+    {
+        int ret = bt_disable();
+        if (ret)
+        {
+            ChipLogError(DeviceLayer, "CHIPoBLE Shutdown faild =%d", ret);
+        }
+        else
+        {
+            mFlags.Clear(Flags::kChipoBleShutDown);
+        }
+        return CHIP_NO_ERROR;
+    }
     // Force a reconfiguration of advertising in case we switched to non-connectable mode when
     // the BLE connection was established.
     mFlags.Set(Flags::kAdvertisingRefreshNeeded);

@@ -434,6 +434,14 @@ namespace TestEventTrigger {
 static constexpr CommandId Id = 0x00000000;
 } // namespace TestEventTrigger
 
+namespace TimeSnapshot {
+static constexpr CommandId Id = 0x00000001;
+} // namespace TimeSnapshot
+
+namespace TimeSnapshotResponse {
+static constexpr CommandId Id = 0x00000002;
+} // namespace TimeSnapshotResponse
+
 } // namespace Commands
 } // namespace GeneralDiagnostics
 
@@ -745,6 +753,20 @@ static constexpr CommandId Id = 0x00000001;
 } // namespace Commands
 } // namespace DishwasherAlarm
 
+namespace MicrowaveOvenControl {
+namespace Commands {
+
+namespace SetCookingParameters {
+static constexpr CommandId Id = 0x00000000;
+} // namespace SetCookingParameters
+
+namespace AddMoreTime {
+static constexpr CommandId Id = 0x00000001;
+} // namespace AddMoreTime
+
+} // namespace Commands
+} // namespace MicrowaveOvenControl
+
 namespace OperationalState {
 namespace Commands {
 
@@ -816,106 +838,6 @@ static constexpr CommandId Id = 0x00000000;
 
 } // namespace Commands
 } // namespace ActivatedCarbonFilterMonitoring
-
-namespace CeramicFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace CeramicFilterMonitoring
-
-namespace ElectrostaticFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace ElectrostaticFilterMonitoring
-
-namespace UvFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace UvFilterMonitoring
-
-namespace IonizingFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace IonizingFilterMonitoring
-
-namespace ZeoliteFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace ZeoliteFilterMonitoring
-
-namespace OzoneFilterMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace OzoneFilterMonitoring
-
-namespace WaterTankMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace WaterTankMonitoring
-
-namespace FuelTankMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace FuelTankMonitoring
-
-namespace InkCartridgeMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace InkCartridgeMonitoring
-
-namespace TonerCartridgeMonitoring {
-namespace Commands {
-
-namespace ResetCondition {
-static constexpr CommandId Id = 0x00000000;
-} // namespace ResetCondition
-
-} // namespace Commands
-} // namespace TonerCartridgeMonitoring
 
 namespace DoorLock {
 namespace Commands {
@@ -1578,6 +1500,24 @@ static constexpr CommandId Id = 0x00000001;
 
 } // namespace Commands
 } // namespace FaultInjection
+
+namespace SampleMei {
+namespace Commands {
+
+namespace Ping {
+static constexpr CommandId Id = 0x00000000;
+} // namespace Ping
+
+namespace AddArgumentsResponse {
+static constexpr CommandId Id = 0x00000001;
+} // namespace AddArgumentsResponse
+
+namespace AddArguments {
+static constexpr CommandId Id = 0x00000002;
+} // namespace AddArguments
+
+} // namespace Commands
+} // namespace SampleMei
 
 } // namespace Clusters
 } // namespace app

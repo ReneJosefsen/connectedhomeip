@@ -124,7 +124,9 @@ public:
 
     virtual CHIP_ERROR GetBLEDeviceIdentificationInfo(Ble::ChipBLEDeviceIdentificationInfo & deviceIdInfo) = 0;
 
-    virtual CHIP_ERROR RunUnitTests() = 0;
+#if CHIP_CONFIG_TEST
+    virtual void RunUnitTests() = 0;
+#endif
 
     virtual bool IsFullyProvisioned()   = 0;
     virtual void InitiateFactoryReset() = 0;
@@ -171,8 +173,8 @@ protected:
     virtual ~ConfigurationManager() = default;
 
     // No copy, move or assignment.
-    ConfigurationManager(const ConfigurationManager &)  = delete;
-    ConfigurationManager(const ConfigurationManager &&) = delete;
+    ConfigurationManager(const ConfigurationManager &)             = delete;
+    ConfigurationManager(const ConfigurationManager &&)            = delete;
     ConfigurationManager & operator=(const ConfigurationManager &) = delete;
 };
 

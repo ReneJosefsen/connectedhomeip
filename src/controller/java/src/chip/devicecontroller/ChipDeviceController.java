@@ -344,6 +344,58 @@ public class ChipDeviceController {
     releaseOperationalDevicePointer(devicePtr);
   }
 
+  public long getGroupDevicePointer(int groupId) {
+    return getGroupDevicePointer(deviceControllerPtr, groupId);
+  }
+
+  public native void releaseGroupDevicePointer(long devicePtr);
+
+  public List<Integer> getAvailableGroupIds() {
+    return getAvailableGroupIds(deviceControllerPtr);
+  }
+
+  public String getGroupName(int groupId) {
+    return getGroupName(deviceControllerPtr, groupId);
+  }
+
+  public Optional<Integer> findKeySetId(int groupId) {
+    return findKeySetId(deviceControllerPtr, groupId);
+  }
+
+  public boolean addGroup(int groupId, String groupName) {
+    return addGroup(deviceControllerPtr, groupId, groupName);
+  }
+
+  public boolean removeGroup(int groupId) {
+    return removeGroup(deviceControllerPtr, groupId);
+  }
+
+  public List<Integer> getKeySetIds() {
+    return getKeySetIds(deviceControllerPtr);
+  }
+
+  public Optional<GroupKeySecurityPolicy> getKeySecurityPolicy(int keySetId) {
+    return getKeySecurityPolicy(deviceControllerPtr, keySetId)
+        .map(id -> GroupKeySecurityPolicy.value(id));
+  }
+
+  public boolean bindKeySet(int groupId, int keySetId) {
+    return bindKeySet(deviceControllerPtr, groupId, keySetId);
+  }
+
+  public boolean unbindKeySet(int groupId, int keySetId) {
+    return unbindKeySet(deviceControllerPtr, groupId, keySetId);
+  }
+
+  public boolean addKeySet(
+      int keySetId, GroupKeySecurityPolicy keyPolicy, long validityTime, byte[] epochKey) {
+    return addKeySet(deviceControllerPtr, keySetId, keyPolicy.getID(), validityTime, epochKey);
+  }
+
+  public boolean removeKeySet(int keySetId) {
+    return removeKeySet(deviceControllerPtr, keySetId);
+  }
+
   public void onConnectDeviceComplete() {
     completionListener.onConnectDeviceComplete();
   }
@@ -389,10 +441,8 @@ public class ChipDeviceController {
   public void onScanNetworksSuccess(
       Integer networkingStatus,
       Optional<String> debugText,
-      Optional<ArrayList<ChipStructs.NetworkCommissioningClusterWiFiInterfaceScanResultStruct>>
-          wiFiScanResults,
-      Optional<ArrayList<ChipStructs.NetworkCommissioningClusterThreadInterfaceScanResultStruct>>
-          threadScanResults) {
+      Optional<ArrayList<WiFiScanResult>> wiFiScanResults,
+      Optional<ArrayList<ThreadScanResult>> threadScanResults) {
     if (scanNetworksListener != null) {
       scanNetworksListener.onScanNetworksSuccess(
           networkingStatus, debugText, wiFiScanResults, threadScanResults);
@@ -468,6 +518,11 @@ public class ChipDeviceController {
 
   public long getCompressedFabricId() {
     return getCompressedFabricId(deviceControllerPtr);
+  }
+
+  /** Get device Controller's Node ID. */
+  public long getControllerNodeId() {
+    return getControllerNodeId(deviceControllerPtr);
   }
 
   /**
@@ -577,8 +632,6 @@ public class ChipDeviceController {
    * @brief Auto-Resubscribe to the given attribute path with keepSubscriptions and isFabricFiltered
    * @param SubscriptionEstablishedCallback Callback when a subscribe response has been received and
    *     processed
-   * @param ResubscriptionAttemptCallback Callback when a resubscirption haoppens, the termination
-   *     cause is provided to help inform subsequent re-subscription logic.
    * @param ReportCallback Callback when a report data has been received and processed for the given
    *     paths.
    * @param devicePtr connected device pointer
@@ -616,8 +669,6 @@ public class ChipDeviceController {
    * @brief Auto-Resubscribe to the given event path with keepSubscriptions and isFabricFiltered
    * @param SubscriptionEstablishedCallback Callback when a subscribe response has been received and
    *     processed
-   * @param ResubscriptionAttemptCallback Callback when a resubscirption haoppens, the termination
-   *     cause is provided to help inform subsequent re-subscription logic.
    * @param ReportCallback Callback when a report data has been received and processed for the given
    *     paths.
    * @param devicePtr connected device pointer
@@ -738,10 +789,9 @@ public class ChipDeviceController {
       boolean isFabricFiltered,
       int imTimeoutMs,
       @Nullable Long eventMin) {
-    // TODO: pass resubscriptionAttemptCallback to ReportCallbackJni since jni layer is not ready
-    // for auto-resubscribe
     ReportCallbackJni jniCallback =
-        new ReportCallbackJni(subscriptionEstablishedCallback, reportCallback, null);
+        new ReportCallbackJni(
+            subscriptionEstablishedCallback, reportCallback, resubscriptionAttemptCallback);
     subscribe(
         deviceControllerPtr,
         jniCallback.getCallbackHandle(),
@@ -1155,6 +1205,31 @@ public class ChipDeviceController {
 
   private native void releaseOperationalDevicePointer(long devicePtr);
 
+  private native long getGroupDevicePointer(long deviceControllerPtr, int groupId);
+
+  private native List<Integer> getAvailableGroupIds(long deviceControllerPtr);
+
+  private native String getGroupName(long deviceControllerPtr, int groupId);
+
+  private native Optional<Integer> findKeySetId(long deviceControllerPtr, int groupId);
+
+  private native boolean addGroup(long deviceControllerPtr, int groupId, String groupName);
+
+  private native boolean removeGroup(long deviceControllerPtr, int groupId);
+
+  private native List<Integer> getKeySetIds(long deviceControllerPtr);
+
+  private native Optional<Integer> getKeySecurityPolicy(long deviceControllerPtr, int keySetId);
+
+  private native boolean bindKeySet(long deviceControllerPtr, int groupId, int keySetId);
+
+  private native boolean unbindKeySet(long deviceControllerPtr, int groupId, int keySetId);
+
+  private native boolean addKeySet(
+      long deviceControllerPtr, int keySetId, int keyPolicy, long validityTime, byte[] epochKey);
+
+  private native boolean removeKeySet(long deviceControllerPtr, int keySetId);
+
   private native void deleteDeviceController(long deviceControllerPtr);
 
   private native String getIpAddress(long deviceControllerPtr, long deviceId);
@@ -1162,6 +1237,8 @@ public class ChipDeviceController {
   private native NetworkLocation getNetworkLocation(long deviceControllerPtr, long deviceId);
 
   private native long getCompressedFabricId(long deviceControllerPtr);
+
+  private native long getControllerNodeId(long deviceControllerPtr);
 
   private native void discoverCommissionableNodes(long deviceControllerPtr);
 
@@ -1268,10 +1345,8 @@ public class ChipDeviceController {
     void onScanNetworksSuccess(
         Integer networkingStatus,
         Optional<String> debugText,
-        Optional<ArrayList<ChipStructs.NetworkCommissioningClusterWiFiInterfaceScanResultStruct>>
-            wiFiScanResults,
-        Optional<ArrayList<ChipStructs.NetworkCommissioningClusterThreadInterfaceScanResultStruct>>
-            threadScanResults);
+        Optional<ArrayList<WiFiScanResult>> wiFiScanResults,
+        Optional<ArrayList<ThreadScanResult>> threadScanResults);
   }
 
   /** Interface to listen for callbacks from CHIPDeviceController. */

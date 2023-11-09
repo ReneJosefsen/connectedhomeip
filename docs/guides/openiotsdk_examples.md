@@ -10,6 +10,9 @@ The list of currently supported Matter examples:
 ```
 shell
 lock-app
+tv-app
+all-clusters-app
+ota-requestor-app
 ```
 
 You can use these examples as a reference for creating your own applications.
@@ -281,62 +284,33 @@ More information about the Python tools you can find
 
 ### Trusted Firmware-M
 
-To add [TF-M](https://tf-m-user-guide.trustedfirmware.org) support to Matter
-example you need to set `TFM_SUPPORT` variable inside main application
-`CMakeLists.txt` file.
+Matter examples support the [TF-M](https://tf-m-user-guide.trusted firmware.org)
+by default.
+
+This means the example is built as non-secure application in a Non-secure
+Processing Environment (`NSPE`). The bootloader and the secure part are also
+built from `TF-M` sources. All components are merged into a single executable
+file at the end of the building process.
+
+The project-specific configuration of `TF-M` can be provide by defining its own
+header file for `TF-M` config and passing the path to it via the
+`TFM_PROJECT_CONFIG_HEADER_FILE` variable.
 
 ```
-set(TFM_SUPPORT YES)
+set(TFM_PROJECT_CONFIG_HEADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/tf-m-config/TfmProjectConfig.h")
 ```
 
-This causes the Matter example to be built as non-secure application in
-Non-secure Processing Environment (`NSPE`). The bootloader and the secure part
-are also built from `TF-M` sources. All components are merged into a single
-executable file at the end of the building process.
+If the project-specific configuration is not provided the base `TF-M` settings
+are used
+[config_base.h](https://git.trustedfirmware.org/TF-M/trusted-firmware-m.git/tree/config/config_base.h).
+It can be used as a pattern for the custom configuration header.
 
-You can also provide the own version of Matter example by setting
+You can also provide your own version of a Matter example by setting the
 `TFM_NS_APP_VERSION` variable.
 
 ```
 set(TFM_NS_APP_VERSION "0.0.1")
 ```
-
-### Trusted Firmware-M Protected Storage
-
-By default, the
-[Block Device storage](./openiotsdk_platform_overview.md#storage) is used for
-storing Matter key-value data.
-
-There is an option to add
-[TF-M Protected Storage Service](https://tf-m-user-guide.trustedfirmware.org/integration_guide/services/tfm_ps_integration_guide.html)
-support for `key-value` storage component in the Matter examples. Set the
-variable `CONFIG_CHIP_OPEN_IOT_SDK_USE_PSA_PS` to `YES` to add
-`TF-M Protected Storage` support to your application. You can put it inside the
-main application `CMakeLists.txt` file:
-
-```
-set(CONFIG_CHIP_OPEN_IOT_SDK_USE_PSA_PS YES)
-```
-
-or add as a Cmake command-line parameter:
-
-```
-cmake -G <...> -DCONFIG_CHIP_OPEN_IOT_SDK_USE_PSA_PS=YES <...>
-```
-
-This option causes `key-value` objects will be stored in a secure part of flash
-memory and the Protected Storage Service takes care of their encryption and
-authentication.
-
-> 💡 **Notes**:
->
-> The `TF-M Protected Storage` option requires enabling
-> [TF-M](#trusted-firmware-m) support.
->
-> The `-k/--kvsstore` option in
-> [Open IoT SDK build script](../../scripts/examples/openiotsdk_example.sh)
-> selects key-value storage implementation for the Matter's examples. It
-> demonstrates how to use the `CONFIG_CHIP_OPEN_IOT_SDK_USE_PSA_PS` variable.
 
 ### Storing persistent memory block in external files
 
@@ -354,13 +328,6 @@ available
 [here](./openiotsdk_platform_overview.md#fast-model-persistent-memory-via-files).
 Depending on the storage implementation, different flags are used in the `FVP`
 options.
-
-For block device storage use:
-
-```
---dump mps3_board.sram=<file-path>@0:0x0,0x100000
---data mps3_board.sram=<file-path>@0:0x0
-```
 
 For `TF-M` protected storage use:
 
@@ -411,6 +378,37 @@ cmake -G <...> -DCONFIG_CHIP_CRYPTO=<mbedtls | psa> <...>
 >
 > The `TF-M PSA crypto` option requires enabling [TF-M](#trusted-firmware-m)
 > support.
+
+### Device Firmware Update
+
+Device Firmware Update (`DFU`) can be enabled in the application by setting the
+`CONFIG_CHIP_OPEN_IOT_SDK_OTA_ENABLE` variable:
+
+```
+set(CONFIG_CHIP_OPEN_IOT_SDK_OTA_ENABLE YES)
+```
+
+This provides the proper service for Matter's `OTA Requestor` cluster. The
+[TF-M Firmware Update Service](https://arm-software.github.io/psa-api/fwu/1.0/)
+is the backend for all firmware update operations. The `DFU Manager` module is
+attached to the application and allows full usage of the `OTA Requestor`
+cluster.
+
+You can also provide your own version of the Matter example to the Matter stack
+by setting `CONFIG_CHIP_OPEN_IOT_SDK_SOFTWARE_VERSION` and
+`CONFIG_CHIP_OPEN_IOT_SDK_SOFTWARE_VERSION_STRING` variables.
+
+```
+set(CONFIG_CHIP_OPEN_IOT_SDK_SOFTWARE_VERSION "1")
+set(CONFIG_CHIP_OPEN_IOT_SDK_SOFTWARE_VERSION_STRING "0.0.1")
+```
+
+The default value for `CONFIG_CHIP_OPEN_IOT_SDK_SOFTWARE_VERSION_STRING` is set
+to `TFM_NS_APP_VERSION`.
+
+> 💡 **Notes**:
+>
+> The `DFU` option requires enabling [TF-M](#trusted-firmware-m) support.
 
 ## Building
 

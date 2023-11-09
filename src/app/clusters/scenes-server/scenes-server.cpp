@@ -115,19 +115,33 @@ CHIP_ERROR ScenesServer::Init()
 
     for (auto endpoint : EnabledEndpointsWithServerCluster(Id))
     {
-        EmberAfStatus status = Attributes::FeatureMap::Set(endpoint, to_underlying(Feature::kSceneNames));
+        uint32_t featureMap  = 0;
+        EmberAfStatus status = Attributes::FeatureMap::Get(endpoint, &featureMap);
+        if (EMBER_ZCL_STATUS_SUCCESS == status)
+        {
+            // According to spec, bit 7 MUST match feature bit 0 (SceneNames)
+            BitMask<NameSupportBitmap> nameSupport = (featureMap & to_underlying(Feature::kSceneNames))
+                ? BitMask<NameSupportBitmap>(NameSupportBitmap::kSceneNames)
+                : BitMask<NameSupportBitmap>();
+            status                                 = Attributes::NameSupport::Set(endpoint, nameSupport);
+            if (EMBER_ZCL_STATUS_SUCCESS != status)
+            {
+                ChipLogDetail(Zcl, "ERR: setting NameSupport on Endpoint %hu Status: %x", endpoint, status);
+            }
+        }
+        else
+        {
+            ChipLogDetail(Zcl, "ERR: getting the scenes FeatureMap on Endpoint %hu Status: %x", endpoint, status);
+        }
+
+        // Explicit AttributeValuePairs and TableSize features are mandatory for matter so we force-set them here
+        featureMap |= (to_underlying(Feature::kExplicit) | to_underlying(Feature::kTableSize));
+        status = Attributes::FeatureMap::Set(endpoint, featureMap);
         if (EMBER_ZCL_STATUS_SUCCESS != status)
         {
-            ChipLogDetail(Zcl, "ERR: setting feature map on Endpoint %hu Status: %x", endpoint, status);
+            ChipLogDetail(Zcl, "ERR: setting the scenes FeatureMap on Endpoint %hu Status: %x", endpoint, status);
         }
-        //  The bit of 7 the NameSupport attribute indicates whether or not scene names are supported
-        //
-        //  According to spec, bit 7 (Scene Names) MUST match feature bit 0 (Scene Names)
-        status = Attributes::NameSupport::Set(endpoint, 0x80);
-        if (EMBER_ZCL_STATUS_SUCCESS != status)
-        {
-            ChipLogDetail(Zcl, "ERR: setting NameSupport on Endpoint %hu Status: %x", endpoint, status);
-        }
+
         status = Attributes::LastConfiguredBy::SetNull(endpoint);
         if (EMBER_ZCL_STATUS_SUCCESS != status)
         {
@@ -194,7 +208,15 @@ void AddSceneParse(CommandHandlerInterface::HandlerContext & ctx, const CommandD
     auto fieldSetIter = req.extensionFieldSets.begin();
 
     uint8_t EFSCount = 0;
-    SceneData storageData(req.sceneName, transitionTimeMs);
+
+    uint32_t featureMap = 0;
+    ReturnOnFailure(AddResponseOnError(ctx, response, Attributes::FeatureMap::Get(ctx.mRequestPath.mEndpointId, &featureMap)));
+
+    SceneData storageData(CharSpan(), transitionTimeMs);
+    if (featureMap & to_underlying(Feature::kSceneNames))
+    {
+        storageData.SetName(req.sceneName);
+    }
 
     // Goes through all EFS in command
     while (fieldSetIter.Next() && EFSCount < scenes::kMaxClustersPerScene)
@@ -369,6 +391,14 @@ CHIP_ERROR StoreSceneParse(const FabricIndex & fabricIdx, const EndpointId & end
     }
     else
     {
+        uint32_t featureMap = 0;
+        ReturnErrorOnFailure(
+            StatusIB(ToInteractionModelStatus(Attributes::FeatureMap::Get(endpointID, &featureMap))).ToChipError());
+        // Check if we still support scenes name in case an OTA changed that, if we don't, set name to empty
+        if (!(featureMap & to_underlying(Feature::kSceneNames)))
+        {
+            scene.mStorageData.SetName(CharSpan());
+        }
         scene.mStorageData.mExtensionFieldSets.Clear();
     }
 
@@ -510,7 +540,15 @@ void ScenesServer::GroupWillBeRemoved(FabricIndex aFabricIx, EndpointId aEndpoin
     SceneTable * sceneTable = scenes::GetSceneTableImpl(aEndpointId);
     VerifyOrReturn(nullptr != sceneTable);
 
-    MakeSceneInvalid(aEndpointId);
+    chip::GroupId currentGroup;
+    Attributes::CurrentGroup::Get(aEndpointId, &currentGroup);
+
+    // If currentGroup is what is being removed, we can't possibly still have a valid scene,
+    // because the scene we have (if any) will also be removed.
+    if (aGroupId == currentGroup)
+    {
+        MakeSceneInvalid(aEndpointId);
+    }
 
     VerifyOrReturn(nullptr != mGroupProvider);
     if (0 != aGroupId && !mGroupProvider->HasEndpoint(aFabricIx, aGroupId, aEndpointId))
@@ -545,27 +583,27 @@ void ScenesServer::RecallScene(FabricIndex aFabricIx, EndpointId aEndpointId, Gr
     }
 }
 
-bool ScenesServer::IsHandlerRegistered(scenes::SceneHandler * handler)
+bool ScenesServer::IsHandlerRegistered(EndpointId aEndpointId, scenes::SceneHandler * handler)
 {
-    SceneTable * sceneTable = scenes::GetSceneTableImpl();
+    SceneTable * sceneTable = scenes::GetSceneTableImpl(aEndpointId);
     return sceneTable->mHandlerList.Contains(handler);
 }
 
-void ScenesServer::RegisterSceneHandler(scenes::SceneHandler * handler)
+void ScenesServer::RegisterSceneHandler(EndpointId aEndpointId, scenes::SceneHandler * handler)
 {
-    SceneTable * sceneTable = scenes::GetSceneTableImpl();
+    SceneTable * sceneTable = scenes::GetSceneTableImpl(aEndpointId);
 
-    if (!IsHandlerRegistered(handler))
+    if (!IsHandlerRegistered(aEndpointId, handler))
     {
         sceneTable->RegisterHandler(handler);
     }
 }
 
-void ScenesServer::UnregisterSceneHandler(scenes::SceneHandler * handler)
+void ScenesServer::UnregisterSceneHandler(EndpointId aEndpointId, scenes::SceneHandler * handler)
 {
-    SceneTable * sceneTable = scenes::GetSceneTableImpl();
+    SceneTable * sceneTable = scenes::GetSceneTableImpl(aEndpointId);
 
-    if (IsHandlerRegistered(handler))
+    if (IsHandlerRegistered(aEndpointId, handler))
     {
         sceneTable->UnregisterHandler(handler);
     }
@@ -707,11 +745,15 @@ void ScenesServer::HandleRecallScene(HandlerContext & ctx, const Commands::Recal
     if (CHIP_NO_ERROR == err)
     {
         status = Attributes::SceneValid::Set(ctx.mRequestPath.mEndpointId, true);
-        if (EMBER_ZCL_STATUS_SUCCESS != status)
-        {
-            ctx.mCommandHandler.AddStatus(ctx.mRequestPath, ToInteractionModelStatus(status));
-            return;
-        }
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, ToInteractionModelStatus(status));
+        return;
+    }
+
+    if (CHIP_ERROR_NOT_FOUND == err)
+    {
+        // TODO : implement proper mapping between CHIP_ERROR and IM Status
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::NotFound);
+        return;
     }
 
     ctx.mCommandHandler.AddStatus(ctx.mRequestPath, StatusIB(err).mStatus);
@@ -807,7 +849,7 @@ void ScenesServer::HandleCopyScene(HandlerContext & ctx, const Commands::CopySce
                                        sceneTable->GetRemainingCapacity(ctx.mCommandHandler.GetAccessingFabricIndex(), capacity)));
 
     // Checks if we copy a single scene or all of them
-    if (req.mode.GetField(app::Clusters::Scenes::ScenesCopyMode::kCopyAllScenes))
+    if (req.mode.GetField(app::Clusters::Scenes::CopyModeBitmap::kCopyAllScenes))
     {
         // Scene Table interface data
         SceneId scenesInGroup[scenes::kMaxScenesPerFabric];

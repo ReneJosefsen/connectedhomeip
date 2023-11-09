@@ -276,7 +276,7 @@ void OperationalSessionSetup::EnqueueConnectionCallbacks(Callback::Callback<OnDe
     }
 }
 
-void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ERROR error)
+void OperationalSessionSetup::DequeueConnectionCallbacks(CHIP_ERROR error, ReleaseBehavior releaseBehavior)
 {
     Cancelable failureReady, successReady;
 
@@ -297,6 +297,29 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
     }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
+    // Gather up state we will need for our notifications.
+    bool performingAddressUpdate                  = mPerformingAddressUpdate;
+    auto * exchangeMgr                            = mInitParams.exchangeMgr;
+    Optional<SessionHandle> optionalSessionHandle = mSecureSession.Get();
+    ScopedNodeId peerId                           = mPeerId;
+
+    if (releaseBehavior == ReleaseBehavior::Release)
+    {
+        VerifyOrDie(mReleaseDelegate != nullptr);
+        mReleaseDelegate->ReleaseSession(this);
+    }
+
+    // DO NOT touch any members of this object after this point.  It's dead.
+
+    NotifyConnectionCallbacks(failureReady, successReady, error, peerId, performingAddressUpdate, exchangeMgr,
+                              optionalSessionHandle);
+}
+
+void OperationalSessionSetup::NotifyConnectionCallbacks(Cancelable & failureReady, Cancelable & successReady, CHIP_ERROR error,
+                                                        const ScopedNodeId & peerId, bool performingAddressUpdate,
+                                                        Messaging::ExchangeManager * exchangeMgr,
+                                                        const Optional<SessionHandle> & optionalSessionHandle)
+{
     //
     // If we encountered no error, go ahead and call all success callbacks. Otherwise,
     // call the failure callbacks.
@@ -304,7 +327,7 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
     while (failureReady.mNext != &failureReady)
     {
         // We expect that we only have callbacks if we are not performing just address update.
-        VerifyOrDie(!mPerformingAddressUpdate);
+        VerifyOrDie(!performingAddressUpdate);
         Callback::Callback<OnDeviceConnectionFailure> * cb =
             Callback::Callback<OnDeviceConnectionFailure>::FromCancelable(failureReady.mNext);
 
@@ -312,33 +335,24 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
 
         if (error != CHIP_NO_ERROR)
         {
-            cb->mCall(cb->mContext, mPeerId, error);
+            cb->mCall(cb->mContext, peerId, error);
         }
     }
 
     while (successReady.mNext != &successReady)
     {
         // We expect that we only have callbacks if we are not performing just address update.
-        VerifyOrDie(!mPerformingAddressUpdate);
+        VerifyOrDie(!performingAddressUpdate);
         Callback::Callback<OnDeviceConnected> * cb = Callback::Callback<OnDeviceConnected>::FromCancelable(successReady.mNext);
 
         cb->Cancel();
         if (error == CHIP_NO_ERROR)
         {
-            auto * exchangeMgr = mInitParams.exchangeMgr;
             VerifyOrDie(exchangeMgr);
             // We know that we for sure have the SessionHandle in the successful case.
-            auto optionalSessionHandle = mSecureSession.Get();
             cb->mCall(cb->mContext, *exchangeMgr, optionalSessionHandle.Value());
         }
     }
-}
-
-void OperationalSessionSetup::DequeueConnectionCallbacks(CHIP_ERROR error)
-{
-    DequeueConnectionCallbacksWithoutReleasing(error);
-    VerifyOrDie(mReleaseDelegate != nullptr);
-    mReleaseDelegate->ReleaseSession(this);
 }
 
 void OperationalSessionSetup::OnSessionEstablishmentError(CHIP_ERROR error)
@@ -447,7 +461,7 @@ OperationalSessionSetup::~OperationalSessionSetup()
     CancelSessionSetupReattempt();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
-    DequeueConnectionCallbacksWithoutReleasing(CHIP_ERROR_CANCELLED);
+    DequeueConnectionCallbacks(CHIP_ERROR_CANCELLED, ReleaseBehavior::DoNotRelease);
 }
 
 CHIP_ERROR OperationalSessionSetup::LookupPeerAddress()
@@ -688,10 +702,43 @@ void OperationalSessionSetup::NotifyRetryHandlers(CHIP_ERROR error, const Reliab
 
 void OperationalSessionSetup::NotifyRetryHandlers(CHIP_ERROR error, System::Clock::Seconds16 timeoutEstimate)
 {
-    for (auto * item = mConnectionRetry.First(); item && item != &mConnectionRetry; item = item->mNext)
+    // We have to be very careful here: Calling into these handlers might in
+    // theory destroy the Callback objects involved, but unlike the
+    // succcess/failure cases we don't want to just clear the handlers from our
+    // list when we are calling them, because we might need to call a given
+    // handler more than once.
+    //
+    // To handle this we:
+    //
+    // 1) Snapshot the list of handlers up front, so if any of the handlers
+    //    triggers an AddRetryHandler with some other handler that does not
+    //    affect the list we plan to notify here.
+    //
+    // 2) When planning to notify a handler move it to a new list that contains
+    //    just that handler.  This way if it gets canceled as part of the
+    //    notification we can tell it has been canceled.
+    //
+    // 3) If notifying the handler does not cancel it, add it back to our list
+    //    of handlers so we will notify it on future retries.
+
+    Cancelable retryHandlerListSnapshot;
+    mConnectionRetry.DequeueAll(retryHandlerListSnapshot);
+
+    while (retryHandlerListSnapshot.mNext != &retryHandlerListSnapshot)
     {
-        auto cb = Callback::Callback<OnDeviceConnectionRetry>::FromCancelable(item);
+        auto * cb = Callback::Callback<OnDeviceConnectionRetry>::FromCancelable(retryHandlerListSnapshot.mNext);
+
+        Callback::CallbackDeque currentCallbackHolder;
+        currentCallbackHolder.Enqueue(cb->Cancel());
+
         cb->mCall(cb->mContext, mPeerId, error, timeoutEstimate);
+
+        if (currentCallbackHolder.mNext != &currentCallbackHolder)
+        {
+            // Callback has not been canceled as part of the call, so is still
+            // supposed to be registered with us.
+            AddRetryHandler(cb);
+        }
     }
 }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES

@@ -156,5 +156,12 @@ ALLOW: Dict[str, Set[str]] = {
     'src/controller/ExamplePersistentStorage.cpp': {'fstream'},
 
     # Library meant for non-embedded
-    'src/tracing/log_json/log_json_tracing.cpp': {'string', 'sstream'}
+    'src/tracing/json/json_tracing.cpp': {'string', 'sstream'},
+    'src/tracing/json/json_tracing.h': {'fstream'},
+
+    # Not intended for embedded clients
+    'src/lib/support/jsontlv/JsonToTlv.cpp': {'sstream'},
+    'src/lib/support/jsontlv/JsonToTlv.h': {'string'},
+    'src/lib/support/jsontlv/TlvToJson.h': {'string'},
+    'src/lib/support/jsontlv/TextFormat.h': {'string'}
 }

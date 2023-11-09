@@ -20,8 +20,10 @@ import asyncio
 import builtins
 import json
 import logging
+import math
 import os
 import pathlib
+import queue
 import re
 import sys
 import typing
@@ -45,9 +47,14 @@ import chip.CertificateAuthority
 import chip.clusters as Clusters
 import chip.logging
 import chip.native
+from chip import discovery
 from chip.ChipStack import ChipStack
+from chip.clusters.Attribute import EventReadResult, SubscriptionTransaction
+from chip.exceptions import ChipStackError
 from chip.interaction_model import InteractionModelError, Status
+from chip.setup_payload import SetupPayload
 from chip.storage import PersistentStorage
+from chip.tracing import TracingContext
 from mobly import asserts, base_test, signals, utils
 from mobly.config_parser import ENV_MOBLY_LOGPATH, TestRunConfig
 from mobly.test_runner import TestRunner
@@ -195,6 +202,28 @@ def compare_time(received: int, offset: timedelta = timedelta(), utc: int = None
     asserts.assert_less_equal(delta, tolerance, "Received time is out of tolerance")
 
 
+def get_wait_seconds_from_set_time(set_time_matter_us: int, wait_seconds: int):
+    seconds_passed = math.floor((utc_time_in_matter_epoch() - set_time_matter_us)/1000000)
+    return wait_seconds - seconds_passed
+
+
+class SimpleEventCallback:
+    def __init__(self, name: str, expected_cluster_id: int, expected_event_id: int, output_queue: queue.SimpleQueue):
+        self._name = name
+        self._expected_cluster_id = expected_cluster_id
+        self._expected_event_id = expected_event_id
+        self._output_queue = output_queue
+
+    def __call__(self, event_result: EventReadResult, transaction: SubscriptionTransaction):
+        if (self._expected_cluster_id == event_result.Header.ClusterId and
+                self._expected_event_id == event_result.Header.EventId):
+            self._output_queue.put(event_result)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+
 @dataclass
 class MatterTestConfig:
     storage_path: pathlib.Path = pathlib.Path(".")
@@ -240,6 +269,8 @@ class MatterTestConfig:
     # If this is set, we will reuse root of trust keys at that location
     chip_tool_credentials_path: Optional[pathlib.Path] = None
 
+    trace_to: List[str] = field(default_factory=list)
+
 
 class ClusterMapper:
     """Describe clusters/attributes using schema names."""
@@ -269,6 +300,18 @@ class ClusterMapper:
                 return f"Attribute {attribute_name} ({attribute_id}, 0x{attribute_id:04X})"
 
 
+def id_str(id):
+    return f'{id} (0x{id:02x})'
+
+
+def cluster_id_str(id):
+    if id in Clusters.ClusterObjects.ALL_CLUSTERS.keys():
+        s = Clusters.ClusterObjects.ALL_CLUSTERS[id].__name__
+    else:
+        s = "Unknown cluster"
+    return f'{id_str(id)} {s}'
+
+
 @dataclass
 class AttributePathLocation:
     endpoint_id: int
@@ -288,6 +331,11 @@ class AttributePathLocation:
 
         return desc
 
+    def __str__(self):
+        return (f'\n        Endpoint: {self.endpoint_id},'
+                f'\n        Cluster:  {cluster_id_str(self.cluster_id)},'
+                f'\n        Attribute:{id_str(self.attribute_id)}')
+
 
 @dataclass
 class EventPathLocation:
@@ -295,12 +343,44 @@ class EventPathLocation:
     cluster_id: int
     event_id: int
 
+    def __str__(self):
+        return (f'\n        Endpoint: {self.endpoint_id},'
+                f'\n        Cluster:  {cluster_id_str(self.cluster_id)},'
+                f'\n        Event:    {id_str(self.event_id)}')
+
 
 @dataclass
 class CommandPathLocation:
     endpoint_id: int
     cluster_id: int
     command_id: int
+
+    def __str__(self):
+        return (f'\n        Endpoint: {self.endpoint_id},'
+                f'\n        Cluster:  {cluster_id_str(self.cluster_id)},'
+                f'\n        Command:  {id_str(self.command_id)}')
+
+
+@dataclass
+class ClusterPathLocation:
+    endpoint_id: int
+    cluster_id: int
+
+    def __str__(self):
+        return (f'\n       Endpoint: {self.endpoint_id},'
+                f'\n       Cluster:  {cluster_id_str(self.cluster_id)}')
+
+
+@dataclass
+class FeaturePathLocation:
+    endpoint_id: int
+    cluster_id: int
+    feature_code: str
+
+    def __str__(self):
+        return (f'\n        Endpoint: {self.endpoint_id},'
+                f'\n        Cluster:  {cluster_id_str(self.cluster_id)},'
+                f'\n        Feature:  {self.feature_code}')
 
 # ProblemSeverity is not using StrEnum, but rather Enum, since StrEnum only
 # appeared in 3.11. To make it JSON serializable easily, multiple inheritance
@@ -316,10 +396,24 @@ class ProblemSeverity(str, Enum):
 @dataclass
 class ProblemNotice:
     test_name: str
-    location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation]
+    location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation, ClusterPathLocation, FeaturePathLocation]
     severity: ProblemSeverity
     problem: str
     spec_location: str = ""
+
+    def __str__(self):
+        return (f'\nProblem: {str(self.severity)}'
+                f'\n    test_name: {self.test_name}'
+                f'\n    location: {str(self.location)}'
+                f'\n    problem: {self.problem}'
+                f'\n    spec_location: {self.spec_location}\n')
+
+
+@dataclass
+class SetupPayloadInfo:
+    filter_type: discovery.FilterType = discovery.FilterType.LONG_DISCRIMINATOR
+    filter_value: int = 0
+    passcode: int = 0
 
 
 class MatterStackState:
@@ -447,7 +541,7 @@ class MatterBaseTest(base_test.BaseTestClass):
         logging.info("Problems found:")
         logging.info("===============")
         for problem in self.problems:
-            logging.info(f"- {json.dumps(dataclass_asdict(problem))}")
+            logging.info(str(problem))
         logging.info("###########################################################")
 
         super().teardown_class()
@@ -513,14 +607,43 @@ class MatterBaseTest(base_test.BaseTestClass):
     def print_step(self, stepnum: typing.Union[int, str], title: str) -> None:
         logging.info(f'***** Test Step {stepnum} : {title}')
 
-    def record_error(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation], problem: str, spec_location: str = ""):
+    def record_error(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation, ClusterPathLocation, FeaturePathLocation], problem: str, spec_location: str = ""):
         self.problems.append(ProblemNotice(test_name, location, ProblemSeverity.ERROR, problem, spec_location))
 
-    def record_warning(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation], problem: str, spec_location: str = ""):
+    def record_warning(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation, ClusterPathLocation, FeaturePathLocation], problem: str, spec_location: str = ""):
         self.problems.append(ProblemNotice(test_name, location, ProblemSeverity.WARNING, problem, spec_location))
 
-    def record_note(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation], problem: str, spec_location: str = ""):
+    def record_note(self, test_name: str, location: Union[AttributePathLocation, EventPathLocation, CommandPathLocation, ClusterPathLocation, FeaturePathLocation], problem: str, spec_location: str = ""):
         self.problems.append(ProblemNotice(test_name, location, ProblemSeverity.NOTE, problem, spec_location))
+
+    def get_setup_payload_info(self) -> SetupPayloadInfo:
+        if self.matter_test_config.qr_code_content is not None:
+            qr_code = self.matter_test_config.qr_code_content
+            try:
+                setup_payload = SetupPayload().ParseQrCode(qr_code)
+            except ChipStackError:
+                asserts.fail(f"QR code '{qr_code} failed to parse properly as a Matter setup code.")
+
+        elif self.matter_test_config.manual_code is not None:
+            manual_code = self.matter_test_config.manual_code
+            try:
+                setup_payload = SetupPayload().ParseManualPairingCode(manual_code)
+            except ChipStackError:
+                asserts.fail(
+                    f"Manual code code '{manual_code}' failed to parse properly as a Matter setup code. Check that all digits are correct and length is 11 or 21 characters.")
+        else:
+            asserts.fail("Require either --qr-code or --manual-code.")
+
+        info = SetupPayloadInfo()
+        info.passcode = setup_payload.setup_passcode
+        if setup_payload.short_discriminator is not None:
+            info.filter_type = discovery.FilterType.SHORT_DISCRIMINATOR
+            info.filter_value = setup_payload.short_discriminator
+        else:
+            info.filter_type = discovery.FilterType.LONG_DISCRIMINATOR
+            info.filter_value = setup_payload.long_discriminator
+
+        return info
 
 
 def generate_mobly_test_config(matter_test_config: MatterTestConfig):
@@ -574,14 +697,15 @@ def byte_string_from_hex(s: str) -> bytes:
     return unhexlify(s.replace(":", "").replace(" ", "").replace("0x", ""))
 
 
-def int_from_manual_code(s: str) -> int:
-    s = s.replace('-', '')
+def str_from_manual_code(s: str) -> str:
+    """Enforces legal format for manual codes and removes spaces/dashes."""
+    s = s.replace("-", "").replace(" ", "")
     regex = r"^([0-9]{11}|[0-9]{21})$"
     match = re.match(regex, s)
     if not match:
         raise ValueError("Invalid manual code format, does not match %s" % regex)
 
-    return int(s, 10)
+    return s
 
 
 def int_named_arg(s: str) -> Tuple[str, int]:
@@ -701,7 +825,7 @@ def populate_commissioning_args(args: argparse.Namespace, config: MatterTestConf
     # TODO: this should also allow multiple once QR and manual codes are supported.
     config.qr_code_content = args.qr_code
     if args.manual_code:
-        config.manual_code = "%d" % args.manual_code
+        config.manual_code = args.manual_code
     else:
         config.manual_code = None
 
@@ -726,12 +850,15 @@ def populate_commissioning_args(args: argparse.Namespace, config: MatterTestConf
         print("error: supplied number of discriminators does not match number of passcodes")
         return False
 
-    if len(config.dut_node_ids) > len(config.discriminators):
+    device_descriptors = [config.qr_code_content] if config.qr_code_content is not None else [
+        config.manual_code] if config.manual_code is not None else config.discriminators
+
+    if len(config.dut_node_ids) > len(device_descriptors):
         print("error: More node IDs provided than discriminators")
         return False
 
-    if len(config.dut_node_ids) < len(config.discriminators):
-        missing = len(config.discriminators) - len(config.dut_node_ids)
+    if len(config.dut_node_ids) < len(device_descriptors):
+        missing = len(device_descriptors) - len(config.dut_node_ids)
         # We generate new node IDs sequentially from the last one seen for all
         # missing NodeIDs when commissioning many nodes at once.
         for i in range(missing):
@@ -789,8 +916,10 @@ def convert_args_to_matter_config(args: argparse.Namespace) -> MatterTestConfig:
     config.paa_trust_store_path = args.paa_trust_store_path
     config.ble_interface_id = args.ble_interface_id
     config.pics = {} if args.PICS is None else read_pics_from_file(args.PICS)
+    config.tests = [] if args.tests is None else args.tests
 
     config.controller_node_id = args.controller_node_id
+    config.trace_to = args.trace_to
 
     # Accumulate all command-line-passed named args
     all_global_args = []
@@ -821,7 +950,8 @@ def parse_matter_test_args(argv: List[str]) -> MatterTestConfig:
                              type=str,
                              metavar='test_a test_b...',
                              help='A list of tests in the test class to execute.')
-
+    basic_group.add_argument('--trace-to', nargs="*", default=[],
+                             help="Where to trace (e.g perfetto, perfetto:path, json:log, json:path)")
     basic_group.add_argument('--storage-path', action="store", type=pathlib.Path,
                              metavar="PATH", help="Location for persisted storage of instance")
     basic_group.add_argument('--logs-path', action="store", type=pathlib.Path, metavar="PATH", help="Location for test logs")
@@ -885,7 +1015,7 @@ def parse_matter_test_args(argv: List[str]) -> MatterTestConfig:
 
     code_group.add_argument('-q', '--qr-code', type=str,
                             metavar="QR_CODE", help="QR setup code content (overrides passcode and discriminator)")
-    code_group.add_argument('--manual-code', type=int_from_manual_code,
+    code_group.add_argument('--manual-code', type=str_from_manual_code,
                             metavar="MANUAL_CODE", help="Manual setup code content (overrides passcode and discriminator)")
 
     fabric_group = parser.add_argument_group(
@@ -953,27 +1083,35 @@ class CommissionDeviceTest(MatterBaseTest):
         dev_ctrl = self.default_controller
         conf = self.matter_test_config
 
-        # TODO: support by manual code and QR
+        # TODO: qr code and manual code aren't lists
+
+        if conf.qr_code_content or conf.manual_code:
+            info = self.get_setup_payload_info()
+        else:
+            info = SetupPayloadInfo()
+            info.passcode = conf.setup_passcodes[i]
+            info.filter_type = DiscoveryFilterType.LONG_DISCRIMINATOR
+            info.filter_value = conf.discriminators[i]
 
         if conf.commissioning_method == "on-network":
             return dev_ctrl.CommissionOnNetwork(
                 nodeId=conf.dut_node_ids[i],
-                setupPinCode=conf.setup_passcodes[i],
-                filterType=DiscoveryFilterType.LONG_DISCRIMINATOR,
-                filter=conf.discriminators[i]
+                setupPinCode=info.passcode,
+                filterType=info.filter_type,
+                filter=info.filter_value
             )
         elif conf.commissioning_method == "ble-wifi":
             return dev_ctrl.CommissionWiFi(
-                conf.discriminators[i],
-                conf.setup_passcodes[i],
+                info.filter_value,
+                info.passcode,
                 conf.dut_node_ids[i],
                 conf.wifi_ssid,
                 conf.wifi_passphrase
             )
         elif conf.commissioning_method == "ble-thread":
             return dev_ctrl.CommissionThread(
-                conf.discriminators[i],
-                conf.setup_passcodes[i],
+                info.filter_value,
+                info.passcode,
                 conf.dut_node_ids[i],
                 conf.thread_operational_dataset
             )
@@ -981,7 +1119,7 @@ class CommissionDeviceTest(MatterBaseTest):
             logging.warning("==== USING A DIRECT IP COMMISSIONING METHOD NOT SUPPORTED IN THE LONG TERM ====")
             return dev_ctrl.CommissionIP(
                 ipaddr=conf.commissionee_ip_address_just_for_testing,
-                setupPinCode=conf.setup_passcodes[i], nodeid=conf.dut_node_ids[i]
+                setupPinCode=info.passcode, nodeid=conf.dut_node_ids[i]
             )
         else:
             raise ValueError("Invalid commissioning method %s!" % conf.commissioning_method)
@@ -1025,44 +1163,49 @@ def default_matter_test_main(argv=None, **kwargs):
         matter_test_config.maximize_cert_chains = kwargs["maximize_cert_chains"]
 
     stack = MatterStackState(matter_test_config)
-    test_config.user_params["matter_stack"] = stash_globally(stack)
 
-    # TODO: Steer to right FabricAdmin!
-    # TODO: If CASE Admin Subject is a CAT tag range, then make sure to issue NOC with that CAT tag
+    with TracingContext() as tracing_ctx:
+        for destination in matter_test_config.trace_to:
+            tracing_ctx.StartFromString(destination)
 
-    default_controller = stack.certificate_authorities[0].adminList[0].NewController(
-        nodeId=matter_test_config.controller_node_id,
-        paaTrustStorePath=str(matter_test_config.paa_trust_store_path),
-        catTags=matter_test_config.controller_cat_tags
-    )
-    test_config.user_params["default_controller"] = stash_globally(default_controller)
+        test_config.user_params["matter_stack"] = stash_globally(stack)
 
-    test_config.user_params["matter_test_config"] = stash_globally(matter_test_config)
+        # TODO: Steer to right FabricAdmin!
+        # TODO: If CASE Admin Subject is a CAT tag range, then make sure to issue NOC with that CAT tag
 
-    test_config.user_params["certificate_authority_manager"] = stash_globally(stack.certificate_authority_manager)
+        default_controller = stack.certificate_authorities[0].adminList[0].NewController(
+            nodeId=matter_test_config.controller_node_id,
+            paaTrustStorePath=str(matter_test_config.paa_trust_store_path),
+            catTags=matter_test_config.controller_cat_tags
+        )
+        test_config.user_params["default_controller"] = stash_globally(default_controller)
 
-    # Execute the test class with the config
-    ok = True
+        test_config.user_params["matter_test_config"] = stash_globally(matter_test_config)
 
-    runner = TestRunner(log_dir=test_config.log_path,
-                        testbed_name=test_config.testbed_name)
+        test_config.user_params["certificate_authority_manager"] = stash_globally(stack.certificate_authority_manager)
 
-    with runner.mobly_logger():
-        if matter_test_config.commissioning_method is not None:
-            runner.add_test_class(test_config, CommissionDeviceTest, None)
+        # Execute the test class with the config
+        ok = True
 
-        # Add the tests selected unless we have a commission-only request
-        if not matter_test_config.commission_only:
-            runner.add_test_class(test_config, test_class, tests)
+        runner = TestRunner(log_dir=test_config.log_path,
+                            testbed_name=test_config.testbed_name)
 
-        try:
-            runner.run()
-            ok = runner.results.is_all_pass and ok
-        except signals.TestAbortAll:
-            ok = False
-        except Exception:
-            logging.exception('Exception when executing %s.', test_config.testbed_name)
-            ok = False
+        with runner.mobly_logger():
+            if matter_test_config.commissioning_method is not None:
+                runner.add_test_class(test_config, CommissionDeviceTest, None)
+
+            # Add the tests selected unless we have a commission-only request
+            if not matter_test_config.commission_only:
+                runner.add_test_class(test_config, test_class, tests)
+
+            try:
+                runner.run()
+                ok = runner.results.is_all_pass and ok
+            except signals.TestAbortAll:
+                ok = False
+            except Exception:
+                logging.exception('Exception when executing %s.', test_config.testbed_name)
+                ok = False
 
     # Shutdown the stack when all done
     stack.Shutdown()

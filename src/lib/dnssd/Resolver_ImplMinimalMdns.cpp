@@ -380,18 +380,45 @@ void MinMdnsResolver::AdvancePendingResolverStates()
             if (err != CHIP_NO_ERROR)
             {
                 ChipLogError(Discovery, "Failed to take discovery result: %" CHIP_ERROR_FORMAT, err.Format());
+                continue;
             }
 
-            mActiveResolves.Complete(nodeData);
-            if (mCommissioningDelegate != nullptr)
+            // TODO: Ideally commissioning delegates should be aware of the
+            //       node types they receive, however they are currently not
+            //       so try to help out by only calling the delegate when an
+            //       active browse exists.
+            //
+            // This is NOT ok and probably we should have separate comissioner
+            // or commissionable delegates or pass in a node type argument.
+            bool discoveredNodeIsRelevant = false;
+
+            switch (resolver->GetCurrentType())
             {
-                mCommissioningDelegate->OnNodeDiscovered(nodeData);
+            case IncrementalResolver::ServiceNameType::kCommissioner:
+                discoveredNodeIsRelevant = mActiveResolves.HasBrowseFor(chip::Dnssd::DiscoveryType::kCommissionerNode);
+                mActiveResolves.CompleteCommissioner(nodeData);
+                break;
+            case IncrementalResolver::ServiceNameType::kCommissionable:
+                discoveredNodeIsRelevant = mActiveResolves.HasBrowseFor(chip::Dnssd::DiscoveryType::kCommissionableNode);
+                mActiveResolves.CompleteCommissionable(nodeData);
+                break;
+            default:
+                ChipLogError(Discovery, "Unexpected type for commission data parsing");
+                continue;
             }
-            else
+
+            if (discoveredNodeIsRelevant)
             {
+                if (mCommissioningDelegate != nullptr)
+                {
+                    mCommissioningDelegate->OnNodeDiscovered(nodeData);
+                }
+                else
+                {
 #if CHIP_MINMDNS_HIGH_VERBOSITY
-                ChipLogError(Discovery, "No delegate to report commissioning node discovery");
+                    ChipLogError(Discovery, "No delegate to report commissioning node discovery");
 #endif
+                }
             }
         }
         else if (resolver->IsActiveOperationalParse())
@@ -719,25 +746,6 @@ ResolverProxy::~ResolverProxy()
     //       and they don't interact well with each other.
     gResolver.SetCommissioningDelegate(nullptr);
     Shutdown();
-}
-
-// Minimal implementation does not support associating a context to a request (while platforms implementations do). So keep
-// updating the delegate that ends up being used by the server by calling 'SetOperationalDelegate'.
-// This effectively allow minimal to have multiple controllers issuing requests as long the requests are serialized, but
-// it won't work well if requests are issued in parallel.
-CHIP_ERROR ResolverProxy::ResolveNodeId(const PeerId & peerId)
-{
-    VerifyOrReturnError(mDelegate != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    ChipLogProgress(Discovery, "Resolving " ChipLogFormatX64 ":" ChipLogFormatX64 " ...",
-                    ChipLogValueX64(peerId.GetCompressedFabricId()), ChipLogValueX64(peerId.GetNodeId()));
-    chip::Dnssd::Resolver::Instance().SetOperationalDelegate(mDelegate);
-    return chip::Dnssd::Resolver::Instance().ResolveNodeId(peerId);
-}
-
-void ResolverProxy::NodeIdResolutionNoLongerNeeded(const PeerId & peerId)
-{
-    return chip::Dnssd::Resolver::Instance().NodeIdResolutionNoLongerNeeded(peerId);
 }
 
 CHIP_ERROR ResolverProxy::DiscoverCommissionableNodes(DiscoveryFilter filter)

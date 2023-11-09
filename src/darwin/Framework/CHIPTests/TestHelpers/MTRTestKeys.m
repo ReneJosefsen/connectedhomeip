@@ -57,7 +57,7 @@
     CFErrorRef error = NULL;
     const NSDictionary * keygenParams = @{
         (__bridge NSString *) kSecAttrKeyClass : (__bridge NSString *) kSecAttrKeyClassPrivate,
-        (__bridge NSString *) kSecAttrKeyType : (__bridge NSNumber *) kSecAttrKeyTypeECSECPrimeRandom,
+        (__bridge NSString *) kSecAttrKeyType : (__bridge NSString *) kSecAttrKeyTypeECSECPrimeRandom,
         (__bridge NSString *) kSecAttrKeySizeInBits : @(keySizeInBits),
         (__bridge NSString *) kSecAttrIsPermanent : @(NO)
     };
@@ -69,11 +69,15 @@
     }
     _publicKey = SecKeyCopyPublicKey(_privateKey);
 
+    _signatureCount = 0;
+
     return self;
 }
 
 - (NSData *)signMessageECDSA_DER:(NSData *)message
 {
+    ++_signatureCount;
+
     CFErrorRef error = NULL;
     CFDataRef outData
         = SecKeyCreateSignature(_privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef) message, &error);

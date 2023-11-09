@@ -287,6 +287,11 @@ void Resolver::OnOperationalNodeResolved(const Dnssd::ResolvedNodeData & nodeDat
         result.mrpRemoteConfig = nodeData.resolutionData.GetRemoteMRPConfig();
         result.supportsTcp     = nodeData.resolutionData.supportsTcp;
 
+        if (nodeData.resolutionData.isICDOperatingAsLIT.HasValue())
+        {
+            result.isICDOperatingAsLIT = nodeData.resolutionData.isICDOperatingAsLIT.Value();
+        }
+
         for (size_t i = 0; i < nodeData.resolutionData.numIPs; i++)
         {
 #if !INET_CONFIG_ENABLE_IPV4
@@ -400,10 +405,7 @@ void Resolver::ReArmTimer()
 
     if (nextTimeout == kInvalidTimeout)
     {
-#if CHIP_MINMDNS_HIGH_VERBOSITY
         // Generally this is only expected when no active lookups exist
-        ChipLogProgress(Discovery, "Discovery does not require any more timeouts");
-#endif
         return;
     }
 

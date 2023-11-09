@@ -26,6 +26,8 @@
 
 #include <app/AppConfig.h>
 
+#include <protocols/interaction_model/Constants.h>
+
 using namespace chip;
 using namespace chip::TLV;
 
@@ -78,7 +80,7 @@ CHIP_ERROR CommandPathIB::Parser::PrettyPrint() const
             {
                 chip::CommandId commandId;
                 ReturnErrorOnFailure(reader.Get(commandId));
-                PRETTY_PRINT("\tCommandId = 0x%x,", commandId);
+                PRETTY_PRINT("\tCommandId = 0x%" PRIx32 ",", commandId);
             }
 #endif // CHIP_DETAIL_LOGGING
             break;
@@ -112,6 +114,24 @@ CHIP_ERROR CommandPathIB::Parser::GetClusterId(chip::ClusterId * const apCluster
 CHIP_ERROR CommandPathIB::Parser::GetCommandId(chip::CommandId * const apCommandId) const
 {
     return GetUnsignedInteger(to_underlying(Tag::kCommandId), apCommandId);
+}
+
+CHIP_ERROR CommandPathIB::Parser::GetConcreteCommandPath(ConcreteCommandPath & aCommandPath) const
+{
+    ReturnErrorOnFailure(GetGroupCommandPath(&aCommandPath.mClusterId, &aCommandPath.mCommandId));
+
+    return GetEndpointId(&aCommandPath.mEndpointId);
+}
+
+CHIP_ERROR CommandPathIB::Parser::GetGroupCommandPath(ClusterId * apClusterId, CommandId * apCommandId) const
+{
+    ReturnErrorOnFailure(GetClusterId(apClusterId));
+    VerifyOrReturnError(IsValidClusterId(*apClusterId), CHIP_IM_GLOBAL_STATUS(InvalidAction));
+
+    ReturnErrorOnFailure(GetCommandId(apCommandId));
+    VerifyOrReturnError(IsValidCommandId(*apCommandId), CHIP_IM_GLOBAL_STATUS(InvalidAction));
+
+    return CHIP_NO_ERROR;
 }
 
 CommandPathIB::Builder & CommandPathIB::Builder::EndpointId(const chip::EndpointId aEndpointId)

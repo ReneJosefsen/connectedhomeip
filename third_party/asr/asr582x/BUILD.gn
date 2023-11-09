@@ -19,6 +19,9 @@ import("${chip_root}/src/platform/ASR/args.gni")
 declare_args() {
   # Build target to use for asr SDK. Use this to set global SDK defines.
   asr_target_project = ""
+
+  # Must be "4M" or "2M". For matter, ASR582X use 4M flash default.
+  asr_flash_max_size = "4M"
 }
 
 assert(asr_target_project != "", "asr_target_project must be specified")
@@ -29,9 +32,6 @@ config("asr_sdk_config") {
     "${asr_sdk_build_root}/asr_sdk/config",
     "${asr_sdk_build_root}/asr_sdk/config/lwip_if",
     "${asr_sdk_build_root}/asr_sdk/matter",
-    "${asr_sdk_build_root}/asr_sdk/freertos/Source/include",
-    "${asr_sdk_build_root}/asr_sdk/freertos/Source/portable/MemMang",
-    "${asr_sdk_build_root}/asr_sdk/freertos/Source/portable/GCC/ARM_CM4F",
     "${asr_sdk_build_root}/asr_sdk/lib/wifi",
     "${asr_sdk_build_root}/asr_sdk/lib/ble",
     "${asr_sdk_build_root}/asr_sdk/lib/sys",
@@ -45,21 +45,19 @@ config("asr_sdk_config") {
     "${asr_sdk_build_root}/asr_sdk/platform/duet/CMSIS/Include",
     "${asr_sdk_build_root}/asr_sdk/platform/duet/system/include",
     "${asr_sdk_build_root}/asr_sdk/platform/duet/kv/include",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_2.1.2/include",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_2.1.2/port/include",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_2.1.2/include/lwip",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_app",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_app/lwip_app_ping",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_2.1.2/include/lwip/prot",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_2.1.2/include/netif",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_app/iperf",
-    "${asr_sdk_build_root}/asr_sdk/lwip/lwip_app/ota",
-    "${asr_sdk_build_root}/asr_sdk/lwip/mbedtls-mbedtls-2.18/include",
-    "${asr_sdk_build_root}/asr_sdk/lwip/mbedtls-mbedtls-2.18/include/mbedtls",
-    "${asr_sdk_build_root}/asr_sdk/lwip/mbedtls-mbedtls-2.18/asr_mbedtls/",
-    "${asr_sdk_build_root}/asr_sdk/lwip/mbedtls-mbedtls-2.18/asr_mbedtls/alt",
     "${asr_sdk_build_root}/asr_sdk/demo/matter_demo/app/ble_demo/duet_hl_matter",
-    "${asr_sdk_build_root}/asr_sdk/platform/duet/kv/include",
+    "${asr_sdk_build_root}/../components/freertos/Source/include",
+    "${asr_sdk_build_root}/../components/freertos/Source/portable/MemMang",
+    "${asr_sdk_build_root}/../components/freertos/Source/portable/GCC/ARM_CM4F",
+    "${asr_sdk_build_root}/../components/lwip_2.1.2/include",
+    "${asr_sdk_build_root}/../components/lwip_2.1.2/port/include",
+    "${asr_sdk_build_root}/../components/lwip_2.1.2/include/lwip",
+    "${asr_sdk_build_root}/../components/lwip_2.1.2/include/lwip/prot",
+    "${asr_sdk_build_root}/../components/lwip_2.1.2/include/netif",
+    "${asr_sdk_build_root}/../components/mbedtls-2.18/include",
+    "${asr_sdk_build_root}/../components/mbedtls-2.18/include/mbedtls",
+    "${asr_sdk_build_root}/../components/mbedtls-2.18/asr_mbedtls/",
+    "${asr_sdk_build_root}/../components/mbedtls-2.18/asr_mbedtls/alt",
   ]
 
   # Also add project include path (passed in from project build)
@@ -126,7 +124,6 @@ config("asr_sdk_config") {
     "CONFIG_IEEE80211W",
     "WFA_CERTIFICATE_N",
     "CFG_DUET_5822S",
-    "CFG_DUET_5822T",
     "MBEDTLS_HW",
     "MBEDTLS_HW_RSA",
     "MBEDTLS_HW_ECC",
@@ -138,12 +135,21 @@ config("asr_sdk_config") {
     "CFG_EASY_LOG_MODULE_EN=1",
   ]
 
+  if (asr_flash_max_size == "2M") {
+    defines += [ "_OTA_CMP_VENDOR_" ]
+  } else {
+    defines += [ "CFG_DUET_5822T" ]
+  }
+
   cflags_c = [
     "-mcpu=cortex-m4",
     "-Os",
     "-mfloat-abi=softfp",
     "-mfpu=fpv4-sp-d16",
     "-mthumb",
+    "-fno-builtin-printf",
+    "-fno-builtin-sprintf",
+    "-fno-builtin-snprintf",
     "-ffunction-sections",
     "-fdata-sections",
     "-g",
@@ -163,7 +169,12 @@ config("asr_sdk_config") {
     "-Wno-type-limits",
   ]
 
-  ldflags += [ "-Wl,--gc-sections" ]
+  ldflags += [
+    "-Wl,--wrap=printf",
+    "-Wl,--wrap=sprintf",
+    "-Wl,--wrap=snprintf",
+    "-Wl,--gc-sections",
+  ]
 
   libs = [
     "${chip_root}/third_party/asr/${asr_ic_family}/asr_sdk/lib/5822s/libasr_combo_v6.a",

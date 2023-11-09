@@ -43,8 +43,8 @@
 #include <lwip/nd6.h>
 #include <lwip/netif.h>
 
+#include "cy_network_mw_core.h"
 #include "lwip/opt.h"
-#include <cy_lwip.h>
 #include <platform/Infineon/PSOC6/NetworkCommissioningDriver.h>
 #include <type_traits>
 
@@ -346,7 +346,7 @@ void ConnectivityManagerImpl::ChangeWiFiAPState(WiFiAPState newState)
     }
 }
 
-#define INITIALISER_IPV4_ADDRESS1(addr_var, addr_val) addr_var = { CY_WCM_IP_VER_V4, { .v4 = (uint32_t)(addr_val) } }
+#define INITIALISER_IPV4_ADDRESS1(addr_var, addr_val) addr_var = { CY_WCM_IP_VER_V4, { .v4 = (uint32_t) (addr_val) } }
 #define MAKE_IPV4_ADDRESS1(a, b, c, d) ((((uint32_t) d) << 24) | (((uint32_t) c) << 16) | (((uint32_t) b) << 8) | ((uint32_t) a))
 static const cy_wcm_ip_setting_t ap_mode_ip_settings = {
     INITIALISER_IPV4_ADDRESS1(.ip_address, MAKE_IPV4_ADDRESS1(192, 168, 0, 2)),
@@ -634,7 +634,7 @@ void ConnectivityManagerImpl::UpdateInternetConnectivityState(void)
     // If the WiFi station is currently in the connected state...
     if ((mWiFiStationState == kWiFiStationState_Connected) || stationConnected)
     {
-        net_interface = cy_lwip_get_interface(CY_LWIP_STA_NW_INTERFACE);
+        net_interface = (netif *) cy_network_get_nw_interface(CY_NETWORK_WIFI_STA_INTERFACE, 0);
         if (net_interface != NULL && netif_is_up(net_interface) && netif_is_link_up(net_interface))
         {
             if (!ip4_addr_isany(netif_ip4_addr(net_interface)) && !ip4_addr_isany(netif_ip4_gw(net_interface)))

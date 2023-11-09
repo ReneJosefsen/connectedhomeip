@@ -213,9 +213,13 @@ private:
     struct CommonTxtEntryStorage
     {
         // +2 for all to account for '=' and terminating nullchar
-        char sleepyIdleIntervalBuf[KeySize(TxtFieldKey::kSleepyIdleInterval) + ValSize(TxtFieldKey::kSleepyIdleInterval) + 2];
-        char sleepyActiveIntervalBuf[KeySize(TxtFieldKey::kSleepyActiveInterval) + ValSize(TxtFieldKey::kSleepyActiveInterval) + 2];
+        char sessionIdleIntervalBuf[KeySize(TxtFieldKey::kSessionIdleInterval) + ValSize(TxtFieldKey::kSessionIdleInterval) + 2];
+        char sessionActiveIntervalBuf[KeySize(TxtFieldKey::kSessionActiveInterval) + ValSize(TxtFieldKey::kSessionActiveInterval) +
+                                      2];
+        char sessionActiveThresholdBuf[KeySize(TxtFieldKey::kSessionActiveThreshold) +
+                                       ValSize(TxtFieldKey::kSessionActiveThreshold) + 2];
         char tcpSupportedBuf[KeySize(TxtFieldKey::kTcpSupported) + ValSize(TxtFieldKey::kTcpSupported) + 2];
+        char operatingICDAsLITBuf[KeySize(TxtFieldKey::kLongIdleTimeICD) + ValSize(TxtFieldKey::kLongIdleTimeICD) + 2];
     };
     template <class Derived>
     CHIP_ERROR AddCommonTxtEntries(const BaseAdvertisingParams<Derived> & params, CommonTxtEntryStorage & storage,
@@ -234,13 +238,13 @@ private:
                     mrp.mIdleRetransTimeout = kMaxRetryInterval;
                 }
                 size_t writtenCharactersNumber =
-                    static_cast<size_t>(snprintf(storage.sleepyIdleIntervalBuf, sizeof(storage.sleepyIdleIntervalBuf),
+                    static_cast<size_t>(snprintf(storage.sessionIdleIntervalBuf, sizeof(storage.sessionIdleIntervalBuf),
                                                  "SII=%" PRIu32, mrp.mIdleRetransTimeout.count()));
                 VerifyOrReturnError((writtenCharactersNumber > 0) &&
-                                        (writtenCharactersNumber < sizeof(storage.sleepyIdleIntervalBuf)),
+                                        (writtenCharactersNumber < sizeof(storage.sessionIdleIntervalBuf)),
                                     CHIP_ERROR_INVALID_STRING_LENGTH);
 
-                txtFields[numTxtFields++] = storage.sleepyIdleIntervalBuf;
+                txtFields[numTxtFields++] = storage.sessionIdleIntervalBuf;
             }
 
             {
@@ -251,12 +255,22 @@ private:
                     mrp.mActiveRetransTimeout = kMaxRetryInterval;
                 }
                 size_t writtenCharactersNumber =
-                    static_cast<size_t>(snprintf(storage.sleepyActiveIntervalBuf, sizeof(storage.sleepyActiveIntervalBuf),
+                    static_cast<size_t>(snprintf(storage.sessionActiveIntervalBuf, sizeof(storage.sessionActiveIntervalBuf),
                                                  "SAI=%" PRIu32, mrp.mActiveRetransTimeout.count()));
                 VerifyOrReturnError((writtenCharactersNumber > 0) &&
-                                        (writtenCharactersNumber < sizeof(storage.sleepyActiveIntervalBuf)),
+                                        (writtenCharactersNumber < sizeof(storage.sessionActiveIntervalBuf)),
                                     CHIP_ERROR_INVALID_STRING_LENGTH);
-                txtFields[numTxtFields++] = storage.sleepyActiveIntervalBuf;
+                txtFields[numTxtFields++] = storage.sessionActiveIntervalBuf;
+            }
+
+            {
+                size_t writtenCharactersNumber =
+                    static_cast<size_t>(snprintf(storage.sessionActiveThresholdBuf, sizeof(storage.sessionActiveThresholdBuf),
+                                                 "SAT=%u", mrp.mActiveThresholdTime.count()));
+                VerifyOrReturnError((writtenCharactersNumber > 0) &&
+                                        (writtenCharactersNumber < sizeof(storage.sessionActiveThresholdBuf)),
+                                    CHIP_ERROR_INVALID_STRING_LENGTH);
+                txtFields[numTxtFields++] = storage.sessionActiveThresholdBuf;
             }
         }
         if (params.GetTcpSupported().HasValue())
@@ -266,6 +280,15 @@ private:
             VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.tcpSupportedBuf)),
                                 CHIP_ERROR_INVALID_STRING_LENGTH);
             txtFields[numTxtFields++] = storage.tcpSupportedBuf;
+        }
+        if (params.GetICDOperatingAsLIT().HasValue())
+        {
+            size_t writtenCharactersNumber =
+                static_cast<size_t>(snprintf(storage.operatingICDAsLITBuf, sizeof(storage.operatingICDAsLITBuf), "ICD=%d",
+                                             params.GetICDOperatingAsLIT().Value()));
+            VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.operatingICDAsLITBuf)),
+                                CHIP_ERROR_INVALID_STRING_LENGTH);
+            txtFields[numTxtFields++] = storage.operatingICDAsLITBuf;
         }
         return CHIP_NO_ERROR;
     }

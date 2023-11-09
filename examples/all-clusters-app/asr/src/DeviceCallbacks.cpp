@@ -44,8 +44,6 @@
 #include "route_hook/asr_route_hook.h"
 #endif
 
-static const char * TAG = "app-devicecallbacks";
-
 using namespace ::chip;
 using namespace ::chip::Inet;
 using namespace ::chip::System;
@@ -54,7 +52,6 @@ using namespace ::chip::DeviceManager;
 using namespace ::chip::Logging;
 
 extern LEDWidget sLightLED;
-extern LEDWidget sStatusLED;
 
 uint32_t identifyTimerCount;
 constexpr uint32_t kIdentifyTimerDelayMS = 250;
@@ -152,9 +149,8 @@ void DeviceCallbacks::OnInternetConnectivityChange(const ChipDeviceEvent * event
 void DeviceCallbacks::OnOnOffPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
     VerifyOrExit(attributeId == chip::app::Clusters::OnOff::Attributes::OnOff::Id,
-                 ChipLogError(DeviceLayer, TAG, "Unhandled Attribute ID: '0x%04x", attributeId));
-    VerifyOrExit(endpointId == 1 || endpointId == 2,
-                 ChipLogError(DeviceLayer, TAG, "Unexpected EndPoint ID: `0x%02x'", endpointId));
+                 ChipLogError(DeviceLayer, "Unhandled Attribute ID: '0x%04lx", attributeId));
+    VerifyOrExit(endpointId == 1 || endpointId == 2, ChipLogError(DeviceLayer, "Unexpected EndPoint ID: `0x%02x'", endpointId));
 
     switch (attributeId)
     {
@@ -189,9 +185,7 @@ void DeviceCallbacks::OnLevelPostAttributeChangeCallback(EndpointId endpointId, 
     case chip::app::Clusters::LevelControl::Attributes::CurrentLevel::Id: {
         if (size == 1)
         {
-            uint8_t tmp = *value;
-            ChipLogProgress(Zcl, "New level: %u ", tmp);
-            sLightLED.SetBrightness(tmp);
+            ChipLogProgress(Zcl, "New level: %u ", *value);
         }
         else
         {
@@ -261,8 +255,8 @@ void IdentifyTimerHandler(Layer * systemLayer, void * appState)
 void DeviceCallbacks::OnIdentifyPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
     VerifyOrExit(attributeId == chip::app::Clusters::Identify::Attributes::IdentifyTime::Id,
-                 ChipLogError(DeviceLayer, "[%s] Unhandled Attribute ID: '0x%04lx", TAG, attributeId));
-    VerifyOrExit(endpointId == 1, ChipLogError(DeviceLayer, "[%s] Unexpected EndPoint ID: `0x%02x'", TAG, endpointId));
+                 ChipLogError(DeviceLayer, "Unhandled Attribute ID: '0x%04lx", attributeId));
+    VerifyOrExit(endpointId == 1, ChipLogError(DeviceLayer, "Unexpected EndPoint ID: `0x%02x'", endpointId));
 
     // timerCount represents the number of callback executions before we stop the timer.
     // value is expressed in seconds and the timer is fired every 250ms, so just multiply value by 4.

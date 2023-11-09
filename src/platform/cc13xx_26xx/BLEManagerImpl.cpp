@@ -266,9 +266,7 @@ bool BLEManagerImpl::CloseConnection(BLE_CONNECTION_OBJECT conId)
     void * pMsg = (void *) ICall_malloc(sizeof(void *));
     pMsg        = (void *) conId;
 
-    EnqueueEvtHdrMsg(BLEManagerIMPL_CHIPOBLE_CLOSE_CONN_EVT, (void *) pMsg);
-
-    return false;
+    return (EnqueueEvtHdrMsg(BLEManagerIMPL_CHIPOBLE_CLOSE_CONN_EVT, (void *) pMsg) == true);
 }
 
 uint16_t BLEManagerImpl::GetMTU(BLE_CONNECTION_OBJECT conId) const
@@ -537,7 +535,7 @@ void BLEManagerImpl::EventHandler_init(void)
 
     /* Start tasks of external images */
     ICall_createRemoteTasks();
-    BLEManagerImpl::sBleTaskHndl = (TaskHandle_t)(*((TaskHandle_t *) ICall_getRemoteTaskHandle(0)));
+    BLEManagerImpl::sBleTaskHndl = (TaskHandle_t) (*((TaskHandle_t *) ICall_getRemoteTaskHandle(0)));
     DMMSch_registerClient((TaskHandle_t) BLEManagerImpl::sBleTaskHndl, DMMPolicy_StackRole_BlePeripheral);
     /* set the stacks in default states */
     DMMPolicy_updateStackState(DMMPolicy_StackRole_BlePeripheral, DMMPOLICY_BLE_IDLE);

@@ -51,12 +51,7 @@ All device types available (.zap files) are found inside the `devices` folder.
 
 ## Creating a new device type in your device library
 
-1. Run `$ chef.py -g -d <device>` to open in the ZAP GUI a device to be used as
-   a starting point.
-2. Edit your cluster configurations
-3. Click on `Save As` and save the file with the name of your new device type
-   into the `devices` folder. This device is now available for the script. See
-   `chef.py -h` for a list of devices available.
+Follow guide in [NEW_CHEF_DEVICES.md](NEW_CHEF_DEVICES.md).
 
 ## Folder Structure and Guidelines
 
@@ -106,7 +101,7 @@ relevant platform image. You can simulate the workflow locally by mounting your
 CHIP repo into a container and executing the CI command:
 
 ```shell
-docker run -it --mount source=$(pwd),target=/workspace,type=bind connectedhomeip/chip-build-$PLATFORM:$VERSION
+docker run -it --mount source=$(pwd),target=/workspace,type=bind ghcr.io/project-chip/chip-build-$PLATFORM:$VERSION
 ```
 
 In the container:
@@ -133,7 +128,7 @@ chef_$PLATFORM:
     if: github.actor != 'restyled-io[bot]'
 
     container:
-        image: connectedhomeip/chip-build-$PLATFORM:$VERSION
+        image: ghcr.io/project-chip/chip-build-$PLATFORM:$VERSION
         options: --user root
 
     steps:
@@ -188,7 +183,7 @@ command for these targets.
 To test your configuration locally, you may employ a similar strategy as in CI:
 
 ```shell
-docker run -it --mount source=$(pwd),target=/workspace,type=bind connectedhomeip/chip-build-vscode:$VERSION
+docker run -it --mount source=$(pwd),target=/workspace,type=bind ghcr.io/project-chip/chip-build-vscode:$VERSION
 ```
 
 In the container:
@@ -215,3 +210,30 @@ To add new devices for chef:
     `examples/chef/devices`.
     -   This is gated by the workflow in `.github/workflows/zap_templates.yaml`.
 -   All devices added to the repository are built in CD.
+
+## Manufacturer Extensions / Custom Clusters
+
+You may add vendor-defined features to chef. The
+`rootnode_onofflight_meisample*` device showcases its usage by using the Sample
+MEI cluster which is defined on
+`src/app/zap-templates/zcl/data-model/chip/sample-mei-cluster.xml`
+
+This cluster has
+
+-   One boolean attribute: `flip-flop`
+-   A `ping` command with no arguments
+-   A command/response pair `add-arguments`. The command takes two uint8
+    arguments and the response command returns their sum.
+
+You may test the `Sample MEI` via chip-tool using the following commands:
+
+```
+# commissioning of on-network chef device
+chip-tool pairing onnetwork 1 20202021
+# tests command to sum arguments: returns 30
+chip-tool samplemei add-arguments 1 1 10 20
+# sets Flip-Flop to false
+chip-tool samplemei write flip-flop 0 1 1
+# reads Flip-Flop
+chip-tool samplemei read flip-flop 1 1
+```

@@ -37,7 +37,7 @@ _CHEF_SCRIPT_PATH = os.path.abspath(os.path.dirname(__file__))
 _REPO_BASE_PATH = os.path.join(_CHEF_SCRIPT_PATH, "../../")
 _DEVICE_FOLDER = os.path.join(_CHEF_SCRIPT_PATH, "devices")
 _DEVICE_LIST = [file[:-4]
-                for file in os.listdir(_DEVICE_FOLDER) if file.endswith(".zap")]
+                for file in os.listdir(_DEVICE_FOLDER) if file.endswith(".zap") and file != 'template.zap']
 _CICD_CONFIG_FILE_NAME = os.path.join(_CHEF_SCRIPT_PATH, "cicd_config.json")
 _CD_STAGING_DIR = os.path.join(_CHEF_SCRIPT_PATH, "staging")
 
@@ -64,6 +64,7 @@ def load_config() -> None:
     config["esp32"] = dict()
     config["silabs-thread"] = dict()
     config["ameba"] = dict()
+    config["telink"] = dict()
     configFile = f"{_CHEF_SCRIPT_PATH}/config.yaml"
     if (os.path.exists(configFile)):
         configStream = open(configFile, 'r')
@@ -88,6 +89,10 @@ def load_config() -> None:
         config["ameba"]["MATTER_SDK"] = None
         config["ameba"]["MODEL"] = 'D'
         config["ameba"]["TTY"] = None
+        config["telink"]["ZEPHYR_BASE"] = os.environ.get('TELINK_ZEPHYR_BASE')
+        config["telink"]["ZEPHYR_SDK_INSTALL_DIR"] = os.environ.get(
+            'TELINK_ZEPHYR_SDK_DIR')
+        config["telink"]["TTY"] = None
 
         flush_print(yaml.dump(config))
         yaml.dump(config, configStream)
@@ -245,6 +250,25 @@ def bundle_esp32(device_name: str) -> None:
             shutil.copy(src_item, dest_item)
 
 
+def bundle_telink(device_name: str) -> None:
+    zephyr_exts = ["elf", "map", "bin"]
+    telink_root = os.path.join(_CHEF_SCRIPT_PATH,
+                               "telink",
+                               "build",
+                               "zephyr")
+    sub_dir = os.path.join(_CD_STAGING_DIR, device_name)
+    os.mkdir(sub_dir)
+    for zephyr_ext in zephyr_exts:
+        input_base = f"zephyr.{zephyr_ext}"
+        output_base = f"{device_name}.{zephyr_ext}"
+        src_item = os.path.join(telink_root, input_base)
+        if zephyr_ext == "bin":
+            dest_item = os.path.join(sub_dir, output_base)
+        else:
+            dest_item = os.path.join(_CD_STAGING_DIR, output_base)
+        shutil.copy(src_item, dest_item)
+
+
 def main() -> int:
 
     check_python_version()
@@ -264,7 +288,7 @@ def main() -> int:
     # Arguments parser
     #
 
-    deviceTypes = "\n  ".join(_DEVICE_LIST)
+    deviceTypes = "\n            ".join(_DEVICE_LIST)
 
     usage = textwrap.dedent(f"""\
         usage: chef.py [options]
@@ -275,6 +299,7 @@ def main() -> int:
             linux
             silabs-thread
             ameba
+            telink
 
         Device Types:
             {deviceTypes}
@@ -310,11 +335,11 @@ def main() -> int:
     parser.add_option("-t", "--target", type='choice',
                       action='store',
                       dest="build_target",
-                      help="specifies target platform. Default is esp32. See info below for currently supported target platforms",
+                      help="specifies target platform. See info below for currently supported target platforms",
                       choices=['nrfconnect', 'esp32',
-                               'linux', 'silabs-thread', 'ameba'],
+                               'linux', 'silabs-thread', 'ameba', 'telink'],
                       metavar="TARGET",
-                      default="esp32")
+                      default="linux")
     parser.add_option("-r", "--rpc",
                       help=("enables Pigweed RPC interface. Enabling RPC disables the shell interface. "
                             "Your sdkconfig configurations will be reverted to default. Default is PW RPC off. "
@@ -475,8 +500,10 @@ def main() -> int:
         zephyr_sdk_dir = config['nrfconnect']['ZEPHYR_SDK_INSTALL_DIR']
         shell.run_cmd("export ZEPHYR_TOOLCHAIN_VARIANT=zephyr")
         shell.run_cmd(f"export ZEPHYR_SDK_INSTALL_DIR={zephyr_sdk_dir}")
-        shell.run_cmd(f"export ZEPHYR_BASE={config['nrfconnect']['ZEPHYR_BASE']}")
-        shell.run_cmd(f'source {config["nrfconnect"]["ZEPHYR_BASE"]}/zephyr-env.sh')
+        shell.run_cmd(
+            f"export ZEPHYR_BASE={config['nrfconnect']['ZEPHYR_BASE']}")
+        shell.run_cmd(
+            f'source {config["nrfconnect"]["ZEPHYR_BASE"]}/zephyr-env.sh')
         # QUIRK:
         # When the Zephyr SDK is installed as a part of the NCS toolchain, the build system will use
         # build tools from the NCS toolchain, but it will not update the PATH and LD_LIBRARY_PATH
@@ -485,8 +512,10 @@ def main() -> int:
         ncs_toolchain_dir = os.path.abspath(f"{zephyr_sdk_dir}/../..")
         if os.path.exists(os.path.join(ncs_toolchain_dir, 'manifest.json')):
             shell.run_cmd(f"export PATH=$PATH:{ncs_toolchain_dir}/usr/bin")
-            shell.run_cmd(f"export PATH=$PATH:{ncs_toolchain_dir}/usr/local/bin")
-            shell.run_cmd(f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ncs_toolchain_dir}/usr/lib")
+            shell.run_cmd(
+                f"export PATH=$PATH:{ncs_toolchain_dir}/usr/local/bin")
+            shell.run_cmd(
+                f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ncs_toolchain_dir}/usr/lib")
             shell.run_cmd(
                 f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ncs_toolchain_dir}/usr/local/lib")
     elif options.build_target == "linux":
@@ -510,6 +539,22 @@ def main() -> int:
         if (config['ameba']['MODEL'] != 'D' and config['ameba']['MODEL'] != 'Z2'):
             flush_print("Ameba Model is not recognized, please input D or Z2")
             exit(1)
+    elif options.build_target == "telink":
+        if config['telink']['ZEPHYR_BASE'] is None:
+            flush_print(
+                'Path for Telink SDK was not found. Make sure Telink_SDK is set on your config.yaml file')
+            exit(1)
+        if config['telink']['ZEPHYR_SDK_INSTALL_DIR'] is None:
+            flush_print(
+                'Path for Telink toolchain was not found. Make sure Telink toolchain is set on your config.yaml file')
+            exit(1)
+        shell.run_cmd("export ZEPHYR_TOOLCHAIN_VARIANT=zephyr")
+        shell.run_cmd(
+            f"export ZEPHYR_SDK_INSTALL_DIR={config['telink']['ZEPHYR_SDK_INSTALL_DIR']}")
+        shell.run_cmd(
+            f"export ZEPHYR_BASE={config['telink']['ZEPHYR_BASE']}")
+        shell.run_cmd(
+            f'source {config["telink"]["ZEPHYR_BASE"]}/zephyr-env.sh')
     else:
         flush_print(f"Target {options.build_target} not supported")
 
@@ -532,7 +577,8 @@ def main() -> int:
             flush_print("Linux toolchain update not supported. Skipping")
         elif options.build_target == "Ameba":
             flush_print("Ameba toolchain update not supported. Skipping")
-
+        elif options.build_target == "telink":
+            flush_print("Telink toolchain update not supported. Skipping")
     #
     # Clean environment
     #
@@ -560,8 +606,6 @@ def main() -> int:
         shell.run_cmd(
             f"{_REPO_BASE_PATH}/scripts/tools/zap/generate.py "
             f"{_CHEF_SCRIPT_PATH}/devices/{options.sample_device_type_name}.zap -o {gen_dir}")
-        # af-gen-event.h is not generated
-        shell.run_cmd(f"touch {gen_dir}/af-gen-event.h")
 
     #
     # Setup environment
@@ -604,6 +648,8 @@ def main() -> int:
             flush_print("Menuconfig not available on Linux target. Skipping")
         elif options.build_target == "Ameba":
             flush_print("Menuconfig not available on Ameba target. Skipping")
+        elif options.build_target == "telink":
+            flush_print("Menuconfig not available on Telink target. Skipping")
 
     #
     # Build
@@ -637,7 +683,7 @@ def main() -> int:
 
         shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
 
-        if (options.build_target == "esp32") or (options.build_target == "nrfconnect") or (options.build_target == "ameba"):
+        if options.build_target in "esp32 ameba telink".split():
             with open("project_include.cmake", "w") as f:
                 f.write(textwrap.dedent(f"""\
                         set(CONFIG_DEVICE_VENDOR_ID {options.vid})
@@ -667,8 +713,20 @@ def main() -> int:
             nrf_build_cmds = ["west build -b nrf52840dk_nrf52840"]
             if options.do_clean:
                 nrf_build_cmds.append("-p always")
+            nrf_build_cmds.append("--")
             if options.do_rpc:
-                nrf_build_cmds.append("-- -DOVERLAY_CONFIG=rpc.overlay")
+                nrf_build_cmds.append("-DOVERLAY_CONFIG=rpc.overlay")
+            nrf_build_cmds.append(
+                f"-DCONFIG_CHIP_DEVICE_VENDOR_ID={options.vid}")
+            nrf_build_cmds.append(
+                f"-DCONFIG_CHIP_DEVICE_PRODUCT_ID={options.pid}")
+            nrf_build_cmds.append(
+                f"-DCONFIG_CHIP_DEVICE_PRODUCT_NAME='\"{options.pname}\"'")
+            nrf_build_cmds.append(
+                f"-DSAMPLE_NAME={options.sample_device_type_name}")
+            nrf_build_cmds.append(
+                f"-DCONFIG_CHIP_DEVICE_SOFTWARE_VERSION_STRING='\"{sw_ver_string}\"'")
+
             shell.run_cmd(" ".join(nrf_build_cmds))
 
         elif options.build_target == "silabs-thread":
@@ -723,6 +781,14 @@ def main() -> int:
                     shell.run_cmd("make clean")
                 shell.run_cmd("make chef")
                 shell.run_cmd("make is")
+        elif options.build_target == "telink":
+            shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}/telink")
+            telink_build_cmds = ["west build -b tlsr9518adk80d"]
+            if options.do_clean:
+                telink_build_cmds.append("-p always")
+            if options.do_rpc:
+                telink_build_cmds.append("-- -DOVERLAY_CONFIG=rpc.overlay")
+            shell.run_cmd(" ".join(telink_build_cmds))
 
         elif options.build_target == "linux":
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}/linux")
@@ -898,7 +964,14 @@ def main() -> int:
                 shell.run_cmd(f"screen {config['ameba']['TTY']} 115200")
             else:
                 flush_print("Ameba Z2 image has not been flashed yet")
-
+        elif options.build_target == "telink":
+            if config['telink']['TTY'] is None:
+                flush_print(
+                    'The path for the serial enumeration for telink is not set. '
+                    'Make sure telink.TTY is set on your config.yaml file')
+                exit(1)
+            shell.run_cmd("killall screen")
+            shell.run_cmd(f"screen {config['telink']['TTY']} 115200")
     #
     # RPC Console
     #

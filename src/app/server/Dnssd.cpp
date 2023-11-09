@@ -17,8 +17,8 @@
 
 #include <app/server/Dnssd.h>
 
+#include <app-common/zap-generated/cluster-enums.h>
 #include <inttypes.h>
-
 #include <lib/core/Optional.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/dnssd/ServiceNaming.h>
@@ -50,8 +50,8 @@ void OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * event)
     {
     case DeviceLayer::DeviceEventType::kDnssdInitialized:
     case DeviceLayer::DeviceEventType::kDnssdRestartNeeded:
-#if CHIP_DEVICE_CONFIG_ENABLE_SED
-    case DeviceLayer::DeviceEventType::kSEDIntervalChange:
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    case DeviceLayer::DeviceEventType::kICDPollingIntervalChange:
 #endif
         app::DnssdServer::Instance().StartServer();
         break;
@@ -145,6 +145,19 @@ CHIP_ERROR DnssdServer::SetEphemeralDiscriminator(Optional<uint16_t> discriminat
     return CHIP_NO_ERROR;
 }
 
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+template <class AdvertisingParams>
+void DnssdServer::AddICDKeyToAdvertisement(AdvertisingParams & advParams)
+{
+    // Only advertise the ICD key if the device can operate as a LIT
+    if (Server::GetInstance().GetICDManager().SupportsFeature(Clusters::IcdManagement::Feature::kLongIdleTimeSupport))
+    {
+        advParams.SetICDOperatingAsLIT(
+            Optional<bool>(Server::GetInstance().GetICDManager().GetICDMode() == ICDManager::ICDMode::LIT));
+    }
+}
+#endif
+
 /// Set MDNS operational advertisement
 CHIP_ERROR DnssdServer::AdvertiseOperational()
 {
@@ -152,6 +165,11 @@ CHIP_ERROR DnssdServer::AdvertiseOperational()
 
     for (const FabricInfo & fabricInfo : *mFabricTable)
     {
+        if (!fabricInfo.ShouldAdvertiseIdentity())
+        {
+            continue;
+        }
+
         uint8_t macBuffer[DeviceLayer::ConfigurationManager::kPrimaryMACAddressLength];
         MutableByteSpan mac(macBuffer);
         if (chip::DeviceLayer::ConfigurationMgr().GetPrimaryMACAddress(mac) != CHIP_NO_ERROR)
@@ -160,14 +178,18 @@ CHIP_ERROR DnssdServer::AdvertiseOperational()
             Crypto::DRBG_get_bytes(macBuffer, sizeof(macBuffer));
         }
 
-        const auto advertiseParameters = chip::Dnssd::OperationalAdvertisingParameters()
-                                             .SetPeerId(fabricInfo.GetPeerId())
-                                             .SetMac(mac)
-                                             .SetPort(GetSecuredPort())
-                                             .SetInterfaceId(GetInterfaceId())
-                                             .SetLocalMRPConfig(GetLocalMRPConfig())
-                                             .SetTcpSupported(Optional<bool>(INET_CONFIG_ENABLE_TCP_ENDPOINT))
-                                             .EnableIpV4(true);
+        auto advertiseParameters = chip::Dnssd::OperationalAdvertisingParameters()
+                                       .SetPeerId(fabricInfo.GetPeerId())
+                                       .SetMac(mac)
+                                       .SetPort(GetSecuredPort())
+                                       .SetInterfaceId(GetInterfaceId())
+                                       .SetLocalMRPConfig(GetLocalMRPConfig())
+                                       .SetTcpSupported(Optional<bool>(INET_CONFIG_ENABLE_TCP_ENDPOINT))
+                                       .EnableIpV4(true);
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+        AddICDKeyToAdvertisement(advertiseParameters);
+#endif
 
         auto & mdnsAdvertiser = chip::Dnssd::ServiceAdvertiser::Instance();
 
@@ -237,6 +259,10 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
     }
 
     advertiseParameters.SetLocalMRPConfig(GetLocalMRPConfig()).SetTcpSupported(Optional<bool>(INET_CONFIG_ENABLE_TCP_ENDPOINT));
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    AddICDKeyToAdvertisement(advertiseParameters);
+#endif
 
     if (commissionableNode)
     {

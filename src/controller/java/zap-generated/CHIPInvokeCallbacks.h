@@ -342,6 +342,21 @@ private:
     jobject javaCallbackRef;
 };
 
+class CHIPGeneralDiagnosticsClusterTimeSnapshotResponseCallback
+    : public Callback::Callback<CHIPGeneralDiagnosticsClusterTimeSnapshotResponseCallbackType>
+{
+public:
+    CHIPGeneralDiagnosticsClusterTimeSnapshotResponseCallback(jobject javaCallback);
+
+    ~CHIPGeneralDiagnosticsClusterTimeSnapshotResponseCallback();
+
+    static void CallbackFn(void * context,
+                           const chip::app::Clusters::GeneralDiagnostics::Commands::TimeSnapshotResponse::DecodableType & data);
+
+private:
+    jobject javaCallbackRef;
+};
+
 class CHIPTimeSynchronizationClusterSetTimeZoneResponseCallback
     : public Callback::Callback<CHIPTimeSynchronizationClusterSetTimeZoneResponseCallbackType>
 {
@@ -985,6 +1000,21 @@ public:
     static void
     CallbackFn(void * context,
                const chip::app::Clusters::UnitTesting::Commands::TestEmitTestFabricScopedEventResponse::DecodableType & data);
+
+private:
+    jobject javaCallbackRef;
+};
+
+class CHIPSampleMeiClusterAddArgumentsResponseCallback
+    : public Callback::Callback<CHIPSampleMeiClusterAddArgumentsResponseCallbackType>
+{
+public:
+    CHIPSampleMeiClusterAddArgumentsResponseCallback(jobject javaCallback);
+
+    ~CHIPSampleMeiClusterAddArgumentsResponseCallback();
+
+    static void CallbackFn(void * context,
+                           const chip::app::Clusters::SampleMei::Commands::AddArgumentsResponse::DecodableType & data);
 
 private:
     jobject javaCallbackRef;

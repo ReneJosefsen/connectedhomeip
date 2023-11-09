@@ -28,6 +28,8 @@
 #include <lib/support/Base64.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
+#include <platform/CHIPDeviceConfig.h>
+#include <platform/KeyValueStoreManager.h>
 
 #include "../clusters/JsonParser.h"
 
@@ -40,6 +42,35 @@ constexpr const char * kJsonClusterKey              = "cluster";
 constexpr const char * kJsonCommandKey              = "command";
 constexpr const char * kJsonCommandSpecifierKey     = "command_specifier";
 constexpr const char * kJsonArgumentsKey            = "arguments";
+
+#if !CHIP_DISABLE_PLATFORM_KVS
+template <typename T>
+struct HasInitWithString
+{
+    template <typename U>
+    static constexpr auto check(U *) -> typename std::is_same<decltype(std::declval<U>().Init("")), CHIP_ERROR>::type;
+
+    template <typename>
+    static constexpr std::false_type check(...);
+
+    typedef decltype(check<std::remove_reference_t<T>>(nullptr)) type;
+
+public:
+    static constexpr bool value = type::value;
+};
+
+// Template so we can do conditional enabling
+template <typename T, std::enable_if_t<HasInitWithString<T>::value, int> = 0>
+static void UseStorageDirectory(T & storageManagerImpl, const char * storageDirectory)
+{
+    std::string platformKVS = std::string(storageDirectory) + "/chip_tool_kvs";
+    storageManagerImpl.Init(platformKVS.c_str());
+}
+
+template <typename T, std::enable_if_t<!HasInitWithString<T>::value, int> = 0>
+static void UseStorageDirectory(T & storageManagerImpl, const char * storageDirectory)
+{}
+#endif // !CHIP_DISABLE_PLATFORM_KVS
 
 bool GetArgumentsFromJson(Command * command, Json::Value & value, bool optional, std::vector<std::string> & outArgs)
 {
@@ -119,12 +150,14 @@ static void DetectAndLogMismatchedDoubleQuotes(int argc, char ** argv)
 
 } // namespace
 
-void Commands::Register(const char * clusterName, commands_list commandsList, const char * helpText)
+void Commands::Register(const char * commandSetName, commands_list commandsList, const char * helpText, bool isCluster)
 {
-    mClusters[clusterName].second = helpText;
+    VerifyOrDieWithMsg(isCluster || helpText != nullptr, chipTool, "Non-cluster command sets must have help text");
+    mCommandSets[commandSetName].isCluster = isCluster;
+    mCommandSets[commandSetName].helpText  = helpText;
     for (auto & command : commandsList)
     {
-        mClusters[clusterName].first.push_back(std::move(command));
+        mCommandSets[commandSetName].commands.push_back(std::move(command));
     }
 }
 
@@ -192,26 +225,26 @@ CHIP_ERROR Commands::RunCommand(int argc, char ** argv, bool interactive,
 
     if (argc <= 1)
     {
-        ChipLogError(chipTool, "Missing cluster name");
-        ShowClusters(argv[0]);
+        ChipLogError(chipTool, "Missing cluster or command set name");
+        ShowCommandSets(argv[0]);
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 
-    auto clusterIter = GetCluster(argv[1]);
-    if (clusterIter == mClusters.end())
+    auto commandSetIter = GetCommandSet(argv[1]);
+    if (commandSetIter == mCommandSets.end())
     {
-        ChipLogError(chipTool, "Unknown cluster: %s", argv[1]);
-        ShowClusters(argv[0]);
+        ChipLogError(chipTool, "Unknown cluster or command set: %s", argv[1]);
+        ShowCommandSets(argv[0]);
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 
-    auto & commandList = clusterIter->second.first;
-    auto * clusterHelp = clusterIter->second.second;
+    auto & commandList = commandSetIter->second.commands;
+    auto * helpText    = commandSetIter->second.helpText;
 
     if (argc <= 2)
     {
         ChipLogError(chipTool, "Missing command name");
-        ShowCluster(argv[0], argv[1], commandList, clusterHelp);
+        ShowCommandSet(argv[0], argv[1], commandList, helpText);
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 
@@ -222,7 +255,7 @@ CHIP_ERROR Commands::RunCommand(int argc, char ** argv, bool interactive,
         if (command == nullptr)
         {
             ChipLogError(chipTool, "Unknown command: %s", argv[2]);
-            ShowCluster(argv[0], argv[1], commandList, clusterHelp);
+            ShowCommandSet(argv[0], argv[1], commandList, helpText);
             return CHIP_ERROR_INVALID_ARGUMENT;
         }
     }
@@ -288,24 +321,29 @@ CHIP_ERROR Commands::RunCommand(int argc, char ** argv, bool interactive,
     }
 
     chip::Logging::SetLogFilter(mStorage.GetLoggingLevel());
+
+#if !CHIP_DISABLE_PLATFORM_KVS
+    UseStorageDirectory(chip::DeviceLayer::PersistedStorage::KeyValueStoreMgrImpl(), mStorage.GetDirectory());
+#endif // !CHIP_DISABLE_PLATFORM_KVS
+
 #endif // CONFIG_USE_LOCAL_STORAGE
 
     return command->Run();
 }
 
-Commands::ClusterMap::iterator Commands::GetCluster(std::string clusterName)
+Commands::CommandSetMap::iterator Commands::GetCommandSet(std::string commandSetName)
 {
-    for (auto & cluster : mClusters)
+    for (auto & commandSet : mCommandSets)
     {
-        std::string key(cluster.first);
+        std::string key(commandSet.first);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        if (key.compare(clusterName) == 0)
+        if (key.compare(commandSetName) == 0)
         {
-            return mClusters.find(cluster.first);
+            return mCommandSets.find(commandSet.first);
         }
     }
 
-    return mClusters.end();
+    return mCommandSets.end();
 }
 
 Command * Commands::GetCommand(CommandsVector & commands, std::string commandName)
@@ -350,29 +388,53 @@ bool Commands::IsGlobalCommand(std::string commandName) const
     return IsAttributeCommand(commandName) || IsEventCommand(commandName);
 }
 
-void Commands::ShowClusters(std::string executable)
+void Commands::ShowCommandSetOverview(std::string commandSetName, const CommandSet & commandSet)
+{
+    std::transform(commandSetName.begin(), commandSetName.end(), commandSetName.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    fprintf(stderr, "  | * %-82s|\n", commandSetName.c_str());
+    ShowHelpText(commandSet.helpText);
+}
+
+void Commands::ShowCommandSets(std::string executable)
 {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "  %s cluster_name command_name [param1 param2 ...]\n", executable.c_str());
+    fprintf(stderr, "or:\n");
+    fprintf(stderr, "  %s command_set_name command_name [param1 param2 ...]\n", executable.c_str());
     fprintf(stderr, "\n");
+    // Table of clusters
     fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
     fprintf(stderr, "  | Clusters:                                                                           |\n");
     fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
-    for (auto & cluster : mClusters)
+    for (auto & commandSet : mCommandSets)
     {
-        std::string clusterName(cluster.first);
-        std::transform(clusterName.begin(), clusterName.end(), clusterName.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        fprintf(stderr, "  | * %-82s|\n", clusterName.c_str());
-        ShowHelpText(cluster.second.second);
+        if (commandSet.second.isCluster)
+        {
+            ShowCommandSetOverview(commandSet.first, commandSet.second);
+        }
+    }
+    fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
+    fprintf(stderr, "\n");
+
+    // Table of command sets
+    fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
+    fprintf(stderr, "  | Command sets:                                                                       |\n");
+    fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
+    for (auto & commandSet : mCommandSets)
+    {
+        if (!commandSet.second.isCluster)
+        {
+            ShowCommandSetOverview(commandSet.first, commandSet.second);
+        }
     }
     fprintf(stderr, "  +-------------------------------------------------------------------------------------+\n");
 }
 
-void Commands::ShowCluster(std::string executable, std::string clusterName, CommandsVector & commands, const char * helpText)
+void Commands::ShowCommandSet(std::string executable, std::string commandSetName, CommandsVector & commands, const char * helpText)
 {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "  %s %s command_name [param1 param2 ...]\n", executable.c_str(), clusterName.c_str());
+    fprintf(stderr, "  %s %s command_name [param1 param2 ...]\n", executable.c_str(), commandSetName.c_str());
 
     if (helpText)
     {
@@ -554,11 +616,11 @@ bool Commands::DecodeArgumentsFromBase64EncodedJson(const char * json, std::vect
     auto commandName = jsonValue[kJsonCommandKey].asString();
     auto arguments   = jsonValue[kJsonArgumentsKey].asString();
 
-    auto clusterIter = GetCluster(clusterName);
-    VerifyOrReturnValue(clusterIter != mClusters.end(), false,
+    auto clusterIter = GetCommandSet(clusterName);
+    VerifyOrReturnValue(clusterIter != mCommandSets.end(), false,
                         ChipLogError(chipTool, "Cluster '%s' is not supported.", clusterName.c_str()));
 
-    auto & commandList = clusterIter->second.first;
+    auto & commandList = clusterIter->second.commands;
 
     auto command = GetCommand(commandList, commandName);
 

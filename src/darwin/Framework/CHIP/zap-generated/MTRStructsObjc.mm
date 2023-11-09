@@ -24,7 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 {
     if (self = [super init]) {
 
-        _attributeID = nil;
+        _attributeID = @(0);
 
         _attributeValue = @(0);
     }
@@ -43,17 +43,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: attributeID:%@; attributeValue:%@; >",
-                                             NSStringFromClass([self class]), _attributeID, _attributeValue];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: attributeID:%@; attributeValue:%@; >", NSStringFromClass([self class]), _attributeID, _attributeValue];
     return descriptionString;
 }
 
-- (void)setAttributeId:(NSNumber * _Nullable)attributeId
+- (void)setAttributeId:(NSNumber * _Nonnull)attributeId
 {
     self.attributeID = attributeId;
 }
 
-- (NSNumber * _Nullable)attributeId
+- (NSNumber * _Nonnull)attributeId
 {
     return self.attributeID;
 }
@@ -84,8 +83,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: clusterID:%@; attributeValueList:%@; >",
-                                             NSStringFromClass([self class]), _clusterID, _attributeValueList];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: clusterID:%@; attributeValueList:%@; >", NSStringFromClass([self class]), _clusterID, _attributeValueList];
     return descriptionString;
 }
 
@@ -125,8 +123,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: deviceType:%@; revision:%@; >", NSStringFromClass([self class]), _deviceType, _revision];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: deviceType:%@; revision:%@; >", NSStringFromClass([self class]), _deviceType, _revision];
     return descriptionString;
 }
 
@@ -143,6 +140,43 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation MTRDescriptorClusterDeviceType : MTRDescriptorClusterDeviceTypeStruct
+@dynamic revision;
+@end
+
+@implementation MTRDescriptorClusterSemanticTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _namespaceID = @(0);
+
+        _tag = @(0);
+
+        _label = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRDescriptorClusterSemanticTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.namespaceID = self.namespaceID;
+    other.tag = self.tag;
+    other.label = self.label;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; namespaceID:%@; tag:%@; label:%@; >", NSStringFromClass([self class]), _mfgCode, _namespaceID, _tag, _label];
+    return descriptionString;
+}
+
 @end
 
 @implementation MTRBindingClusterTargetStruct
@@ -178,8 +212,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: node:%@; group:%@; endpoint:%@; cluster:%@; fabricIndex:%@; >",
-                                             NSStringFromClass([self class]), _node, _group, _endpoint, _cluster, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: node:%@; group:%@; endpoint:%@; cluster:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _node, _group, _endpoint, _cluster, _fabricIndex];
     return descriptionString;
 }
 
@@ -212,14 +245,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: cluster:%@; endpoint:%@; deviceType:%@; >",
-                                             NSStringFromClass([self class]), _cluster, _endpoint, _deviceType];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: cluster:%@; endpoint:%@; deviceType:%@; >", NSStringFromClass([self class]), _cluster, _endpoint, _deviceType];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRAccessControlClusterTarget : MTRAccessControlClusterAccessControlTargetStruct
+@dynamic cluster;
+@dynamic endpoint;
+@dynamic deviceType;
 @end
 
 @implementation MTRAccessControlClusterAccessControlEntryStruct
@@ -255,15 +290,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: privilege:%@; authMode:%@; subjects:%@; targets:%@; fabricIndex:%@; >",
-                  NSStringFromClass([self class]), _privilege, _authMode, _subjects, _targets, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: privilege:%@; authMode:%@; subjects:%@; targets:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _privilege, _authMode, _subjects, _targets, _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRAccessControlClusterAccessControlEntry : MTRAccessControlClusterAccessControlEntryStruct
+@dynamic privilege;
+@dynamic authMode;
+@dynamic subjects;
+@dynamic targets;
+@dynamic fabricIndex;
 @end
 
 @implementation MTRAccessControlClusterAccessControlExtensionStruct
@@ -290,14 +328,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: data:%@; fabricIndex:%@; >", NSStringFromClass([self class]),
-                                             [_data base64EncodedStringWithOptions:0], _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: data:%@; fabricIndex:%@; >", NSStringFromClass([self class]), [_data base64EncodedStringWithOptions:0], _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRAccessControlClusterExtensionEntry : MTRAccessControlClusterAccessControlExtensionStruct
+@dynamic data;
+@dynamic fabricIndex;
 @end
 
 @implementation MTRAccessControlClusterAccessControlEntryChangedEvent
@@ -333,9 +372,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: adminNodeID:%@; adminPasscodeID:%@; changeType:%@; latestValue:%@; fabricIndex:%@; >",
-                  NSStringFromClass([self class]), _adminNodeID, _adminPasscodeID, _changeType, _latestValue, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: adminNodeID:%@; adminPasscodeID:%@; changeType:%@; latestValue:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _adminNodeID, _adminPasscodeID, _changeType, _latestValue, _fabricIndex];
     return descriptionString;
 }
 
@@ -374,9 +411,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: adminNodeID:%@; adminPasscodeID:%@; changeType:%@; latestValue:%@; fabricIndex:%@; >",
-                  NSStringFromClass([self class]), _adminNodeID, _adminPasscodeID, _changeType, _latestValue, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: adminNodeID:%@; adminPasscodeID:%@; changeType:%@; latestValue:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _adminNodeID, _adminPasscodeID, _changeType, _latestValue, _fabricIndex];
     return descriptionString;
 }
 
@@ -418,9 +453,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: actionID:%@; name:%@; type:%@; endpointListID:%@; supportedCommands:%@; state:%@; >",
-                  NSStringFromClass([self class]), _actionID, _name, _type, _endpointListID, _supportedCommands, _state];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: actionID:%@; name:%@; type:%@; endpointListID:%@; supportedCommands:%@; state:%@; >", NSStringFromClass([self class]), _actionID, _name, _type, _endpointListID, _supportedCommands, _state];
     return descriptionString;
 }
 
@@ -456,8 +489,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: endpointListID:%@; name:%@; type:%@; endpoints:%@; >",
-                                             NSStringFromClass([self class]), _endpointListID, _name, _type, _endpoints];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: endpointListID:%@; name:%@; type:%@; endpoints:%@; >", NSStringFromClass([self class]), _endpointListID, _name, _type, _endpoints];
     return descriptionString;
 }
 
@@ -490,8 +522,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: actionID:%@; invokeID:%@; newState:%@; >",
-                                             NSStringFromClass([self class]), _actionID, _invokeID, _newState];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: actionID:%@; invokeID:%@; newState:%@; >", NSStringFromClass([self class]), _actionID, _invokeID, _newState];
     return descriptionString;
 }
 
@@ -527,8 +558,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: actionID:%@; invokeID:%@; newState:%@; error:%@; >",
-                                             NSStringFromClass([self class]), _actionID, _invokeID, _newState, _error];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: actionID:%@; invokeID:%@; newState:%@; error:%@; >", NSStringFromClass([self class]), _actionID, _invokeID, _newState, _error];
     return descriptionString;
 }
 
@@ -558,14 +588,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: caseSessionsPerFabric:%@; subscriptionsPerFabric:%@; >",
-                                             NSStringFromClass([self class]), _caseSessionsPerFabric, _subscriptionsPerFabric];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: caseSessionsPerFabric:%@; subscriptionsPerFabric:%@; >", NSStringFromClass([self class]), _caseSessionsPerFabric, _subscriptionsPerFabric];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBasicClusterCapabilityMinimaStruct : MTRBasicInformationClusterCapabilityMinimaStruct
+@dynamic caseSessionsPerFabric;
+@dynamic subscriptionsPerFabric;
 @end
 
 @implementation MTRBasicInformationClusterProductAppearanceStruct
@@ -592,8 +623,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
     return descriptionString;
 }
 
@@ -620,14 +650,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: softwareVersion:%@; >", NSStringFromClass([self class]), _softwareVersion];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: softwareVersion:%@; >", NSStringFromClass([self class]), _softwareVersion];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBasicClusterStartUpEvent : MTRBasicInformationClusterStartUpEvent
+@dynamic softwareVersion;
 @end
 
 @implementation MTRBasicInformationClusterShutDownEvent
@@ -677,14 +707,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: fabricIndex:%@; >", NSStringFromClass([self class]), _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: fabricIndex:%@; >", NSStringFromClass([self class]), _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBasicClusterLeaveEvent : MTRBasicInformationClusterLeaveEvent
+@dynamic fabricIndex;
 @end
 
 @implementation MTRBasicInformationClusterReachableChangedEvent
@@ -708,14 +738,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: reachableNewValue:%@; >", NSStringFromClass([self class]), _reachableNewValue];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: reachableNewValue:%@; >", NSStringFromClass([self class]), _reachableNewValue];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBasicClusterReachableChangedEvent : MTRBasicInformationClusterReachableChangedEvent
+@dynamic reachableNewValue;
 @end
 
 @implementation MTROTASoftwareUpdateRequestorClusterProviderLocation
@@ -745,14 +775,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: providerNodeID:%@; endpoint:%@; fabricIndex:%@; >",
-                                             NSStringFromClass([self class]), _providerNodeID, _endpoint, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: providerNodeID:%@; endpoint:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _providerNodeID, _endpoint, _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTROtaSoftwareUpdateRequestorClusterProviderLocation : MTROTASoftwareUpdateRequestorClusterProviderLocation
+@dynamic providerNodeID;
+@dynamic endpoint;
+@dynamic fabricIndex;
 @end
 
 @implementation MTROTASoftwareUpdateRequestorClusterStateTransitionEvent
@@ -785,15 +817,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: previousState:%@; newState:%@; reason:%@; targetSoftwareVersion:%@; >",
-                  NSStringFromClass([self class]), _previousState, _newState, _reason, _targetSoftwareVersion];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousState:%@; newState:%@; reason:%@; targetSoftwareVersion:%@; >", NSStringFromClass([self class]), _previousState, _newState, _reason, _targetSoftwareVersion];
     return descriptionString;
 }
 
 @end
 
 @implementation MTROtaSoftwareUpdateRequestorClusterStateTransitionEvent : MTROTASoftwareUpdateRequestorClusterStateTransitionEvent
+@dynamic previousState;
+@dynamic newState;
+@dynamic reason;
+@dynamic targetSoftwareVersion;
 @end
 
 @implementation MTROTASoftwareUpdateRequestorClusterVersionAppliedEvent
@@ -820,14 +854,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: softwareVersion:%@; productID:%@; >",
-                                             NSStringFromClass([self class]), _softwareVersion, _productID];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: softwareVersion:%@; productID:%@; >", NSStringFromClass([self class]), _softwareVersion, _productID];
     return descriptionString;
 }
 
 @end
 
 @implementation MTROtaSoftwareUpdateRequestorClusterVersionAppliedEvent : MTROTASoftwareUpdateRequestorClusterVersionAppliedEvent
+@dynamic softwareVersion;
+@dynamic productID;
 @end
 
 @implementation MTROTASoftwareUpdateRequestorClusterDownloadErrorEvent
@@ -860,15 +895,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: softwareVersion:%@; bytesDownloaded:%@; progressPercent:%@; platformCode:%@; >",
-                  NSStringFromClass([self class]), _softwareVersion, _bytesDownloaded, _progressPercent, _platformCode];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: softwareVersion:%@; bytesDownloaded:%@; progressPercent:%@; platformCode:%@; >", NSStringFromClass([self class]), _softwareVersion, _bytesDownloaded, _progressPercent, _platformCode];
     return descriptionString;
 }
 
 @end
 
 @implementation MTROtaSoftwareUpdateRequestorClusterDownloadErrorEvent : MTROTASoftwareUpdateRequestorClusterDownloadErrorEvent
+@dynamic softwareVersion;
+@dynamic bytesDownloaded;
+@dynamic progressPercent;
+@dynamic platformCode;
 @end
 
 @implementation MTRPowerSourceClusterBatChargeFaultChangeType
@@ -895,8 +932,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -926,8 +962,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -957,8 +992,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -988,8 +1022,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1019,8 +1052,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1050,8 +1082,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1081,9 +1112,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: failSafeExpiryLengthSeconds:%@; maxCumulativeFailsafeSeconds:%@; >",
-                  NSStringFromClass([self class]), _failSafeExpiryLengthSeconds, _maxCumulativeFailsafeSeconds];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: failSafeExpiryLengthSeconds:%@; maxCumulativeFailsafeSeconds:%@; >", NSStringFromClass([self class]), _failSafeExpiryLengthSeconds, _maxCumulativeFailsafeSeconds];
     return descriptionString;
 }
 
@@ -1113,15 +1142,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: networkID:%@; connected:%@; >", NSStringFromClass([self class]),
-                  [_networkID base64EncodedStringWithOptions:0], _connected];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: networkID:%@; connected:%@; >", NSStringFromClass([self class]), [_networkID base64EncodedStringWithOptions:0], _connected];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRNetworkCommissioningClusterNetworkInfo : MTRNetworkCommissioningClusterNetworkInfoStruct
+@dynamic networkID;
+@dynamic connected;
 @end
 
 @implementation MTRNetworkCommissioningClusterThreadInterfaceScanResultStruct
@@ -1166,18 +1195,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:
-            @"<%@: panId:%@; extendedPanId:%@; networkName:%@; channel:%@; version:%@; extendedAddress:%@; rssi:%@; lqi:%@; >",
-        NSStringFromClass([self class]), _panId, _extendedPanId, _networkName, _channel, _version,
-        [_extendedAddress base64EncodedStringWithOptions:0], _rssi, _lqi];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: panId:%@; extendedPanId:%@; networkName:%@; channel:%@; version:%@; extendedAddress:%@; rssi:%@; lqi:%@; >", NSStringFromClass([self class]), _panId, _extendedPanId, _networkName, _channel, _version, [_extendedAddress base64EncodedStringWithOptions:0], _rssi, _lqi];
     return descriptionString;
 }
 
 @end
 
-@implementation MTRNetworkCommissioningClusterThreadInterfaceScanResult
-    : MTRNetworkCommissioningClusterThreadInterfaceScanResultStruct
+@implementation MTRNetworkCommissioningClusterThreadInterfaceScanResult : MTRNetworkCommissioningClusterThreadInterfaceScanResultStruct
+@dynamic panId;
+@dynamic extendedPanId;
+@dynamic networkName;
+@dynamic channel;
+@dynamic version;
+@dynamic extendedAddress;
+@dynamic rssi;
+@dynamic lqi;
 @end
 
 @implementation MTRNetworkCommissioningClusterWiFiInterfaceScanResultStruct
@@ -1216,16 +1248,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: security:%@; ssid:%@; bssid:%@; channel:%@; wiFiBand:%@; rssi:%@; >",
-                  NSStringFromClass([self class]), _security, [_ssid base64EncodedStringWithOptions:0],
-                  [_bssid base64EncodedStringWithOptions:0], _channel, _wiFiBand, _rssi];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: security:%@; ssid:%@; bssid:%@; channel:%@; wiFiBand:%@; rssi:%@; >", NSStringFromClass([self class]), _security, [_ssid base64EncodedStringWithOptions:0], [_bssid base64EncodedStringWithOptions:0], _channel, _wiFiBand, _rssi];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRNetworkCommissioningClusterWiFiInterfaceScanResult : MTRNetworkCommissioningClusterWiFiInterfaceScanResultStruct
+@dynamic security;
+@dynamic ssid;
+@dynamic bssid;
+@dynamic channel;
+@dynamic wiFiBand;
+@dynamic rssi;
 @end
 
 @implementation MTRGeneralDiagnosticsClusterNetworkInterface
@@ -1270,17 +1305,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: name:%@; isOperational:%@; offPremiseServicesReachableIPv4:%@; offPremiseServicesReachableIPv6:%@; "
-                         @"hardwareAddress:%@; iPv4Addresses:%@; iPv6Addresses:%@; type:%@; >",
-        NSStringFromClass([self class]), _name, _isOperational, _offPremiseServicesReachableIPv4, _offPremiseServicesReachableIPv6,
-        [_hardwareAddress base64EncodedStringWithOptions:0], _iPv4Addresses, _iPv6Addresses, _type];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: name:%@; isOperational:%@; offPremiseServicesReachableIPv4:%@; offPremiseServicesReachableIPv6:%@; hardwareAddress:%@; iPv4Addresses:%@; iPv6Addresses:%@; type:%@; >", NSStringFromClass([self class]), _name, _isOperational, _offPremiseServicesReachableIPv4, _offPremiseServicesReachableIPv6, [_hardwareAddress base64EncodedStringWithOptions:0], _iPv4Addresses, _iPv6Addresses, _type];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRGeneralDiagnosticsClusterNetworkInterfaceType : MTRGeneralDiagnosticsClusterNetworkInterface
+@dynamic name;
+@dynamic isOperational;
+@dynamic offPremiseServicesReachableIPv4;
+@dynamic offPremiseServicesReachableIPv6;
+@dynamic hardwareAddress;
+@dynamic iPv4Addresses;
+@dynamic iPv6Addresses;
+@dynamic type;
 @end
 
 @implementation MTRGeneralDiagnosticsClusterHardwareFaultChangeEvent
@@ -1307,8 +1346,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1338,8 +1376,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1369,8 +1406,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1397,8 +1433,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: bootReason:%@; >", NSStringFromClass([self class]), _bootReason];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: bootReason:%@; >", NSStringFromClass([self class]), _bootReason];
     return descriptionString;
 }
 
@@ -1437,15 +1472,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: id:%@; name:%@; stackFreeCurrent:%@; stackFreeMinimum:%@; stackSize:%@; >",
-                  NSStringFromClass([self class]), _id, _name, _stackFreeCurrent, _stackFreeMinimum, _stackSize];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: id:%@; name:%@; stackFreeCurrent:%@; stackFreeMinimum:%@; stackSize:%@; >", NSStringFromClass([self class]), _id, _name, _stackFreeCurrent, _stackFreeMinimum, _stackSize];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRSoftwareDiagnosticsClusterThreadMetrics : MTRSoftwareDiagnosticsClusterThreadMetricsStruct
+@dynamic id;
+@dynamic name;
+@dynamic stackFreeCurrent;
+@dynamic stackFreeMinimum;
+@dynamic stackSize;
 @end
 
 @implementation MTRSoftwareDiagnosticsClusterSoftwareFaultEvent
@@ -1475,9 +1513,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: id:%@; name:%@; faultRecording:%@; >", NSStringFromClass([self class]), _id, _name,
-                  [_faultRecording base64EncodedStringWithOptions:0]];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: id:%@; name:%@; faultRecording:%@; >", NSStringFromClass([self class]), _id, _name, [_faultRecording base64EncodedStringWithOptions:0]];
     return descriptionString;
 }
 
@@ -1543,18 +1579,27 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:
-            @"<%@: extAddress:%@; age:%@; rloc16:%@; linkFrameCounter:%@; mleFrameCounter:%@; lqi:%@; averageRssi:%@; lastRssi:%@; "
-            @"frameErrorRate:%@; messageErrorRate:%@; rxOnWhenIdle:%@; fullThreadDevice:%@; fullNetworkData:%@; isChild:%@; >",
-        NSStringFromClass([self class]), _extAddress, _age, _rloc16, _linkFrameCounter, _mleFrameCounter, _lqi, _averageRssi,
-        _lastRssi, _frameErrorRate, _messageErrorRate, _rxOnWhenIdle, _fullThreadDevice, _fullNetworkData, _isChild];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: extAddress:%@; age:%@; rloc16:%@; linkFrameCounter:%@; mleFrameCounter:%@; lqi:%@; averageRssi:%@; lastRssi:%@; frameErrorRate:%@; messageErrorRate:%@; rxOnWhenIdle:%@; fullThreadDevice:%@; fullNetworkData:%@; isChild:%@; >", NSStringFromClass([self class]), _extAddress, _age, _rloc16, _linkFrameCounter, _mleFrameCounter, _lqi, _averageRssi, _lastRssi, _frameErrorRate, _messageErrorRate, _rxOnWhenIdle, _fullThreadDevice, _fullNetworkData, _isChild];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRThreadNetworkDiagnosticsClusterNeighborTable : MTRThreadNetworkDiagnosticsClusterNeighborTableStruct
+@dynamic extAddress;
+@dynamic age;
+@dynamic rloc16;
+@dynamic linkFrameCounter;
+@dynamic mleFrameCounter;
+@dynamic lqi;
+@dynamic averageRssi;
+@dynamic lastRssi;
+@dynamic frameErrorRate;
+@dynamic messageErrorRate;
+@dynamic rxOnWhenIdle;
+@dynamic fullThreadDevice;
+@dynamic fullNetworkData;
+@dynamic isChild;
 @end
 
 @implementation MTRThreadNetworkDiagnosticsClusterOperationalDatasetComponents
@@ -1611,13 +1656,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: activeTimestampPresent:%@; pendingTimestampPresent:%@; masterKeyPresent:%@; networkNamePresent:%@; "
-                         @"extendedPanIdPresent:%@; meshLocalPrefixPresent:%@; delayPresent:%@; panIdPresent:%@; "
-                         @"channelPresent:%@; pskcPresent:%@; securityPolicyPresent:%@; channelMaskPresent:%@; >",
-        NSStringFromClass([self class]), _activeTimestampPresent, _pendingTimestampPresent, _masterKeyPresent, _networkNamePresent,
-        _extendedPanIdPresent, _meshLocalPrefixPresent, _delayPresent, _panIdPresent, _channelPresent, _pskcPresent,
-        _securityPolicyPresent, _channelMaskPresent];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: activeTimestampPresent:%@; pendingTimestampPresent:%@; masterKeyPresent:%@; networkNamePresent:%@; extendedPanIdPresent:%@; meshLocalPrefixPresent:%@; delayPresent:%@; panIdPresent:%@; channelPresent:%@; pskcPresent:%@; securityPolicyPresent:%@; channelMaskPresent:%@; >", NSStringFromClass([self class]), _activeTimestampPresent, _pendingTimestampPresent, _masterKeyPresent, _networkNamePresent, _extendedPanIdPresent, _meshLocalPrefixPresent, _delayPresent, _panIdPresent, _channelPresent, _pskcPresent, _securityPolicyPresent, _channelMaskPresent];
     return descriptionString;
 }
 
@@ -1671,17 +1710,23 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: extAddress:%@; rloc16:%@; routerId:%@; nextHop:%@; pathCost:%@; lqiIn:%@; lqiOut:%@; "
-                                   @"age:%@; allocated:%@; linkEstablished:%@; >",
-                  NSStringFromClass([self class]), _extAddress, _rloc16, _routerId, _nextHop, _pathCost, _lqiIn, _lqiOut, _age,
-                  _allocated, _linkEstablished];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: extAddress:%@; rloc16:%@; routerId:%@; nextHop:%@; pathCost:%@; lqiIn:%@; lqiOut:%@; age:%@; allocated:%@; linkEstablished:%@; >", NSStringFromClass([self class]), _extAddress, _rloc16, _routerId, _nextHop, _pathCost, _lqiIn, _lqiOut, _age, _allocated, _linkEstablished];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRThreadNetworkDiagnosticsClusterRouteTable : MTRThreadNetworkDiagnosticsClusterRouteTableStruct
+@dynamic extAddress;
+@dynamic rloc16;
+@dynamic routerId;
+@dynamic nextHop;
+@dynamic pathCost;
+@dynamic lqiIn;
+@dynamic lqiOut;
+@dynamic age;
+@dynamic allocated;
+@dynamic linkEstablished;
 @end
 
 @implementation MTRThreadNetworkDiagnosticsClusterSecurityPolicy
@@ -1708,8 +1753,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: rotationTime:%@; flags:%@; >", NSStringFromClass([self class]), _rotationTime, _flags];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: rotationTime:%@; flags:%@; >", NSStringFromClass([self class]), _rotationTime, _flags];
     return descriptionString;
 }
 
@@ -1736,8 +1780,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: connectionStatus:%@; >", NSStringFromClass([self class]), _connectionStatus];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: connectionStatus:%@; >", NSStringFromClass([self class]), _connectionStatus];
     return descriptionString;
 }
 
@@ -1767,8 +1810,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
     return descriptionString;
 }
 
@@ -1795,8 +1837,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: reasonCode:%@; >", NSStringFromClass([self class]), _reasonCode];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: reasonCode:%@; >", NSStringFromClass([self class]), _reasonCode];
     return descriptionString;
 }
 
@@ -1807,7 +1848,7 @@ NS_ASSUME_NONNULL_BEGIN
 {
     if (self = [super init]) {
 
-        _associationFailure = @(0);
+        _associationFailureCause = @(0);
 
         _status = @(0);
     }
@@ -1818,7 +1859,7 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRWiFiNetworkDiagnosticsClusterAssociationFailureEvent alloc] init];
 
-    other.associationFailure = self.associationFailure;
+    other.associationFailureCause = self.associationFailureCause;
     other.status = self.status;
 
     return other;
@@ -1826,11 +1867,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: associationFailure:%@; status:%@; >",
-                                             NSStringFromClass([self class]), _associationFailure, _status];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: associationFailureCause:%@; status:%@; >", NSStringFromClass([self class]), _associationFailureCause, _status];
     return descriptionString;
 }
 
+- (void)setAssociationFailure:(NSNumber * _Nonnull)associationFailure
+{
+    self.associationFailureCause = associationFailure;
+}
+
+- (NSNumber * _Nonnull)associationFailure
+{
+    return self.associationFailureCause;
+}
 @end
 
 @implementation MTRWiFiNetworkDiagnosticsClusterConnectionStatusEvent
@@ -1854,8 +1903,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: connectionStatus:%@; >", NSStringFromClass([self class]), _connectionStatus];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: connectionStatus:%@; >", NSStringFromClass([self class]), _connectionStatus];
     return descriptionString;
 }
 
@@ -1888,14 +1936,46 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: offset:%@; validStarting:%@; validUntil:%@; >",
-                                             NSStringFromClass([self class]), _offset, _validStarting, _validUntil];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: offset:%@; validStarting:%@; validUntil:%@; >", NSStringFromClass([self class]), _offset, _validStarting, _validUntil];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTimeSynchronizationClusterDstOffsetType : MTRTimeSynchronizationClusterDSTOffsetStruct
+@dynamic offset;
+@dynamic validStarting;
+@dynamic validUntil;
+@end
+
+@implementation MTRTimeSynchronizationClusterFabricScopedTrustedTimeSourceStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _nodeID = @(0);
+
+        _endpoint = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterFabricScopedTrustedTimeSourceStruct alloc] init];
+
+    other.nodeID = self.nodeID;
+    other.endpoint = self.endpoint;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: nodeID:%@; endpoint:%@; >", NSStringFromClass([self class]), _nodeID, _endpoint];
+    return descriptionString;
+}
+
 @end
 
 @implementation MTRTimeSynchronizationClusterTimeZoneStruct
@@ -1925,14 +2005,175 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: offset:%@; validAt:%@; name:%@; >", NSStringFromClass([self class]), _offset, _validAt, _name];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: offset:%@; validAt:%@; name:%@; >", NSStringFromClass([self class]), _offset, _validAt, _name];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTimeSynchronizationClusterTimeZoneType : MTRTimeSynchronizationClusterTimeZoneStruct
+@dynamic offset;
+@dynamic validAt;
+@dynamic name;
+@end
+
+@implementation MTRTimeSynchronizationClusterTrustedTimeSourceStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _fabricIndex = @(0);
+
+        _nodeID = @(0);
+
+        _endpoint = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterTrustedTimeSourceStruct alloc] init];
+
+    other.fabricIndex = self.fabricIndex;
+    other.nodeID = self.nodeID;
+    other.endpoint = self.endpoint;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: fabricIndex:%@; nodeID:%@; endpoint:%@; >", NSStringFromClass([self class]), _fabricIndex, _nodeID, _endpoint];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterDSTTableEmptyEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterDSTTableEmptyEvent alloc] init];
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterDSTStatusEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _dstOffsetActive = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterDSTStatusEvent alloc] init];
+
+    other.dstOffsetActive = self.dstOffsetActive;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: dstOffsetActive:%@; >", NSStringFromClass([self class]), _dstOffsetActive];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterTimeZoneStatusEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _offset = @(0);
+
+        _name = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterTimeZoneStatusEvent alloc] init];
+
+    other.offset = self.offset;
+    other.name = self.name;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: offset:%@; name:%@; >", NSStringFromClass([self class]), _offset, _name];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterTimeFailureEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterTimeFailureEvent alloc] init];
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterMissingTrustedTimeSourceEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterMissingTrustedTimeSourceEvent alloc] init];
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    return descriptionString;
+}
+
 @end
 
 @implementation MTRBridgedDeviceBasicInformationClusterProductAppearanceStruct
@@ -1959,8 +2200,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: finish:%@; primaryColor:%@; >", NSStringFromClass([self class]), _finish, _primaryColor];
     return descriptionString;
 }
 
@@ -1987,14 +2227,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: softwareVersion:%@; >", NSStringFromClass([self class]), _softwareVersion];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: softwareVersion:%@; >", NSStringFromClass([self class]), _softwareVersion];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBridgedDeviceBasicClusterStartUpEvent : MTRBridgedDeviceBasicInformationClusterStartUpEvent
+@dynamic softwareVersion;
 @end
 
 @implementation MTRBridgedDeviceBasicInformationClusterShutDownEvent
@@ -2070,14 +2310,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: reachableNewValue:%@; >", NSStringFromClass([self class]), _reachableNewValue];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: reachableNewValue:%@; >", NSStringFromClass([self class]), _reachableNewValue];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRBridgedDeviceBasicClusterReachableChangedEvent : MTRBridgedDeviceBasicInformationClusterReachableChangedEvent
+@dynamic reachableNewValue;
 @end
 
 @implementation MTRSwitchClusterSwitchLatchedEvent
@@ -2101,8 +2341,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
     return descriptionString;
 }
 
@@ -2129,8 +2368,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
     return descriptionString;
 }
 
@@ -2157,8 +2395,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: newPosition:%@; >", NSStringFromClass([self class]), _newPosition];
     return descriptionString;
 }
 
@@ -2185,8 +2422,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: previousPosition:%@; >", NSStringFromClass([self class]), _previousPosition];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousPosition:%@; >", NSStringFromClass([self class]), _previousPosition];
     return descriptionString;
 }
 
@@ -2213,8 +2449,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: previousPosition:%@; >", NSStringFromClass([self class]), _previousPosition];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousPosition:%@; >", NSStringFromClass([self class]), _previousPosition];
     return descriptionString;
 }
 
@@ -2244,8 +2479,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: newPosition:%@; currentNumberOfPressesCounted:%@; >",
-                                             NSStringFromClass([self class]), _newPosition, _currentNumberOfPressesCounted];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: newPosition:%@; currentNumberOfPressesCounted:%@; >", NSStringFromClass([self class]), _newPosition, _currentNumberOfPressesCounted];
     return descriptionString;
 }
 
@@ -2275,8 +2509,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousPosition:%@; totalNumberOfPressesCounted:%@; >",
-                                             NSStringFromClass([self class]), _previousPosition, _totalNumberOfPressesCounted];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: previousPosition:%@; totalNumberOfPressesCounted:%@; >", NSStringFromClass([self class]), _previousPosition, _totalNumberOfPressesCounted];
     return descriptionString;
 }
 
@@ -2327,10 +2560,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: rootPublicKey:%@; vendorID:%@; fabricID:%@; nodeID:%@; label:%@; fabricIndex:%@; >",
-                  NSStringFromClass([self class]), [_rootPublicKey base64EncodedStringWithOptions:0], _vendorID, _fabricID, _nodeID,
-                  _label, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: rootPublicKey:%@; vendorID:%@; fabricID:%@; nodeID:%@; label:%@; fabricIndex:%@; >", NSStringFromClass([self class]), [_rootPublicKey base64EncodedStringWithOptions:0], _vendorID, _fabricID, _nodeID, _label, _fabricIndex];
     return descriptionString;
 }
 
@@ -2367,6 +2597,9 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation MTROperationalCredentialsClusterFabricDescriptor : MTROperationalCredentialsClusterFabricDescriptorStruct
+@dynamic rootPublicKey;
+@dynamic label;
+@dynamic fabricIndex;
 @end
 
 @implementation MTROperationalCredentialsClusterNOCStruct
@@ -2396,9 +2629,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: noc:%@; icac:%@; fabricIndex:%@; >", NSStringFromClass([self class]),
-                  [_noc base64EncodedStringWithOptions:0], [_icac base64EncodedStringWithOptions:0], _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: noc:%@; icac:%@; fabricIndex:%@; >", NSStringFromClass([self class]), [_noc base64EncodedStringWithOptions:0], [_icac base64EncodedStringWithOptions:0], _fabricIndex];
     return descriptionString;
 }
 
@@ -2434,8 +2665,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: groupId:%@; endpoints:%@; groupName:%@; fabricIndex:%@; >",
-                                             NSStringFromClass([self class]), _groupId, _endpoints, _groupName, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: groupId:%@; endpoints:%@; groupName:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _groupId, _endpoints, _groupName, _fabricIndex];
     return descriptionString;
 }
 
@@ -2468,8 +2698,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: groupId:%@; groupKeySetID:%@; fabricIndex:%@; >",
-                                             NSStringFromClass([self class]), _groupId, _groupKeySetID, _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: groupId:%@; groupKeySetID:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _groupId, _groupKeySetID, _fabricIndex];
     return descriptionString;
 }
 
@@ -2517,12 +2746,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: groupKeySetID:%@; groupKeySecurityPolicy:%@; epochKey0:%@; epochStartTime0:%@; "
-                                   @"epochKey1:%@; epochStartTime1:%@; epochKey2:%@; epochStartTime2:%@; >",
-                  NSStringFromClass([self class]), _groupKeySetID, _groupKeySecurityPolicy,
-                  [_epochKey0 base64EncodedStringWithOptions:0], _epochStartTime0, [_epochKey1 base64EncodedStringWithOptions:0],
-                  _epochStartTime1, [_epochKey2 base64EncodedStringWithOptions:0], _epochStartTime2];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: groupKeySetID:%@; groupKeySecurityPolicy:%@; epochKey0:%@; epochStartTime0:%@; epochKey1:%@; epochStartTime1:%@; epochKey2:%@; epochStartTime2:%@; >", NSStringFromClass([self class]), _groupKeySetID, _groupKeySecurityPolicy, [_epochKey0 base64EncodedStringWithOptions:0], _epochStartTime0, [_epochKey1 base64EncodedStringWithOptions:0], _epochStartTime1, [_epochKey2 base64EncodedStringWithOptions:0], _epochStartTime2];
     return descriptionString;
 }
 
@@ -2552,8 +2776,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: label:%@; value:%@; >", NSStringFromClass([self class]), _label, _value];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; value:%@; >", NSStringFromClass([self class]), _label, _value];
     return descriptionString;
 }
 
@@ -2583,8 +2806,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: label:%@; value:%@; >", NSStringFromClass([self class]), _label, _value];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; value:%@; >", NSStringFromClass([self class]), _label, _value];
     return descriptionString;
 }
 
@@ -2611,8 +2833,40 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: stateValue:%@; >", NSStringFromClass([self class]), _stateValue];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: stateValue:%@; >", NSStringFromClass([self class]), _stateValue];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRICDManagementClusterMonitoringRegistrationStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _checkInNodeID = @(0);
+
+        _monitoredSubject = @(0);
+
+        _fabricIndex = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRICDManagementClusterMonitoringRegistrationStruct alloc] init];
+
+    other.checkInNodeID = self.checkInNodeID;
+    other.monitoredSubject = self.monitoredSubject;
+    other.fabricIndex = self.fabricIndex;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: checkInNodeID:%@; monitoredSubject:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _checkInNodeID, _monitoredSubject, _fabricIndex];
     return descriptionString;
 }
 
@@ -2642,14 +2896,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRModeSelectClusterSemanticTag : MTRModeSelectClusterSemanticTagStruct
+@dynamic mfgCode;
+@dynamic value;
 @end
 
 @implementation MTRModeSelectClusterModeOptionStruct
@@ -2679,8 +2934,259 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; semanticTags:%@; >",
-                                             NSStringFromClass([self class]), _label, _mode, _semanticTags];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; semanticTags:%@; >", NSStringFromClass([self class]), _label, _mode, _semanticTags];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRLaundryWasherModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRLaundryWasherModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRLaundryWasherModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRLaundryWasherModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRefrigeratorAndTemperatureControlledCabinetModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRefrigeratorAndTemperatureControlledCabinetModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRefrigeratorAndTemperatureControlledCabinetModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRefrigeratorAndTemperatureControlledCabinetModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCRunModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCRunModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCRunModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCRunModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCCleanModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCCleanModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCCleanModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCCleanModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
     return descriptionString;
 }
 
@@ -2716,8 +3222,70 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: active:%@; inactive:%@; state:%@; mask:%@; >",
-                                             NSStringFromClass([self class]), _active, _inactive, _state, _mask];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: active:%@; inactive:%@; state:%@; mask:%@; >", NSStringFromClass([self class]), _active, _inactive, _state, _mask];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRDishwasherModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRDishwasherModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRDishwasherModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRDishwasherModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
     return descriptionString;
 }
 
@@ -2727,6 +3295,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init
 {
     if (self = [super init]) {
+
+        _alarmSeverityLevel = @(0);
     }
     return self;
 }
@@ -2735,12 +3305,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRSmokeCOAlarmClusterSmokeAlarmEvent alloc] init];
 
+    other.alarmSeverityLevel = self.alarmSeverityLevel;
+
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: alarmSeverityLevel:%@; >", NSStringFromClass([self class]), _alarmSeverityLevel];
     return descriptionString;
 }
 
@@ -2750,6 +3322,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init
 {
     if (self = [super init]) {
+
+        _alarmSeverityLevel = @(0);
     }
     return self;
 }
@@ -2758,12 +3332,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRSmokeCOAlarmClusterCOAlarmEvent alloc] init];
 
+    other.alarmSeverityLevel = self.alarmSeverityLevel;
+
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: alarmSeverityLevel:%@; >", NSStringFromClass([self class]), _alarmSeverityLevel];
     return descriptionString;
 }
 
@@ -2773,6 +3349,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init
 {
     if (self = [super init]) {
+
+        _alarmSeverityLevel = @(0);
     }
     return self;
 }
@@ -2781,12 +3359,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRSmokeCOAlarmClusterLowBatteryEvent alloc] init];
 
+    other.alarmSeverityLevel = self.alarmSeverityLevel;
+
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: alarmSeverityLevel:%@; >", NSStringFromClass([self class]), _alarmSeverityLevel];
     return descriptionString;
 }
 
@@ -2911,6 +3491,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init
 {
     if (self = [super init]) {
+
+        _alarmSeverityLevel = @(0);
     }
     return self;
 }
@@ -2919,12 +3501,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRSmokeCOAlarmClusterInterconnectSmokeAlarmEvent alloc] init];
 
+    other.alarmSeverityLevel = self.alarmSeverityLevel;
+
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: alarmSeverityLevel:%@; >", NSStringFromClass([self class]), _alarmSeverityLevel];
     return descriptionString;
 }
 
@@ -2934,6 +3518,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init
 {
     if (self = [super init]) {
+
+        _alarmSeverityLevel = @(0);
     }
     return self;
 }
@@ -2942,12 +3528,14 @@ NS_ASSUME_NONNULL_BEGIN
 {
     auto other = [[MTRSmokeCOAlarmClusterInterconnectCOAlarmEvent alloc] init];
 
+    other.alarmSeverityLevel = self.alarmSeverityLevel;
+
     return other;
 }
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: alarmSeverityLevel:%@; >", NSStringFromClass([self class]), _alarmSeverityLevel];
     return descriptionString;
 }
 
@@ -2971,6 +3559,105 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)description
 {
     NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRDishwasherAlarmClusterNotifyEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _active = @(0);
+
+        _inactive = @(0);
+
+        _state = @(0);
+
+        _mask = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRDishwasherAlarmClusterNotifyEvent alloc] init];
+
+    other.active = self.active;
+    other.inactive = self.inactive;
+    other.state = self.state;
+    other.mask = self.mask;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: active:%@; inactive:%@; state:%@; mask:%@; >", NSStringFromClass([self class]), _active, _inactive, _state, _mask];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRMicrowaveOvenModeClusterModeTagStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _mfgCode = nil;
+
+        _value = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRMicrowaveOvenModeClusterModeTagStruct alloc] init];
+
+    other.mfgCode = self.mfgCode;
+    other.value = self.value;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: mfgCode:%@; value:%@; >", NSStringFromClass([self class]), _mfgCode, _value];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRMicrowaveOvenModeClusterModeOptionStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _label = @"";
+
+        _mode = @(0);
+
+        _modeTags = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRMicrowaveOvenModeClusterModeOptionStruct alloc] init];
+
+    other.label = self.label;
+    other.mode = self.mode;
+    other.modeTags = self.modeTags;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: label:%@; mode:%@; modeTags:%@; >", NSStringFromClass([self class]), _label, _mode, _modeTags];
     return descriptionString;
 }
 
@@ -3003,8 +3690,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: errorStateID:%@; errorStateLabel:%@; errorStateDetails:%@; >",
-                                             NSStringFromClass([self class]), _errorStateID, _errorStateLabel, _errorStateDetails];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: errorStateID:%@; errorStateLabel:%@; errorStateDetails:%@; >", NSStringFromClass([self class]), _errorStateID, _errorStateLabel, _errorStateDetails];
     return descriptionString;
 }
 
@@ -3034,8 +3720,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: operationalStateID:%@; operationalStateLabel:%@; >",
-                                             NSStringFromClass([self class]), _operationalStateID, _operationalStateLabel];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: operationalStateID:%@; operationalStateLabel:%@; >", NSStringFromClass([self class]), _operationalStateID, _operationalStateLabel];
     return descriptionString;
 }
 
@@ -3062,8 +3747,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: errorState:%@; >", NSStringFromClass([self class]), _errorState];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: errorState:%@; >", NSStringFromClass([self class]), _errorState];
     return descriptionString;
 }
 
@@ -3096,9 +3780,190 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: completionErrorCode:%@; totalOperationalTime:%@; pausedTime:%@; >",
-                  NSStringFromClass([self class]), _completionErrorCode, _totalOperationalTime, _pausedTime];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: completionErrorCode:%@; totalOperationalTime:%@; pausedTime:%@; >", NSStringFromClass([self class]), _completionErrorCode, _totalOperationalTime, _pausedTime];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCOperationalStateClusterErrorStateStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _errorStateID = @(0);
+
+        _errorStateLabel = nil;
+
+        _errorStateDetails = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCOperationalStateClusterErrorStateStruct alloc] init];
+
+    other.errorStateID = self.errorStateID;
+    other.errorStateLabel = self.errorStateLabel;
+    other.errorStateDetails = self.errorStateDetails;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: errorStateID:%@; errorStateLabel:%@; errorStateDetails:%@; >", NSStringFromClass([self class]), _errorStateID, _errorStateLabel, _errorStateDetails];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCOperationalStateClusterOperationalStateStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _operationalStateID = @(0);
+
+        _operationalStateLabel = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCOperationalStateClusterOperationalStateStruct alloc] init];
+
+    other.operationalStateID = self.operationalStateID;
+    other.operationalStateLabel = self.operationalStateLabel;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: operationalStateID:%@; operationalStateLabel:%@; >", NSStringFromClass([self class]), _operationalStateID, _operationalStateLabel];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCOperationalStateClusterOperationalErrorEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _errorState = [MTRRVCOperationalStateClusterErrorStateStruct new];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCOperationalStateClusterOperationalErrorEvent alloc] init];
+
+    other.errorState = self.errorState;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: errorState:%@; >", NSStringFromClass([self class]), _errorState];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRRVCOperationalStateClusterOperationCompletionEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _completionErrorCode = @(0);
+
+        _totalOperationalTime = nil;
+
+        _pausedTime = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRRVCOperationalStateClusterOperationCompletionEvent alloc] init];
+
+    other.completionErrorCode = self.completionErrorCode;
+    other.totalOperationalTime = self.totalOperationalTime;
+    other.pausedTime = self.pausedTime;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: completionErrorCode:%@; totalOperationalTime:%@; pausedTime:%@; >", NSStringFromClass([self class]), _completionErrorCode, _totalOperationalTime, _pausedTime];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRHEPAFilterMonitoringClusterReplacementProductStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _productIdentifierType = @(0);
+
+        _productIdentifierValue = @"";
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRHEPAFilterMonitoringClusterReplacementProductStruct alloc] init];
+
+    other.productIdentifierType = self.productIdentifierType;
+    other.productIdentifierValue = self.productIdentifierValue;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: productIdentifierType:%@; productIdentifierValue:%@; >", NSStringFromClass([self class]), _productIdentifierType, _productIdentifierValue];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRActivatedCarbonFilterMonitoringClusterReplacementProductStruct
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _productIdentifierType = @(0);
+
+        _productIdentifierValue = @"";
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone * _Nullable)zone
+{
+    auto other = [[MTRActivatedCarbonFilterMonitoringClusterReplacementProductStruct alloc] init];
+
+    other.productIdentifierType = self.productIdentifierType;
+    other.productIdentifierValue = self.productIdentifierValue;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: productIdentifierType:%@; productIdentifierValue:%@; >", NSStringFromClass([self class]), _productIdentifierType, _productIdentifierValue];
     return descriptionString;
 }
 
@@ -3128,14 +3993,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: credentialType:%@; credentialIndex:%@; >",
-                                             NSStringFromClass([self class]), _credentialType, _credentialIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: credentialType:%@; credentialIndex:%@; >", NSStringFromClass([self class]), _credentialType, _credentialIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRDoorLockClusterDlCredential : MTRDoorLockClusterCredentialStruct
+@dynamic credentialType;
+@dynamic credentialIndex;
 @end
 
 @implementation MTRDoorLockClusterDoorLockAlarmEvent
@@ -3228,10 +4094,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:
-            @"<%@: lockOperationType:%@; operationSource:%@; userIndex:%@; fabricIndex:%@; sourceNode:%@; credentials:%@; >",
-        NSStringFromClass([self class]), _lockOperationType, _operationSource, _userIndex, _fabricIndex, _sourceNode, _credentials];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: lockOperationType:%@; operationSource:%@; userIndex:%@; fabricIndex:%@; sourceNode:%@; credentials:%@; >", NSStringFromClass([self class]), _lockOperationType, _operationSource, _userIndex, _fabricIndex, _sourceNode, _credentials];
     return descriptionString;
 }
 
@@ -3276,10 +4139,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: lockOperationType:%@; operationSource:%@; operationError:%@; "
-                                                              @"userIndex:%@; fabricIndex:%@; sourceNode:%@; credentials:%@; >",
-                                             NSStringFromClass([self class]), _lockOperationType, _operationSource, _operationError,
-                                             _userIndex, _fabricIndex, _sourceNode, _credentials];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: lockOperationType:%@; operationSource:%@; operationError:%@; userIndex:%@; fabricIndex:%@; sourceNode:%@; credentials:%@; >", NSStringFromClass([self class]), _lockOperationType, _operationSource, _operationError, _userIndex, _fabricIndex, _sourceNode, _credentials];
     return descriptionString;
 }
 
@@ -3324,10 +4184,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: lockDataType:%@; dataOperationType:%@; operationSource:%@; "
-                                                              @"userIndex:%@; fabricIndex:%@; sourceNode:%@; dataIndex:%@; >",
-                                             NSStringFromClass([self class]), _lockDataType, _dataOperationType, _operationSource,
-                                             _userIndex, _fabricIndex, _sourceNode, _dataIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: lockDataType:%@; dataOperationType:%@; operationSource:%@; userIndex:%@; fabricIndex:%@; sourceNode:%@; dataIndex:%@; >", NSStringFromClass([self class]), _lockDataType, _dataOperationType, _operationSource, _userIndex, _fabricIndex, _sourceNode, _dataIndex];
     return descriptionString;
 }
 
@@ -3751,8 +4608,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: transitionTime:%@; heatSetpoint:%@; coolSetpoint:%@; >",
-                                             NSStringFromClass([self class]), _transitionTime, _heatSetpoint, _coolSetpoint];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: transitionTime:%@; heatSetpoint:%@; coolSetpoint:%@; >", NSStringFromClass([self class]), _transitionTime, _heatSetpoint, _coolSetpoint];
     return descriptionString;
 }
 
@@ -3791,15 +4647,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: majorNumber:%@; minorNumber:%@; name:%@; callSign:%@; affiliateCallSign:%@; >",
-                  NSStringFromClass([self class]), _majorNumber, _minorNumber, _name, _callSign, _affiliateCallSign];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: majorNumber:%@; minorNumber:%@; name:%@; callSign:%@; affiliateCallSign:%@; >", NSStringFromClass([self class]), _majorNumber, _minorNumber, _name, _callSign, _affiliateCallSign];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRChannelClusterChannelInfo : MTRChannelClusterChannelInfoStruct
+@dynamic majorNumber;
+@dynamic minorNumber;
+@dynamic name;
+@dynamic callSign;
+@dynamic affiliateCallSign;
 @end
 
 @implementation MTRChannelClusterLineupInfoStruct
@@ -3832,15 +4691,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: operatorName:%@; lineupName:%@; postalCode:%@; lineupInfoType:%@; >",
-                  NSStringFromClass([self class]), _operatorName, _lineupName, _postalCode, _lineupInfoType];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: operatorName:%@; lineupName:%@; postalCode:%@; lineupInfoType:%@; >", NSStringFromClass([self class]), _operatorName, _lineupName, _postalCode, _lineupInfoType];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRChannelClusterLineupInfo : MTRChannelClusterLineupInfoStruct
+@dynamic operatorName;
+@dynamic lineupName;
+@dynamic postalCode;
+@dynamic lineupInfoType;
 @end
 
 @implementation MTRTargetNavigatorClusterTargetInfoStruct
@@ -3867,14 +4728,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: identifier:%@; name:%@; >", NSStringFromClass([self class]), _identifier, _name];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: identifier:%@; name:%@; >", NSStringFromClass([self class]), _identifier, _name];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTargetNavigatorClusterTargetInfo : MTRTargetNavigatorClusterTargetInfoStruct
+@dynamic identifier;
+@dynamic name;
 @end
 
 @implementation MTRMediaPlaybackClusterPlaybackPositionStruct
@@ -3901,14 +4763,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: updatedAt:%@; position:%@; >", NSStringFromClass([self class]), _updatedAt, _position];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: updatedAt:%@; position:%@; >", NSStringFromClass([self class]), _updatedAt, _position];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRMediaPlaybackClusterPlaybackPosition : MTRMediaPlaybackClusterPlaybackPositionStruct
+@dynamic updatedAt;
+@dynamic position;
 @end
 
 @implementation MTRMediaInputClusterInputInfoStruct
@@ -3941,14 +4804,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: index:%@; inputType:%@; name:%@; descriptionString:%@; >",
-                                             NSStringFromClass([self class]), _index, _inputType, _name, _descriptionString];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: index:%@; inputType:%@; name:%@; descriptionString:%@; >", NSStringFromClass([self class]), _index, _inputType, _name, _descriptionString];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRMediaInputClusterInputInfo : MTRMediaInputClusterInputInfoStruct
+@dynamic index;
+@dynamic inputType;
+@dynamic name;
+@dynamic descriptionString;
 @end
 
 @implementation MTRContentLauncherClusterDimensionStruct
@@ -3978,14 +4844,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: width:%@; height:%@; metric:%@; >", NSStringFromClass([self class]), _width, _height, _metric];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: width:%@; height:%@; metric:%@; >", NSStringFromClass([self class]), _width, _height, _metric];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRContentLauncherClusterDimension : MTRContentLauncherClusterDimensionStruct
+@dynamic width;
+@dynamic height;
+@dynamic metric;
 @end
 
 @implementation MTRContentLauncherClusterAdditionalInfoStruct
@@ -4012,14 +4880,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: name:%@; value:%@; >", NSStringFromClass([self class]), _name, _value];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: name:%@; value:%@; >", NSStringFromClass([self class]), _name, _value];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRContentLauncherClusterAdditionalInfo : MTRContentLauncherClusterAdditionalInfoStruct
+@dynamic name;
+@dynamic value;
 @end
 
 @implementation MTRContentLauncherClusterParameterStruct
@@ -4049,14 +4918,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: type:%@; value:%@; externalIDList:%@; >",
-                                             NSStringFromClass([self class]), _type, _value, _externalIDList];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: type:%@; value:%@; externalIDList:%@; >", NSStringFromClass([self class]), _type, _value, _externalIDList];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRContentLauncherClusterParameter : MTRContentLauncherClusterParameterStruct
+@dynamic type;
+@dynamic value;
+@dynamic externalIDList;
 @end
 
 @implementation MTRContentLauncherClusterContentSearchStruct
@@ -4080,14 +4951,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: parameterList:%@; >", NSStringFromClass([self class]), _parameterList];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: parameterList:%@; >", NSStringFromClass([self class]), _parameterList];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRContentLauncherClusterContentSearch : MTRContentLauncherClusterContentSearchStruct
+@dynamic parameterList;
 @end
 
 @implementation MTRContentLauncherClusterStyleInformationStruct
@@ -4117,8 +4988,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: imageURL:%@; color:%@; size:%@; >", NSStringFromClass([self class]), _imageURL, _color, _size];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: imageURL:%@; color:%@; size:%@; >", NSStringFromClass([self class]), _imageURL, _color, _size];
     return descriptionString;
 }
 
@@ -4135,6 +5005,8 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation MTRContentLauncherClusterStyleInformation : MTRContentLauncherClusterStyleInformationStruct
+@dynamic color;
+@dynamic size;
 @end
 
 @implementation MTRContentLauncherClusterBrandingInformationStruct
@@ -4173,15 +5045,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: providerName:%@; background:%@; logo:%@; progressBar:%@; splash:%@; waterMark:%@; >",
-                  NSStringFromClass([self class]), _providerName, _background, _logo, _progressBar, _splash, _waterMark];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: providerName:%@; background:%@; logo:%@; progressBar:%@; splash:%@; waterMark:%@; >", NSStringFromClass([self class]), _providerName, _background, _logo, _progressBar, _splash, _waterMark];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRContentLauncherClusterBrandingInformation : MTRContentLauncherClusterBrandingInformationStruct
+@dynamic providerName;
+@dynamic background;
+@dynamic logo;
+@dynamic progressBar;
+@dynamic splash;
+@dynamic waterMark;
 @end
 
 @implementation MTRAudioOutputClusterOutputInfoStruct
@@ -4211,14 +5087,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: index:%@; outputType:%@; name:%@; >", NSStringFromClass([self class]), _index, _outputType, _name];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: index:%@; outputType:%@; name:%@; >", NSStringFromClass([self class]), _index, _outputType, _name];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRAudioOutputClusterOutputInfo : MTRAudioOutputClusterOutputInfoStruct
+@dynamic index;
+@dynamic outputType;
+@dynamic name;
 @end
 
 @implementation MTRApplicationLauncherClusterApplicationStruct
@@ -4245,8 +5123,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: catalogVendorID:%@; applicationID:%@; >",
-                                             NSStringFromClass([self class]), _catalogVendorID, _applicationID];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: catalogVendorID:%@; applicationID:%@; >", NSStringFromClass([self class]), _catalogVendorID, _applicationID];
     return descriptionString;
 }
 
@@ -4299,14 +5176,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: application:%@; endpoint:%@; >", NSStringFromClass([self class]), _application, _endpoint];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: application:%@; endpoint:%@; >", NSStringFromClass([self class]), _application, _endpoint];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRApplicationLauncherClusterApplicationEP : MTRApplicationLauncherClusterApplicationEPStruct
+@dynamic application;
+@dynamic endpoint;
 @end
 
 @implementation MTRApplicationBasicClusterApplicationStruct
@@ -4333,8 +5211,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: catalogVendorID:%@; applicationID:%@; >",
-                                             NSStringFromClass([self class]), _catalogVendorID, _applicationID];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: catalogVendorID:%@; applicationID:%@; >", NSStringFromClass([self class]), _catalogVendorID, _applicationID];
     return descriptionString;
 }
 
@@ -4405,15 +5282,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; d:%@; e:%@; f:%@; g:%@; h:%@; >", NSStringFromClass([self class]), _a,
-                  _b, _c, [_d base64EncodedStringWithOptions:0], _e, _f, _g, _h];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; d:%@; e:%@; f:%@; g:%@; h:%@; >", NSStringFromClass([self class]), _a, _b, _c, [_d base64EncodedStringWithOptions:0], _e, _f, _g, _h];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterSimpleStruct : MTRUnitTestingClusterSimpleStruct
+@dynamic a;
+@dynamic b;
+@dynamic c;
+@dynamic d;
+@dynamic e;
+@dynamic f;
+@dynamic g;
+@dynamic h;
 @end
 
 @implementation MTRUnitTestingClusterTestFabricScoped
@@ -4458,19 +5341,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString
-        stringWithFormat:@"<%@: fabricSensitiveInt8u:%@; optionalFabricSensitiveInt8u:%@; nullableFabricSensitiveInt8u:%@; "
-                         @"nullableOptionalFabricSensitiveInt8u:%@; fabricSensitiveCharString:%@; fabricSensitiveStruct:%@; "
-                         @"fabricSensitiveInt8uList:%@; fabricIndex:%@; >",
-        NSStringFromClass([self class]), _fabricSensitiveInt8u, _optionalFabricSensitiveInt8u, _nullableFabricSensitiveInt8u,
-        _nullableOptionalFabricSensitiveInt8u, _fabricSensitiveCharString, _fabricSensitiveStruct, _fabricSensitiveInt8uList,
-        _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: fabricSensitiveInt8u:%@; optionalFabricSensitiveInt8u:%@; nullableFabricSensitiveInt8u:%@; nullableOptionalFabricSensitiveInt8u:%@; fabricSensitiveCharString:%@; fabricSensitiveStruct:%@; fabricSensitiveInt8uList:%@; fabricIndex:%@; >", NSStringFromClass([self class]), _fabricSensitiveInt8u, _optionalFabricSensitiveInt8u, _nullableFabricSensitiveInt8u, _nullableOptionalFabricSensitiveInt8u, _fabricSensitiveCharString, _fabricSensitiveStruct, _fabricSensitiveInt8uList, _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterTestFabricScoped : MTRUnitTestingClusterTestFabricScoped
+@dynamic fabricSensitiveInt8u;
+@dynamic optionalFabricSensitiveInt8u;
+@dynamic nullableFabricSensitiveInt8u;
+@dynamic nullableOptionalFabricSensitiveInt8u;
+@dynamic fabricSensitiveCharString;
+@dynamic fabricSensitiveStruct;
+@dynamic fabricSensitiveInt8uList;
+@dynamic fabricIndex;
 @end
 
 @implementation MTRUnitTestingClusterNullablesAndOptionalsStruct
@@ -4527,19 +5412,25 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: nullableInt:%@; optionalInt:%@; nullableOptionalInt:%@; nullableString:%@; "
-                                   @"optionalString:%@; nullableOptionalString:%@; nullableStruct:%@; optionalStruct:%@; "
-                                   @"nullableOptionalStruct:%@; nullableList:%@; optionalList:%@; nullableOptionalList:%@; >",
-                  NSStringFromClass([self class]), _nullableInt, _optionalInt, _nullableOptionalInt, _nullableString,
-                  _optionalString, _nullableOptionalString, _nullableStruct, _optionalStruct, _nullableOptionalStruct,
-                  _nullableList, _optionalList, _nullableOptionalList];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: nullableInt:%@; optionalInt:%@; nullableOptionalInt:%@; nullableString:%@; optionalString:%@; nullableOptionalString:%@; nullableStruct:%@; optionalStruct:%@; nullableOptionalStruct:%@; nullableList:%@; optionalList:%@; nullableOptionalList:%@; >", NSStringFromClass([self class]), _nullableInt, _optionalInt, _nullableOptionalInt, _nullableString, _optionalString, _nullableOptionalString, _nullableStruct, _optionalStruct, _nullableOptionalStruct, _nullableList, _optionalList, _nullableOptionalList];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterNullablesAndOptionalsStruct : MTRUnitTestingClusterNullablesAndOptionalsStruct
+@dynamic nullableInt;
+@dynamic optionalInt;
+@dynamic nullableOptionalInt;
+@dynamic nullableString;
+@dynamic optionalString;
+@dynamic nullableOptionalString;
+@dynamic nullableStruct;
+@dynamic optionalStruct;
+@dynamic nullableOptionalStruct;
+@dynamic nullableList;
+@dynamic optionalList;
+@dynamic nullableOptionalList;
 @end
 
 @implementation MTRUnitTestingClusterNestedStruct
@@ -4569,14 +5460,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; >", NSStringFromClass([self class]), _a, _b, _c];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; >", NSStringFromClass([self class]), _a, _b, _c];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterNestedStruct : MTRUnitTestingClusterNestedStruct
+@dynamic a;
+@dynamic b;
+@dynamic c;
 @end
 
 @implementation MTRUnitTestingClusterNestedStructList
@@ -4618,14 +5511,20 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; d:%@; e:%@; f:%@; g:%@; >",
-                                             NSStringFromClass([self class]), _a, _b, _c, _d, _e, _f, _g];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: a:%@; b:%@; c:%@; d:%@; e:%@; f:%@; g:%@; >", NSStringFromClass([self class]), _a, _b, _c, _d, _e, _f, _g];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterNestedStructList : MTRUnitTestingClusterNestedStructList
+@dynamic a;
+@dynamic b;
+@dynamic c;
+@dynamic d;
+@dynamic e;
+@dynamic f;
+@dynamic g;
 @end
 
 @implementation MTRUnitTestingClusterDoubleNestedStructList
@@ -4656,6 +5555,7 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @implementation MTRTestClusterClusterDoubleNestedStructList : MTRUnitTestingClusterDoubleNestedStructList
+@dynamic a;
 @end
 
 @implementation MTRUnitTestingClusterTestListStructOctet
@@ -4682,14 +5582,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: member1:%@; member2:%@; >", NSStringFromClass([self class]),
-                                             _member1, [_member2 base64EncodedStringWithOptions:0]];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: member1:%@; member2:%@; >", NSStringFromClass([self class]), _member1, [_member2 base64EncodedStringWithOptions:0]];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterTestListStructOctet : MTRUnitTestingClusterTestListStructOctet
+@dynamic member1;
+@dynamic member2;
 @end
 
 @implementation MTRUnitTestingClusterTestEventEvent
@@ -4728,14 +5629,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString = [NSString stringWithFormat:@"<%@: arg1:%@; arg2:%@; arg3:%@; arg4:%@; arg5:%@; arg6:%@; >",
-                                             NSStringFromClass([self class]), _arg1, _arg2, _arg3, _arg4, _arg5, _arg6];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: arg1:%@; arg2:%@; arg3:%@; arg4:%@; arg5:%@; arg6:%@; >", NSStringFromClass([self class]), _arg1, _arg2, _arg3, _arg4, _arg5, _arg6];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterTestEventEvent : MTRUnitTestingClusterTestEventEvent
+@dynamic arg1;
+@dynamic arg2;
+@dynamic arg3;
+@dynamic arg4;
+@dynamic arg5;
+@dynamic arg6;
 @end
 
 @implementation MTRUnitTestingClusterTestFabricScopedEventEvent
@@ -4759,14 +5665,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)description
 {
-    NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: fabricIndex:%@; >", NSStringFromClass([self class]), _fabricIndex];
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: fabricIndex:%@; >", NSStringFromClass([self class]), _fabricIndex];
     return descriptionString;
 }
 
 @end
 
 @implementation MTRTestClusterClusterTestFabricScopedEventEvent : MTRUnitTestingClusterTestFabricScopedEventEvent
+@dynamic fabricIndex;
 @end
 
 NS_ASSUME_NONNULL_END

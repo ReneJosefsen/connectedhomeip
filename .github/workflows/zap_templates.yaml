@@ -32,7 +32,7 @@ jobs:
 
         runs-on: ubuntu-20.04
         container:
-            image: connectedhomeip/chip-build:0.7.3
+            image: ghcr.io/project-chip/chip-build:24
         defaults:
             run:
                 shell: sh
@@ -40,12 +40,17 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Checkout submodules & Bootstrap
               uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
                 platform: linux
-
+            # Java formatting requires a newer java to run ktfmt
+            # TODO: this should be eventually inside Docker files
+            - name: Update java
+              run: |
+                apt-get update
+                DEBIAN_FRONTEND=noninteractive apt-get install -fy --fix-missing openjdk-17-jre
             - name: Generate all
               run: ./scripts/run_in_build_env.sh scripts/tools/zap_regen_all.py
             - name: Ensure git works in current working directory

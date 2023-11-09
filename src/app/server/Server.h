@@ -63,16 +63,17 @@
 #if CONFIG_NETWORK_LAYER_BLE
 #include <transport/raw/BLE.h>
 #endif
+#include <app/TimerDelegates.h>
+#include <app/reporting/ReportSchedulerImpl.h>
 #include <transport/raw/UDP.h>
 
-#ifdef CHIP_CONFIG_ENABLE_ICD_SERVER
-#include <app/icd/ICDEventManager.h> // nogncheck
-#include <app/icd/ICDManager.h>      // nogncheck
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+#include <app/icd/ICDManager.h> // nogncheck
 #endif
 
 namespace chip {
 
-constexpr size_t kMaxBlePendingPackets = 1;
+inline constexpr size_t kMaxBlePendingPackets = 1;
 
 //
 // NOTE: Please do not alter the order of template specialization here as the logic
@@ -94,7 +95,7 @@ struct ServerInitParams
     ServerInitParams() = default;
 
     // Not copyable
-    ServerInitParams(const ServerInitParams &) = delete;
+    ServerInitParams(const ServerInitParams &)             = delete;
     ServerInitParams & operator=(const ServerInitParams &) = delete;
 
     // Application delegate to handle some commissioning lifecycle events
@@ -140,6 +141,8 @@ struct ServerInitParams
     // Operational certificate store with access to the operational certs in persisted storage:
     // must not be null at timne of Server::Init().
     Credentials::OperationalCertificateStore * opCertStore = nullptr;
+    // Required, if not provided, the Server::Init() WILL fail.
+    app::reporting::ReportScheduler * reportScheduler = nullptr;
 };
 
 /**
@@ -174,7 +177,7 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
     CommonCaseDeviceServerInitParams() = default;
 
     // Not copyable
-    CommonCaseDeviceServerInitParams(const CommonCaseDeviceServerInitParams &) = delete;
+    CommonCaseDeviceServerInitParams(const CommonCaseDeviceServerInitParams &)             = delete;
     CommonCaseDeviceServerInitParams & operator=(const CommonCaseDeviceServerInitParams &) = delete;
 
     /**
@@ -216,6 +219,14 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
             this->opCertStore = &sPersistentStorageOpCertStore;
         }
 
+        // Injection of report scheduler WILL lead to two schedulers being allocated. As recommended above, this should only be used
+        // for IN-TREE examples. If a default scheduler is desired, the basic ServerInitParams should be used by the application and
+        // CommonCaseDeviceServerInitParams should not be allocated.
+        if (this->reportScheduler == nullptr)
+        {
+            reportScheduler = &sReportScheduler;
+        }
+
         // Session Keystore injection
         this->sessionKeystore = &sSessionKeystore;
 
@@ -254,6 +265,9 @@ private:
     static PersistentStorageOperationalKeystore sPersistentStorageOperationalKeystore;
     static Credentials::PersistentStorageOpCertStore sPersistentStorageOpCertStore;
     static Credentials::GroupDataProviderImpl sGroupDataProvider;
+    static chip::app::DefaultTimerDelegate sTimerDelegate;
+    static app::reporting::ReportSchedulerImpl sReportScheduler;
+
 #if CHIP_CONFIG_ENABLE_SESSION_RESUMPTION
     static SimpleSessionResumptionStorage sSessionResumptionStorage;
 #endif
@@ -333,6 +347,12 @@ public:
 
     app::DefaultAttributePersistenceProvider & GetDefaultAttributePersister() { return mAttributePersister; }
 
+    app::reporting::ReportScheduler * GetReportScheduler() { return mReportScheduler; }
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    app::ICDManager & GetICDManager() { return mICDManager; }
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
+
     /**
      * This function causes the ShutDown event to be generated async on the
      * Matter event loop.  Should be called before stopping the event loop.
@@ -351,7 +371,7 @@ public:
     static Server & GetInstance() { return sServer; }
 
 private:
-    Server() = default;
+    Server() {}
 
     static Server sServer;
 
@@ -525,9 +545,9 @@ private:
             case Credentials::CertificateValidityResult::kExpired:
             case Credentials::CertificateValidityResult::kExpiredAtLastKnownGoodTime:
             case Credentials::CertificateValidityResult::kTimeUnknown: {
-                uint8_t certType;
+                Credentials::CertType certType;
                 ReturnErrorOnFailure(cert->mSubjectDN.GetCertType(certType));
-                if (certType == Credentials::kCertType_Root)
+                if (certType == Credentials::CertType::kRoot)
                 {
                     return CHIP_NO_ERROR;
                 }
@@ -585,6 +605,7 @@ private:
     app::DefaultAttributePersistenceProvider mAttributePersister;
     GroupDataProviderListener mListener;
     ServerFabricDelegate mFabricDelegate;
+    app::reporting::ReportScheduler * mReportScheduler;
 
     Access::AccessControl mAccessControl;
     app::AclStorage * mAclStorage;
@@ -600,8 +621,7 @@ private:
     Inet::InterfaceId mInterfaceId;
 
     System::Clock::Microseconds64 mInitTimestamp;
-#ifdef CHIP_CONFIG_ENABLE_ICD_SERVER
-    app::ICDEventManager mICDEventManager;
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
     app::ICDManager mICDManager;
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 };

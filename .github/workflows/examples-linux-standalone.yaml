@@ -34,13 +34,13 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build:0.7.3
+            image: ghcr.io/project-chip/chip-build:24
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Checkout submodules & Bootstrap
               uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
@@ -94,6 +94,8 @@ jobs:
                     linux debug all-clusters-app \
                     out/linux-x64-all-clusters/chip-all-clusters-app \
                     /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
             - name: Build example Standalone All Clusters Minimal Server
               run: |
                   ./scripts/run_in_build_env.sh \
@@ -134,6 +136,8 @@ jobs:
                     linux debug+rpc+ui lighting-app \
                     out/linux-x64-light-rpc-with-ui/chip-lighting-app \
                     /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
             - name: Build example Standalone Bridge
               run: |
                   ./scripts/run_in_build_env.sh \
@@ -164,6 +168,8 @@ jobs:
                     linux debug ota-requestor-app \
                     out/linux-x64-ota-requestor/chip-ota-requestor-app \
                     /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
             - name: Build example Standalone Lock App
               run: |
                   ./scripts/run_in_build_env.sh \
@@ -180,6 +186,16 @@ jobs:
                      "./scripts/build/build_examples.py \
                         --target linux-x64-contact-sensor-no-ble-with-ui \
                         build"
+            - name: Build example Air Purifier
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-air-purifier \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug air-purifier-app \
+                    out/linux-x64-air-purifier/chip-air-purifier-app \
+                    /tmp/bloat_reports/
             - name: Uploading Size Reports
               uses: ./.github/actions/upload-size-reports
               if: ${{ !env.ACT }}
