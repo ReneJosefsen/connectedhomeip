@@ -27,7 +27,9 @@ ti_simplelink_board = "LP_CC2652R7"
 optimize_debug_level = "s"
 lwip_debug = false
 
-chip_enable_ota_requestor = true
+chip_enable_ota_requestor = false
+
+openthread_external_platform = "${chip_root}/third_party/openthread/platforms/cc13x2_26x2:libopenthread-cc13x2_cc26x2"
 
 # Disable CHIP Logging
 #chip_progress_logging = false

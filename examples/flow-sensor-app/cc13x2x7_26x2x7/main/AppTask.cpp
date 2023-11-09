@@ -27,14 +27,13 @@
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestor.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorDriver.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
-#include <platform/cc13x2_26x2/OTAImageProcessorImpl.h>
+#include <platform/cc13xx_26xx/OTAImageProcessorImpl.h>
 #endif
-
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <lib/support/CHIPMem.h>
@@ -69,7 +68,7 @@ AppTask AppTask::sAppTask;
 
 static const uint32_t sIdentifyBlinkRateMs = 500;
 
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
 static DefaultOTARequestorStorage sRequestorStorage;
 static DefaultOTARequestorDriver sRequestorUser;
@@ -81,8 +80,8 @@ void InitializeOTARequestor(void)
     // Initialize and interconnect the Requestor and Image Processor objects
     SetRequestorInstance(&sRequestorCore);
 
-    sRequestorStorage.Init(Server::GetInstance().GetPersistentStorage());
-    sRequestorCore.Init(Server::GetInstance(), sRequestorStorage, sRequestorUser, sDownloader);
+    sRequestorStorage.Init(chip::Server::GetInstance().GetPersistentStorage());
+    sRequestorCore.Init(chip::Server::GetInstance(), sRequestorStorage, sRequestorUser, sDownloader);
     sImageProcessor.SetOTADownloader(&sDownloader);
     sDownloader.SetImageProcessorDelegate(&sImageProcessor);
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
@@ -97,7 +96,7 @@ int AppTask::StartAppTask()
     if (sAppEventQueue == NULL)
     {
         PLAT_LOG("Failed to allocate app event queue");
-        while (1)
+        while (true)
             ;
     }
 
@@ -106,7 +105,7 @@ int AppTask::StartAppTask()
         pdPASS)
     {
         PLAT_LOG("Failed to create app task");
-        while (1)
+        while (true)
             ;
     }
     return ret;
@@ -117,7 +116,7 @@ int AppTask::Init()
     LED_Params ledParams;
     Button_Params buttonParams;
 
-    cc13x2_26x2LogInit();
+    cc13xx_26xxLogInit();
 
     // Init Chip memory management before the stack
     Platform::MemoryInit();
@@ -126,7 +125,7 @@ int AppTask::Init()
     if (ret != CHIP_NO_ERROR)
     {
         PLAT_LOG("PlatformMgr().InitChipStack() failed");
-        while (1)
+        while (true)
             ;
     }
 
@@ -134,15 +133,22 @@ int AppTask::Init()
     if (ret != CHIP_NO_ERROR)
     {
         PLAT_LOG("ThreadStackMgr().InitThreadStack() failed");
-        while (1)
+        while (true)
             ;
     }
 
+#if CHIP_DEVICE_CONFIG_THREAD_FTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
+#elif CONFIG_OPENTHREAD_MTD_SED
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
+#else
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
+#endif
+
     if (ret != CHIP_NO_ERROR)
     {
         PLAT_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
-        while (1)
+        while (true)
             ;
     }
 
@@ -150,7 +156,7 @@ int AppTask::Init()
     if (ret != CHIP_NO_ERROR)
     {
         PLAT_LOG("ThreadStackMgr().StartThreadTask() failed");
-        while (1)
+        while (true)
             ;
     }
 
@@ -184,12 +190,18 @@ int AppTask::Init()
 
     // Init ZCL Data Model and start server
     PLAT_LOG("Initialize Server");
+
+    // Init ZCL Data Model
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
 
     // Initialize device attestation config
+#ifdef CC13X2_26X2_ATTESTATION_CREDENTIALS
+    SetDeviceAttestationCredentialsProvider(CC13X2_26X2::GetCC13X2_26X2DacProvider());
+#else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -215,7 +227,7 @@ void AppTask::AppTaskMain(void * pvParameter)
 
     sAppTask.Init();
 
-    while (1)
+    while (true)
     {
         /* Task pend until we have stuff to do */
         if (xQueueReceive(sAppEventQueue, &event, portMAX_DELAY) == pdTRUE)
@@ -364,7 +376,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         break;
 
     case AppEvent::kEventTyoe_DeviceOperational:
-#if defined(CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR)
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
         InitializeOTARequestor();
 #endif
         break;

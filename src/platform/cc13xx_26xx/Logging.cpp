@@ -35,9 +35,6 @@ extern "C" void cc13xx_26xxVLog(const char * msg, va_list v)
 {
     int ret;
 
-    // If a thread is already printing, wait for the flag/lock to be lowered
-    xSemaphoreTake(loggingMutex, portMAX_DELAY);
-
     ret = vsnprintf(sDebugUartBuffer, sizeof(sDebugUartBuffer), msg, v);
     if (0 < ret)
     {
@@ -48,9 +45,6 @@ extern "C" void cc13xx_26xxVLog(const char * msg, va_list v)
 
         UART2_write(sDebugUartHandle, sDebugUartBuffer, len, NULL);
     }
-
-    // Lower the flag to indicate printing is done
-    xSemaphoreGive(loggingMutex);
 }
 
 #else

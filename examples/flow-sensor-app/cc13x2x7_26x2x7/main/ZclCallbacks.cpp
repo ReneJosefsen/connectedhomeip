@@ -24,6 +24,7 @@
 #include <app/clusters/identify-server/identify-server.h>
 
 using namespace chip;
+using namespace chip::app;
 
 /***** Function declarations *****/
 static void IdentifyStartHandler(::Identify *);
@@ -36,18 +37,18 @@ static const chip::EndpointId sFlowSensorEndpointId = 1;
 // This creates a static object of the Identify class and calls the constructor
 // which registers the object and its callbacks inside the identify server
 ::Identify stIdentify = { sFlowSensorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
-                          EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED };
+                          Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator };
 
 void IdentifyStartHandler(::Identify *)
 {
     AppEvent event;
     event.Type = AppEvent::kEventType_IdentifyStart;
-    AppTask::GetAppTask().PostEvent(&event);
+    GetAppTask().PostEvent(&event);
 }
 
 void IdentifyStopHandler(::Identify *)
 {
     AppEvent event;
     event.Type = AppEvent::kEventType_IdentifyStop;
-    AppTask::GetAppTask().PostEvent(&event);
+    GetAppTask().PostEvent(&event);
 }

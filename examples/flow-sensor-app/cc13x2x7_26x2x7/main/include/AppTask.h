@@ -35,13 +35,13 @@ struct Identify;
 class AppTask
 {
 public:
-    static AppTask & GetAppTask() { return sAppTask; }
-
     int StartAppTask();
     static void AppTaskMain(void * pvParameter);
     void PostEvent(const AppEvent * event);
 
 private:
+    friend AppTask & GetAppTask(void);
+
     int Init();
     void DispatchEvent(AppEvent * event);
     static void ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events);
@@ -63,5 +63,10 @@ private:
 
     static AppTask sAppTask;
 };
+
+inline AppTask & GetAppTask(void)
+{
+    return AppTask::sAppTask;
+}
 
 #endif // APP_TASK_H

@@ -41,7 +41,7 @@ void DeviceEventHandler(const ChipDeviceEvent * event, intptr_t arg)
         // Post operational event to app task
         AppEvent operationalEvent;
         operationalEvent.Type = AppEvent::kEventTyoe_DeviceOperational;
-        AppTask::GetAppTask().PostEvent(&operationalEvent);
+        GetAppTask().PostEvent(&operationalEvent);
 #endif
 
         break;
