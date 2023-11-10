@@ -18,19 +18,21 @@ import("//build_overrides/efr32_sdk.gni")
 import("//build_overrides/pigweed.gni")
 
 import("${build_root}/config/defaults.gni")
-import("${efr32_sdk_build_root}/efr32_executable.gni")
-import("${efr32_sdk_build_root}/efr32_sdk.gni")
+import("${efr32_sdk_build_root}/silabs_executable.gni")
 
 import("${chip_root}/examples/common/pigweed/pigweed_rpcs.gni")
 import("${chip_root}/src/platform/device.gni")
+import("${chip_root}/third_party/silabs/silabs_board.gni")
 
 assert(current_os == "freertos")
 
-efr32_project_dir = "${chip_root}/examples/room-sensor-app/silabs/efr32"
-examples_plat_dir = "${chip_root}/examples/platform/silabs/efr32"
+silabs_project_dir = "${chip_root}/examples/room-sensor-app/silabs/efr32"
 examples_common_plat_dir = "${chip_root}/examples/platform/silabs"
 
-import("${examples_plat_dir}/args.gni")
+import("${efr32_sdk_build_root}/efr32_sdk.gni")
+examples_plat_dir = "${chip_root}/examples/platform/silabs/efr32"
+
+import("${examples_common_plat_dir}/args.gni")
 
 declare_args() {
   # Dump memory usage at link time.
@@ -44,13 +46,13 @@ if (silabs_board != "BRD4166A" && silabs_board != "BRD2601B") {
 
 efr32_sdk("sdk") {
   sources = [
-    "${efr32_project_dir}/include/CHIPProjectConfig.h",
-    "${examples_plat_dir}/FreeRTOSConfig.h",
+    "${examples_common_plat_dir}/FreeRTOSConfig.h",
+    "${silabs_project_dir}/include/CHIPProjectConfig.h",
   ]
 
   include_dirs = [
     "${chip_root}/src/platform/silabs/efr32",
-    "${efr32_project_dir}/include",
+    "${silabs_project_dir}/include",
     "${examples_plat_dir}",
     "${chip_root}/src/lib",
     "${examples_common_plat_dir}",
@@ -59,7 +61,7 @@ efr32_sdk("sdk") {
   defines = []
 }
 
-efr32_executable("room_sensor_app") {
+silabs_executable("room_sensor_app") {
   output_name = "chip-efr32-room-sensor-example.out"
   include_dirs = [ 
     "include",
@@ -78,10 +80,10 @@ efr32_executable("room_sensor_app") {
   defines = []
 
   sources = [
+    "${examples_common_plat_dir}/main.cpp",
     "src/AppTask.cpp",
     "src/SensorManager.cpp",
     "src/ZclCallbacks.cpp",
-    "src/main.cpp",
     "${efr32_sdk_root}/platform/emdrv/ustimer/src/ustimer.c",
     "${efr32_sdk_root}/platform/emlib/src/em_i2c.c",
     "${efr32_sdk_root}/platform/driver/i2cspm/src/sl_i2cspm.c",
@@ -141,11 +143,11 @@ efr32_executable("room_sensor_app") {
 
   deps = [
     ":sdk",
-    "${examples_plat_dir}:efr32-common",
     app_data_model,
+    "${examples_plat_dir}:efr32-common",
   ]
 
-  ldscript = "${examples_plat_dir}/ldscripts/${silabs_family}.ld"
+  ldscript = "${examples_common_plat_dir}/ldscripts/${silabs_family}.ld"
 
   inputs = [ ldscript ]
 

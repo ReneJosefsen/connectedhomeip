@@ -33,6 +33,8 @@
 
 #include <assert.h>
 
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
+
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 
@@ -40,34 +42,14 @@
 
 #include <platform/CHIPDeviceLayer.h>
 
-#ifdef ENABLE_WSTK_LEDS
-#define SYSTEM_STATE_LED &sl_led_led0
-#define LIGHT_LED &sl_led_led1
-#endif // ENABLE_WSTK_LEDS
-
-#define APP_FUNCTION_BUTTON &sl_button_btn0
-#define APP_LIGHT_SWITCH &sl_button_btn1
+#define APP_FUNCTION_BUTTON 0
+#define APP_LIGHT_SWITCH 1
 
 using namespace chip;
-using namespace ::chip::DeviceLayer;
-
-namespace {
-
-/**********************************************************
- * Identify Callbacks
- *********************************************************/
-
-Identify gIdentify = {
-    chip::EndpointId{ 1 },
-    AppTask::GetAppTask().OnIdentifyStart,
-    AppTask::GetAppTask().OnIdentifyStop,
-    EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED,
-};
-
-} // namespace
-
+using namespace chip::app;
 using namespace chip::TLV;
 using namespace ::chip::DeviceLayer;
+using namespace ::chip::DeviceLayer::Silabs;
 
 AppTask AppTask::sAppTask;
 
@@ -75,7 +57,7 @@ CHIP_ERROR AppTask::Init()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    err = BaseApplication::Init(&gIdentify);
+    err = BaseApplication::Init();
     if (err != CHIP_NO_ERROR)
     {
         SILABS_LOG("BaseApplication::Init() failed");
@@ -126,41 +108,18 @@ void AppTask::AppTaskMain(void * pvParameter)
     }
 }
 
-void AppTask::OnIdentifyStart(Identify * identify)
+void AppTask::ButtonEventHandler(uint8_t button, uint8_t btnAction)
 {
-    ChipLogProgress(Zcl, "onIdentifyStart");
-
-#if CHIP_DEVICE_CONFIG_ENABLE_SED == 1
-    sAppTask.StartStatusLEDTimer();
-#endif
-}
-
-void AppTask::OnIdentifyStop(Identify * identify)
-{
-    ChipLogProgress(Zcl, "onIdentifyStop");
-
-#if CHIP_DEVICE_CONFIG_ENABLE_SED == 1
-    sAppTask.StopStatusLEDTimer();
-#endif
-}
-
-void AppTask::ButtonEventHandler(const sl_button_t * buttonHandle, uint8_t btnAction)
-{
-    if (buttonHandle == NULL)
-    {
-        return;
-    }
-
     AppEvent button_event           = {};
     button_event.Type               = AppEvent::kEventType_Button;
     button_event.ButtonEvent.Action = btnAction;
 
-    if (buttonHandle == APP_LIGHT_SWITCH && btnAction == SL_SIMPLE_BUTTON_PRESSED)
+    if (button == APP_LIGHT_SWITCH && btnAction == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
         // button_event.Handler = LightActionEventHandler;
         // sAppTask.PostEvent(&button_event);
     }
-    else if (buttonHandle == APP_FUNCTION_BUTTON)
+    else if (button == APP_FUNCTION_BUTTON)
     {
         button_event.Handler = BaseApplication::ButtonHandler;
         sAppTask.PostEvent(&button_event);

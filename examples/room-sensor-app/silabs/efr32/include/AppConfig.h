@@ -19,12 +19,10 @@
 
 #pragma once
 
-#include "efr32_utils.h"
+#include "silabs_utils.h"
 
 // ---- Lighting Example App Config ----
 
-#define APP_TASK_NAME "Lit"
+#define APP_TASK_NAME "SEN"
 
-// Time it takes in ms for the simulated actuator to move from one
-// state to another.
-#define ACTUATOR_MOVEMENT_PERIOS_MS 10
+#define BLE_DEV_NAME "SiLabs-Sensor"
