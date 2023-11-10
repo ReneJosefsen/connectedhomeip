@@ -26,7 +26,7 @@ import("${chip_root}/third_party/silabs/silabs_board.gni")
 
 assert(current_os == "freertos")
 
-silabs_project_dir = "${chip_root}/examples/room-sensor-app/silabs/efr32"
+silabs_project_dir = "${chip_root}/examples/air-quality-sensor-app/silabs/efr32"
 examples_common_plat_dir = "${chip_root}/examples/platform/silabs"
 
 import("${efr32_sdk_build_root}/efr32_sdk.gni")
@@ -62,7 +62,7 @@ efr32_sdk("sdk") {
 }
 
 silabs_executable("room_sensor_app") {
-  output_name = "chip-efr32-room-sensor-example.out"
+  output_name = "chip-efr32-air-quality-sensor-example.out"
   include_dirs = [ 
     "include",
     "autogen",

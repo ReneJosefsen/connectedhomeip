@@ -16,9 +16,9 @@ import("//build_overrides/chip.gni")
 import("${chip_root}/src/app/chip_data_model.gni")
 import("${chip_root}/src/platform/device.gni")
 
-chip_data_model("room-sensor") {
-  zap_file = "room-sensor-app.zap"
+chip_data_model("air-quality-sensor") {
+  zap_file = "air-quality-sensor-app.zap"
 
-  zap_pregenerated_dir = "${chip_root}/zzz_generated/room-sensor-app/zap-generated"
+  zap_pregenerated_dir = "${chip_root}/zzz_generated/air-quality-sensor-app/zap-generated"
   is_server = true
 }
