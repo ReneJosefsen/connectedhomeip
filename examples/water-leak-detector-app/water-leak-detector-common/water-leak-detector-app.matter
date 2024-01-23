@@ -1229,7 +1229,7 @@ endpoint 1 {
     ram      attribute defaultSensitivityLevel default = 1;
     ram      attribute alarmsActive;
     ram      attribute alarmsSuppressed;
-    ram      attribute alarmsEnabled;
+    persist  attribute alarmsEnabled default = 1;
     ram      attribute alarmsSupported default = 1;
     ram      attribute sensorFault default = 0;
     callback attribute generatedCommandList;
