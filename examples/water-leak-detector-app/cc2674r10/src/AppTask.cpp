@@ -401,7 +401,18 @@ void AppTask::ToogleBooleanState(intptr_t arg)
 
 void AppTask::LeakDetectorTrigger(void)
 {
-    LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+    BitMask<chip::app::Clusters::BooleanStateConfiguration::AlarmModeBitmap> alarmsEnabled;
+    chip::app::Clusters::BooleanStateConfiguration::Attributes::AlarmsEnabled::Get(sWaterLeakDetectorEndpoint, &alarmsEnabled);
+
+    if (alarmsEnabled.Has(chip::app::Clusters::BooleanStateConfiguration::AlarmModeBitmap::kVisual))
+    {
+        LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+    }
+    else
+    {
+        ChipLogProgress(NotSpecified, "Visual alarming is disabled, LED not turned on");
+    }
+
     chip::app::Clusters::BooleanState::Attributes::StateValue::Set(sWaterLeakDetectorEndpoint, true);
     chip::app::Clusters::BooleanStateConfiguration::SetAllEnabledAlarmsActive(sWaterLeakDetectorEndpoint);
 }
