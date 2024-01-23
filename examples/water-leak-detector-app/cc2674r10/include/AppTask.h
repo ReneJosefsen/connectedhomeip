@@ -38,6 +38,8 @@ public:
     int StartAppTask();
     static void AppTaskMain(void * pvParameter);
     void PostEvent(const AppEvent * event);
+    static void LeakDetectorTrigger(void);
+    static void LeakDetectorUntrigger(void);
 
 private:
     friend AppTask & GetAppTask(void);
@@ -47,7 +49,7 @@ private:
     static void ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events);
     static void ButtonRightEventHandler(Button_Handle handle, Button_EventMask events);
     static void TimerEventHandler(void * p_context);
-    static void ToogleBooleanState(void);
+    static void ToogleBooleanState(intptr_t arg);
 
     enum Function_t
     {

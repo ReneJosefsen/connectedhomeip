@@ -26,6 +26,7 @@
 #include "FreeRTOS.h"
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <cstddef>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -48,6 +49,15 @@
 /* syscfg */
 #include <ti_drivers_config.h>
 
+#define CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER 1
+
+#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
+#include <app/TestEventTriggerDelegate.h>
+#include <app/clusters/boolean-state-configuration-server/BooleanStateConfigurationTestEventTriggerDelegate.h>
+#endif
+
+#include <app/clusters/boolean-state-configuration-server/boolean-state-configuration-server.h>
+
 #define APP_TASK_STACK_SIZE (4096)
 #define APP_TASK_PRIORITY 4
 #define APP_EVENT_QUEUE_SIZE 10
@@ -67,6 +77,12 @@ static Button_Handle sAppRightHandle;
 AppTask AppTask::sAppTask;
 
 static const uint32_t sIdentifyBlinkRateMs = 500;
+
+static const uint8_t sWaterLeakDetectorEndpoint = 1;
+
+static uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+                                                                                          0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+                                                                                          0xcc, 0xdd, 0xee, 0xff };
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
@@ -95,7 +111,7 @@ int AppTask::StartAppTask()
     sAppEventQueue = xQueueCreate(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent));
     if (sAppEventQueue == NULL)
     {
-        PLAT_LOG("Failed to allocate app event queue");
+        ChipLogProgress(NotSpecified, "Failed to allocate app event queue");
         while (true)
             ;
     }
@@ -104,7 +120,7 @@ int AppTask::StartAppTask()
     if (xTaskCreate(AppTaskMain, "APP", APP_TASK_STACK_SIZE / sizeof(StackType_t), NULL, APP_TASK_PRIORITY, &sAppTaskHandle) !=
         pdPASS)
     {
-        PLAT_LOG("Failed to create app task");
+        ChipLogProgress(NotSpecified, "Failed to create app task");
         while (true)
             ;
     }
@@ -124,7 +140,7 @@ int AppTask::Init()
     CHIP_ERROR ret = PlatformMgr().InitChipStack();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("PlatformMgr().InitChipStack() failed");
+        ChipLogProgress(NotSpecified, "PlatformMgr().InitChipStack() failed");
         while (true)
             ;
     }
@@ -132,7 +148,7 @@ int AppTask::Init()
     ret = ThreadStackMgr().InitThreadStack();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ThreadStackMgr().InitThreadStack() failed");
+        ChipLogProgress(NotSpecified, "ThreadStackMgr().InitThreadStack() failed");
         while (true)
             ;
     }
@@ -147,7 +163,7 @@ int AppTask::Init()
 
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
+        ChipLogProgress(NotSpecified, "ConnectivityMgr().SetThreadDeviceType() failed");
         while (true)
             ;
     }
@@ -155,13 +171,13 @@ int AppTask::Init()
     ret = ThreadStackMgrImpl().StartThreadTask();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ThreadStackMgr().StartThreadTask() failed");
+        ChipLogProgress(NotSpecified, "ThreadStackMgr().StartThreadTask() failed");
         while (true)
             ;
     }
 
     // Initialize LEDs
-    PLAT_LOG("Initialize LEDs");
+    ChipLogProgress(NotSpecified, "Initialize LEDs");
     LED_init();
 
     LED_Params_init(&ledParams); // default PWM LED
@@ -173,7 +189,7 @@ int AppTask::Init()
     LED_setOff(sAppGreenHandle);
 
     // Initialize buttons
-    PLAT_LOG("Initialize buttons");
+    ChipLogProgress(NotSpecified, "Initialize buttons");
     Button_init();
 
     Button_Params_init(&buttonParams);
@@ -189,10 +205,17 @@ int AppTask::Init()
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
     // Init ZCL Data Model and start server
-    PLAT_LOG("Initialize Server");
+    ChipLogProgress(NotSpecified, "Initialize Server");
+    static chip::CommonCaseDeviceServerInitParams initParams;
+
+    // TestEventTrigger
+#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
+    static BooleanStateConfigurationTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey),
+                                                                                       nullptr };
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+#endif
 
     // Init ZCL Data Model
-    static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
 
@@ -213,7 +236,7 @@ int AppTask::Init()
     ret = PlatformMgr().StartEventLoopTask();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("PlatformMgr().StartEventLoopTask() failed");
+        ChipLogProgress(NotSpecified, "PlatformMgr().StartEventLoopTask() failed");
         while (1)
             ;
     }
@@ -297,18 +320,18 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             {
                 if (Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() == CHIP_NO_ERROR)
                 {
-                    PLAT_LOG("Enabled BLE Advertisement");
+                    ChipLogProgress(NotSpecified, "Enabled BLE Advertisement");
                 }
                 else
                 {
-                    PLAT_LOG("OpenBasicCommissioningWindow() failed");
+                    ChipLogProgress(NotSpecified, "OpenBasicCommissioningWindow() failed");
                 }
             }
             // Disable BLE advertisements
             else // if (ConnectivityMgr().IsBLEAdvertisingEnabled())
             {
                 ConnectivityMgr().SetBLEAdvertisingEnabled(false);
-                PLAT_LOG("Disabled BLE Advertisements");
+                ChipLogProgress(NotSpecified, "Disabled BLE Advertisements");
             }
         }
         else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
@@ -321,7 +344,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_ButtonRight:
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
-            ToogleBooleanState();
+            chip::DeviceLayer::PlatformMgr().ScheduleWork(ToogleBooleanState);
         }
         else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
@@ -332,13 +355,13 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_IdentifyStart:
         LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
         LED_startBlinking(sAppGreenHandle, sIdentifyBlinkRateMs, LED_BLINK_FOREVER);
-        PLAT_LOG("Identify started");
+        ChipLogProgress(NotSpecified, "Identify started");
         break;
 
     case AppEvent::kEventType_IdentifyStop:
         LED_stopBlinking(sAppGreenHandle);
         LED_setOff(sAppGreenHandle);
-        PLAT_LOG("Identify stopped");
+        ChipLogProgress(NotSpecified, "Identify stopped");
         break;
 
     case AppEvent::kEventTyoe_DeviceOperational:
@@ -360,22 +383,32 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
 }
 
-void AppTask::ToogleBooleanState(void)
+void AppTask::ToogleBooleanState(intptr_t arg)
 {
     bool attributeValue;
-
-    chip::app::Clusters::BooleanState::Attributes::StateValue::Get(1, &attributeValue);
-
-    PLAT_LOG("Toggle boolean state: %d -> %d", attributeValue, !attributeValue);
+    chip::app::Clusters::BooleanState::Attributes::StateValue::Get(sWaterLeakDetectorEndpoint, &attributeValue);
+    ChipLogProgress(NotSpecified, "Toggle boolean state: %d -> %d", attributeValue, !attributeValue);
 
     if ((!attributeValue) == true)
     {
-        LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+        LeakDetectorTrigger();
     }
     else
     {
-        LED_setOff(sAppRedHandle);
+        LeakDetectorUntrigger();
     }
+}
 
-    chip::app::Clusters::BooleanState::Attributes::StateValue::Set(1, !attributeValue);
+void AppTask::LeakDetectorTrigger(void)
+{
+    LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+    chip::app::Clusters::BooleanState::Attributes::StateValue::Set(sWaterLeakDetectorEndpoint, true);
+    chip::app::Clusters::BooleanStateConfiguration::SetAllEnabledAlarmsActive(sWaterLeakDetectorEndpoint);
+}
+
+void AppTask::LeakDetectorUntrigger(void)
+{
+    LED_setOff(sAppRedHandle);
+    chip::app::Clusters::BooleanState::Attributes::StateValue::Set(sWaterLeakDetectorEndpoint, false);
+    chip::app::Clusters::BooleanStateConfiguration::ClearAllAlarms(sWaterLeakDetectorEndpoint);
 }

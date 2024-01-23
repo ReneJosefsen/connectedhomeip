@@ -83,6 +83,7 @@ ti_simplelink_executable("water_leak_detector_app") {
     "${project_dir}/src/ZclCallbacks.cpp",
     "${project_dir}/src/main.cpp",
     "${project_dir}/src/DeviceCallbacks.cpp",
+    "${project_dir}/src/TestEventTriggerHandler.cpp",
   ]
 
   deps = [
