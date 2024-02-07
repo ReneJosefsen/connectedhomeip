@@ -53,7 +53,7 @@
 
 #if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
 #include <app/TestEventTriggerDelegate.h>
-#include <app/clusters/boolean-state-configuration-server/BooleanStateConfigurationTestEventTriggerDelegate.h>
+#include <app/clusters/boolean-state-configuration-server/BooleanStateConfigurationTestEventTriggerHandler.h>
 #endif
 
 #include <app/clusters/boolean-state-configuration-server/boolean-state-configuration-server.h>
@@ -210,9 +210,11 @@ int AppTask::Init()
 
     // TestEventTrigger
 #if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
-    static BooleanStateConfigurationTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey),
-                                                                                       nullptr };
-    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
+    static BooleanStateConfigurationTestEventTriggerHandler sBooleanStateConfigurationTestEventTriggerHandler{};
+    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
+    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sBooleanStateConfigurationTestEventTriggerHandler) == CHIP_NO_ERROR);
+    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
 #endif
 
     // Init ZCL Data Model
