@@ -24,8 +24,13 @@
 #include <app/server/Server.h>
 
 #include "FreeRTOS.h"
+
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <examples/platform/cc13x4_26x4/CC13X4_26X4DeviceAttestationCreds.h>
+
+#include <DeviceInfoProviderImpl.h>
+#include <platform/CHIPDeviceLayer.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -34,13 +39,17 @@
 #include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
 #include <platform/cc13xx_26xx/OTAImageProcessorImpl.h>
 #endif
-#include <app-common/zap-generated/attributes/Accessors.h>
-#include <app/clusters/identify-server/identify-server.h>
+
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
-#include <platform/CHIPDeviceLayer.h>
 
+#include <app-common/zap-generated/attributes/Accessors.h>
+
+#include <app/clusters/identify-server/identify-server.h>
+#include <app/clusters/on-off-server/on-off-server.h>
 #include <app/server/OnboardingCodesUtil.h>
+#include <app/server/Server.h>
+#include <app/util/attribute-storage.h>
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>

@@ -16,8 +16,7 @@
  *    limitations under the License.
  */
 
-#ifndef APP_TASK_H
-#define APP_TASK_H
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -30,13 +29,29 @@
 
 #include <ti/drivers/apps/Button.h>
 
+#ifdef CC13XX_26XX_FACTORY_DATA
+#include <platform/cc13xx_26xx/FactoryDataProvider.h>
+#endif
+
+// Application-defined error codes in the CHIP_ERROR space.
+#define APP_ERROR_EVENT_QUEUE_FAILED CHIP_APPLICATION_ERROR(0x01)
+#define APP_ERROR_CREATE_TASK_FAILED CHIP_APPLICATION_ERROR(0x02)
+#define APP_ERROR_UNHANDLED_EVENT CHIP_APPLICATION_ERROR(0x03)
+#define APP_ERROR_CREATE_TIMER_FAILED CHIP_APPLICATION_ERROR(0x04)
+#define APP_ERROR_START_TIMER_FAILED CHIP_APPLICATION_ERROR(0x05)
+#define APP_ERROR_STOP_TIMER_FAILED CHIP_APPLICATION_ERROR(0x06)
+#define APP_ERROR_ALLOCATION_FAILED CHIP_APPLICATION_ERROR(0x07)
 struct Identify;
 
 class AppTask
 {
+
 public:
     int StartAppTask();
     static void AppTaskMain(void * pvParameter);
+
+    static AppTask & GetAppTask() { return sAppTask; }
+
     void PostEvent(const AppEvent * event);
     void OpenValve(void);
     void CloseValve(void);
@@ -56,7 +71,6 @@ private:
         kFunction_NoneSelected   = 0,
         kFunction_SoftwareUpdate = 0,
         kFunction_FactoryReset,
-
         kFunction_Invalid
     } Function;
 
@@ -64,11 +78,13 @@ private:
     bool mFunctionTimerActive;
 
     static AppTask sAppTask;
+
+#ifdef CC13XX_26XX_FACTORY_DATA
+    chip::DeviceLayer::FactoryDataProvider mFactoryDataProvider;
+#endif
 };
 
 inline AppTask & GetAppTask(void)
 {
     return AppTask::sAppTask;
 }
-
-#endif // APP_TASK_H
