@@ -276,7 +276,9 @@ def _GetChipReplUnsupportedTests() -> Set[str]:
 def _GetPurposefulFailureTests() -> Set[str]:
     """Tests that fail in YAML on purpose."""
     return {
-        "TestPurposefulFailureEqualities.yaml"
+        "TestPurposefulFailureEqualities.yaml",
+        "TestPurposefulFailureExtraReportingOnToggle.yaml",
+        "TestPurposefulFailureNotNullConstraint.yaml",
     }
 
 
@@ -313,6 +315,8 @@ def target_for_name(name: str):
         return TestTarget.LIT_ICD
     if name.startswith("Test_TC_MWOCTRL_") or name.startswith("Test_TC_MWOM_"):
         return TestTarget.MWO
+    if name.startswith("Test_TC_RVCRUNM_") or name.startswith("Test_TC_RVCCLEANM_") or name.startswith("Test_TC_RVCOPSTATE_"):
+        return TestTarget.RVC
     return TestTarget.ALL_CLUSTERS
 
 

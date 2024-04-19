@@ -18,7 +18,7 @@
 #include "TvApp-JNI.h"
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Clusters.h>
-#include <app/util/af.h>
+#include <app/util/attribute-storage.h>
 #include <app/util/config.h>
 #include <jni.h>
 #include <lib/support/CHIPJNIError.h>
@@ -113,6 +113,7 @@ CHIP_ERROR OnOffManager::InitializeWithObjects(jobject managerObject)
 
 void OnOffManager::HandleOnOffChanged(bool value)
 {
+    DeviceLayer::StackUnlock unlock;
     ChipLogProgress(Zcl, "OnOffManager::HandleOnOffChanged");
 
     JNIEnv * env = JniReferences::GetInstance().GetEnvForCurrentThread();

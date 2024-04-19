@@ -255,7 +255,9 @@ CHIP_ERROR ConfigurationManagerImpl::WriteConfigValueBin(Key key, const uint8_t 
 
 void ConfigurationManagerImpl::RunConfigUnitTest(void)
 {
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     SilabsConfig::RunConfigUnitTest();
+#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 }
 
 void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
@@ -272,7 +274,7 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
-    ThreadStackMgrImpl().RemoveAllSrpServices();
+    ThreadStackMgr().ClearAllSrpHostAndServices();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
     ChipLogProgress(DeviceLayer, "Clearing Thread provision");
     ThreadStackMgr().ErasePersistentInfo();

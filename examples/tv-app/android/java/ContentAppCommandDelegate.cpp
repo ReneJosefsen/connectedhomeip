@@ -31,7 +31,10 @@
 #include <lib/support/JniReferences.h>
 #include <lib/support/JniTypeWrappers.h>
 #include <lib/support/jsontlv/TlvJson.h>
+#include <platform/PlatformManager.h>
 #include <zap-generated/endpoint_config.h>
+
+#include <string>
 
 namespace chip {
 namespace AppPlatform {
@@ -50,6 +53,7 @@ void ContentAppCommandDelegate::InvokeCommand(CommandHandlerInterface::HandlerCo
 {
     if (handlerContext.mRequestPath.mEndpointId >= FIXED_ENDPOINT_COUNT)
     {
+        DeviceLayer::StackUnlock unlock;
         TLV::TLVReader readerForJson;
         readerForJson.Init(handlerContext.mPayload);
 
