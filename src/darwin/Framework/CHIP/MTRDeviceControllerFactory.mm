@@ -34,6 +34,7 @@
 #import "MTRFabricInfo_Internal.h"
 #import "MTRFramework.h"
 #import "MTRLogging_Internal.h"
+#import "MTRMetricKeys.h"
 #import "MTRMetricsCollector.h"
 #import "MTROTAProviderDelegateBridge.h"
 #import "MTROperationalBrowser.h"
@@ -66,6 +67,7 @@
 
 using namespace chip;
 using namespace chip::Controller;
+using namespace chip::Tracing::DarwinFramework;
 
 static bool sExitHandlerRegistered = false;
 static void ShutdownOnExit()
@@ -80,6 +82,11 @@ static void ShutdownOnExit()
 // or just the fake thing we made up.
 @property (nonatomic, assign) BOOL hasStorage;
 
+@end
+
+MTR_DIRECT_MEMBERS
+@interface MTRDeviceControllerFactory ()
+- (void)preWarmCommissioningSessionDone;
 @end
 
 MTR_DIRECT_MEMBERS
@@ -163,6 +170,13 @@ MTR_DIRECT_MEMBERS
     // in an atomic way that endpoint IDs are unique.
     NSMutableArray<MTRServerEndpoint *> * _serverEndpoints;
     os_unfair_lock _serverEndpointsLock; // Protects access to _serverEndpoints.
+
+    class final : public DeviceLayer::BleScannerDelegate {
+        void OnBleScanStopped() override
+        {
+            [MTRDeviceControllerFactory.sharedInstance preWarmCommissioningSessionDone];
+        }
+    } _preWarmingDelegate;
 }
 
 + (void)initialize
@@ -458,6 +472,7 @@ MTR_DIRECT_MEMBERS
     NSUUID * uniqueIdentifier;
     id<MTROTAProviderDelegate> _Nullable otaProviderDelegate;
     dispatch_queue_t _Nullable otaProviderDelegateQueue;
+    NSUInteger concurrentSubscriptionPoolSize = 0;
     if ([startupParams isKindOfClass:[MTRDeviceControllerParameters class]]) {
         MTRDeviceControllerParameters * params = startupParams;
         storageDelegate = params.storageDelegate;
@@ -465,6 +480,7 @@ MTR_DIRECT_MEMBERS
         uniqueIdentifier = params.uniqueIdentifier;
         otaProviderDelegate = params.otaProviderDelegate;
         otaProviderDelegateQueue = params.otaProviderDelegateQueue;
+        concurrentSubscriptionPoolSize = params.concurrentSubscriptionEstablishmentsAllowedOnThread;
     } else if ([startupParams isKindOfClass:[MTRDeviceControllerStartupParams class]]) {
         MTRDeviceControllerStartupParams * params = startupParams;
         storageDelegate = nil;
@@ -525,7 +541,8 @@ MTR_DIRECT_MEMBERS
                         storageDelegateQueue:storageDelegateQueue
                          otaProviderDelegate:otaProviderDelegate
                     otaProviderDelegateQueue:otaProviderDelegateQueue
-                            uniqueIdentifier:uniqueIdentifier];
+                            uniqueIdentifier:uniqueIdentifier
+              concurrentSubscriptionPoolSize:concurrentSubscriptionPoolSize];
     if (controller == nil) {
         if (error != nil) {
             *error = [MTRError errorForCHIPErrorCode:CHIP_ERROR_INVALID_ARGUMENT];
@@ -740,6 +757,32 @@ MTR_DIRECT_MEMBERS
                               return params;
                           }
                                   error:error];
+}
+
+- (void)preWarmCommissioningSession
+{
+    dispatch_async(_chipWorkQueue, ^{
+        CHIP_ERROR err = CHIP_ERROR_INCORRECT_STATE;
+        if (!self->_running) {
+            MTR_LOG_ERROR("Can't pre-warm, Matter controller factory is not running");
+        } else {
+            MTR_LOG_DEFAULT("Pre-warming commissioning session");
+            self->_controllerFactory->EnsureAndRetainSystemState();
+            err = DeviceLayer::PlatformMgrImpl().StartBleScan(&self->_preWarmingDelegate, DeviceLayer::BleScanMode::kPreWarm);
+            if (err != CHIP_NO_ERROR) {
+                MTR_LOG_ERROR("Pre-warming failed: %" CHIP_ERROR_FORMAT, err.Format());
+                self->_controllerFactory->ReleaseSystemState();
+            }
+        }
+        MATTER_LOG_METRIC(kMetricPreWarmCommissioning, err);
+    });
+}
+
+- (void)preWarmCommissioningSessionDone
+{
+    assertChipStackLockedByCurrentThread();
+    MTR_LOG_DEFAULT("Pre-warming done");
+    self->_controllerFactory->ReleaseSystemState();
 }
 
 // Finds a fabric that matches the given params, if one exists.
@@ -1290,7 +1333,7 @@ void MTRSetMessageReliabilityParameters(NSNumber * _Nullable idleRetransmitMs,
         resetAdvertising = ReliableMessageProtocolConfig::SetLocalMRPConfig(NullOptional);
     } else {
         if (additionalRetransmitDelayMs != nil) {
-            System::Clock::Milliseconds64 additionalBackoff(additionalRetransmitDelayMs.unsignedLongLongValue);
+            System::Clock::Timeout additionalBackoff(additionalRetransmitDelayMs.unsignedLongValue);
             Messaging::ReliableMessageMgr::SetAdditionalMRPBackoffTime(MakeOptional(additionalBackoff));
         }
 

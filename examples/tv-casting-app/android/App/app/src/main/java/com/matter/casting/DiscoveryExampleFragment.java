@@ -327,8 +327,9 @@ class CastingPlayerArrayAdapter extends ArrayAdapter<CastingPlayer> {
               TAG,
               "OnClickListener.onClick() called for CastingPlayer with deviceId: "
                   + castingPlayer.getDeviceId());
-          DiscoveryExampleFragment.Callback callback1 = (DiscoveryExampleFragment.Callback) context;
-          callback1.handleConnectionButtonClicked(castingPlayer);
+          DiscoveryExampleFragment.Callback onClickCallback =
+              (DiscoveryExampleFragment.Callback) context;
+          onClickCallback.handleConnectionButtonClicked(castingPlayer);
         };
     playerDescription.setOnClickListener(clickListener);
     return view;
@@ -350,6 +351,10 @@ class CastingPlayerArrayAdapter extends ArrayAdapter<CastingPlayer> {
             ? (aux.isEmpty() ? "" : ", ") + "Device Type: " + player.getDeviceType()
             : "";
     aux += (aux.isEmpty() ? "" : ", ") + "Resolved IP?: " + (player.getIpAddresses().size() > 0);
+    aux +=
+        (aux.isEmpty() ? "" : ", ")
+            + "Supports Commissioner Generated Passcode: "
+            + (player.getSupportsCommissionerGeneratedPasscode());
 
     aux = aux.isEmpty() ? aux : "\n" + aux;
     return main + aux;

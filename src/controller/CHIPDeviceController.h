@@ -412,7 +412,7 @@ protected:
 
     // TODO(cecille): Make this configuarable.
     static constexpr int kMaxCommissionableNodes = 10;
-    Dnssd::DiscoveredNodeData mCommissionableNodes[kMaxCommissionableNodes];
+    Dnssd::CommissionNodeData mCommissionableNodes[kMaxCommissionableNodes];
     DeviceControllerSystemState * mSystemState = nullptr;
 
     ControllerDeviceInitParams GetControllerDeviceInitParams();
@@ -730,7 +730,7 @@ public:
      *   Should be called on main loop thread.
      * @return const DiscoveredNodeData* info about the selected device. May be nullptr if no information has been returned yet.
      */
-    const Dnssd::DiscoveredNodeData * GetDiscoveredDevice(int idx);
+    const Dnssd::CommissionNodeData * GetDiscoveredDevice(int idx);
 
     /**
      * @brief
@@ -1000,6 +1000,14 @@ private:
      */
     CHIP_ERROR ProcessCertificateChain(const ByteSpan & certificate);
 
+    /**
+     * @brief
+     *   This function validates the revocation status of the DAC Chain sent by the device.
+     *
+     * @param[in] info Structure contatining all the required information for validating the device attestation.
+     */
+    CHIP_ERROR CheckForRevokedDACChain(const Credentials::DeviceAttestationVerifier::AttestationInfo & info);
+
     void HandleAttestationResult(CHIP_ERROR err);
 
     CommissioneeDeviceProxy * FindCommissioneeDevice(NodeId id);
@@ -1052,6 +1060,8 @@ private:
     // point, for non-concurrent-commissioning devices, we may not have a way to
     // extend it).
     void ExtendFailsafeBeforeNetworkEnable(DeviceProxy * device, CommissioningParameters & params, CommissioningStage step);
+
+    bool IsAttestationInformationMissing(const CommissioningParameters & params);
 
     chip::Callback::Callback<OnDeviceConnected> mOnDeviceConnectedCallback;
     chip::Callback::Callback<OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
