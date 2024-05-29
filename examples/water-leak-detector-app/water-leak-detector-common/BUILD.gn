@@ -19,6 +19,5 @@ import("${chip_root}/src/app/chip_data_model.gni")
 chip_data_model("water-leak-detector-common") {
   zap_file = "water-leak-detector-app.zap"
 
-  zap_pregenerated_dir = "${chip_root}/zzz_generated/water-leak-detector-app/zap-generated"
   is_server = true
 }
