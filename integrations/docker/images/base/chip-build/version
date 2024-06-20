@@ -1,1 +1,1 @@
-54 : [Telink] Update Docker image (Zephyr update)
+59 : Install order fix for glib with enabled thread sanitizer.
