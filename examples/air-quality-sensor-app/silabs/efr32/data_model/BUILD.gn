@@ -18,7 +18,5 @@ import("${chip_root}/src/platform/device.gni")
 
 chip_data_model("air-quality-sensor") {
   zap_file = "air-quality-sensor-app.zap"
-
-  zap_pregenerated_dir = "${chip_root}/zzz_generated/air-quality-sensor-app/zap-generated"
   is_server = true
 }

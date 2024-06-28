@@ -61,7 +61,7 @@ efr32_sdk("sdk") {
   defines = []
 }
 
-silabs_executable("room_sensor_app") {
+silabs_executable("air_quality_sensor_app") {
   output_name = "chip-efr32-air-quality-sensor-example.out"
   include_dirs = [ 
     "include",
@@ -164,7 +164,7 @@ silabs_executable("room_sensor_app") {
 }
 
 group("efr32") {
-  deps = [ ":room_sensor_app" ]
+  deps = [ ":air_quality_sensor_app" ]
 }
 
 group("default") {
