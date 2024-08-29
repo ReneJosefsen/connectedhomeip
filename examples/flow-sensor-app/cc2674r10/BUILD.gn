@@ -18,6 +18,7 @@ import("//build_overrides/openthread.gni")
 import("//build_overrides/ti_simplelink_sdk.gni")
 
 import("${build_root}/config/defaults.gni")
+
 import("${chip_root}/src/platform/device.gni")
 
 import("${ti_simplelink_sdk_build_root}/ti_simplelink_executable.gni")
@@ -25,14 +26,16 @@ import("${ti_simplelink_sdk_build_root}/ti_simplelink_sdk.gni")
 
 assert(current_os == "freertos")
 
-project_dir = "${chip_root}/examples/flow-sensor-app/cc13x2x7_26x2x7"
+project_dir = "${chip_root}/examples/flow-sensor-app/cc2674r10"
 
 ti_simplelink_sdk("sdk") {
-  include_dirs = [ "${project_dir}/main/include" ]
+  include_dirs = [ "${project_dir}/include" ]
   public_configs = [ ":flow_sensor_app_config" ]
 }
 
 ti_sysconfig("sysconfig") {
+  sources = [ "${project_dir}/chip_cc2674r10.syscfg" ]
+
   outputs = [
     "ti_radio_config.c",
     "ti_radio_config.h",
@@ -44,23 +47,22 @@ ti_sysconfig("sysconfig") {
     "ti_dmm_application_policy.h",
   ]
 
-  if (chip_enable_ota_requestor) {
-    sources = [ "${project_dir}/chip_ota.syscfg" ]
-  } else {
-    sources = [ "${project_dir}/chip.syscfg" ]
-    outputs += [
-      "ti_devices_config.c",
-      "ti_devices_config.h",
-    ]
-  }
+  # CCFG generation disabled for OTA-able application
+  #if (chip_enable_ota_requestor) {
+  #  sources = [ "${project_dir}/chip_ota.syscfg" ]
+  #} else {
+  #  sources = [ "${project_dir}/chip.syscfg" ]
+  #  outputs += [
+  #    "ti_devices_config.c",
+  #    "ti_devices_config.h",
+  #  ]
+  #}
 
-  public_configs = [ ":sdk_cc13x2x7_26x2x7_dmm_config" ]
+  public_configs = [ ":sdk_cc13x4_26x4_dmm_config" ]
 
   cflags = [
     "-Wno-comment",
-    "@" + rebase_path("${target_gen_dir}/sysconfig/ti_ble_app_config.opt",
-                      root_build_dir),
-    "@" + rebase_path("${target_gen_dir}/sysconfig/ti_build_config.opt",
+    "@" + rebase_path("${target_gen_dir}/sysconfig/ti_utils_build_compiler.opt",
                       root_build_dir),
   ]
 }
@@ -69,28 +71,34 @@ ti_simplelink_executable("flow_sensor_app") {
   output_name = "chip-${ti_simplelink_board}-flow-sensor-example.out"
 
   sources = [
-    "${project_dir}/main/AppTask.cpp",
-    "${project_dir}/main/main.cpp",
-    "${project_dir}/main/DeviceCallbacks.cpp",
-    "${project_dir}/main/ZclCallbacks.cpp",
+    "${chip_root}/examples/providers/DeviceInfoProviderImpl.cpp",
+    "${project_dir}/src/AppTask.cpp",
+    "${project_dir}/src/ZclCallbacks.cpp",
+    "${project_dir}/src/main.cpp",
+    "${project_dir}/src/DeviceCallbacks.cpp",
   ]
 
   deps = [
     ":sdk",
     ":sysconfig",
     "${chip_root}/examples/flow-sensor-app/flow-sensor-common",
+    "${chip_root}/examples/platform/cc13x4_26x4:cc13x4_26x4-attestation-credentials",
     "${chip_root}/src/lib",
+    "${chip_root}/src/platform/logging:default",
+    "${chip_root}/third_party/openthread:openthread",
   ]
+  defines = []
+  if (custom_factory_data) {
+    defines += [ "CC13XX_26XX_FACTORY_DATA" ]
+  }
 
-  if (chip_openthread_ftd) {
-    deps += [ "${chip_root}/third_party/openthread/repo:libopenthread-ftd" ]
-  } else {
-    deps += [ "${chip_root}/third_party/openthread/repo:libopenthread-mtd" ]
+  if (chip_enable_icd_server) {
+    defines += [ "TI_ICD_ENABLE_SERVER" ]
   }
 
   include_dirs = [
     "${project_dir}",
-    "${project_dir}/main",
+    "${chip_root}/examples/providers/",
   ]
 
   cflags = [
@@ -102,10 +110,10 @@ ti_simplelink_executable("flow_sensor_app") {
   output_dir = root_out_dir
 }
 
-group("cc13x2x7_26x2x7") {
+group("cc2674r10") {
   deps = [ ":flow_sensor_app" ]
 }
 
 group("default") {
-  deps = [ ":cc13x2x7_26x2x7" ]
+  deps = [ ":cc2674r10" ]
 }

@@ -24,8 +24,13 @@
 #include <app/server/Server.h>
 
 #include "FreeRTOS.h"
+
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <examples/platform/cc13x4_26x4/CC13X4_26X4DeviceAttestationCreds.h>
+
+#include <DeviceInfoProviderImpl.h>
+#include <platform/CHIPDeviceLayer.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -34,13 +39,17 @@
 #include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
 #include <platform/cc13xx_26xx/OTAImageProcessorImpl.h>
 #endif
-#include <app-common/zap-generated/attributes/Accessors.h>
-#include <app/clusters/identify-server/identify-server.h>
+
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
-#include <platform/CHIPDeviceLayer.h>
 
+#include <app-common/zap-generated/attributes/Accessors.h>
+
+#include <app/clusters/identify-server/identify-server.h>
+#include <app/clusters/on-off-server/on-off-server.h>
 #include <app/server/OnboardingCodesUtil.h>
+#include <app/server/Server.h>
+#include <app/util/attribute-storage.h>
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>
@@ -292,6 +301,56 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_ButtonLeft:
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
+            uint16_t newValue;
+            chip::app::DataModel::Nullable<uint16_t> flowValue;
+            chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, flowValue);
+
+            if (flowValue.IsNull())
+            {
+                newValue = 0xFFFF / 2;
+            }
+            else if (flowValue.Value() < 100)
+            {
+                newValue = 0;
+            }
+            else
+            {
+                newValue = flowValue.Value() - 100;
+            }
+
+            SetMeasuredFlowValue(newValue);
+        }
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
+        {
+            // Factory reset
+            chip::Server::GetInstance().ScheduleFactoryReset();
+        }
+        break;
+
+    case AppEvent::kEventType_ButtonRight:
+        if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
+        {
+            uint16_t newValue;
+            chip::app::DataModel::Nullable<uint16_t> flowValue;
+            chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, flowValue);
+
+            if (flowValue.IsNull())
+            {
+                newValue = 0xFFFF / 2;
+            }
+            else if (flowValue.Value() > 65434)
+            {
+                newValue = 65534;
+            }
+            else
+            {
+                newValue = flowValue.Value() + 100;
+            }
+
+            SetMeasuredFlowValue(newValue);
+        }
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
+        {
             // Enable BLE advertisements
             if (!ConnectivityMgr().IsBLEAdvertisingEnabled())
             {
@@ -310,22 +369,6 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
                 ConnectivityMgr().SetBLEAdvertisingEnabled(false);
                 PLAT_LOG("Disabled BLE Advertisements");
             }
-        }
-        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
-        {
-            // Factory reset
-            chip::Server::GetInstance().ScheduleFactoryReset();
-        }
-        break;
-
-    case AppEvent::kEventType_ButtonRight:
-        if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
-        {
-            ToogleOccupancyState();
-        }
-        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
-        {
-            // No action
         }
         break;
 
@@ -360,25 +403,28 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
 }
 
-void AppTask::ToogleOccupancyState(void)
+void AppTask::SetMeasuredFlowValue(uint16_t flowValue)
 {
-    BitMask<chip::app::Clusters::OccupancySensing::OccupancyBitmap> attributeValue;
-    uint8_t bitValue;
+    chip::app::DataModel::Nullable<uint16_t> storedFlowValue;
+    chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Get(1, storedFlowValue);
 
-    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Get(1, &attributeValue);
-    bitValue = attributeValue.Raw();
-
-    PLAT_LOG("Toggle occupancy state: %d -> %d", bitValue, !bitValue);
-
-    if ((!bitValue) == true)
+    if (storedFlowValue.IsNull())
     {
-        LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+        PLAT_LOG("Setting initial flow values");
+    }
+
+    // Determien direction of change
+    else if (storedFlowValue.Value() > flowValue)
+    {
+        PLAT_LOG("Decrease flow value");
+        PLAT_LOG("Stored flow value: %d", storedFlowValue.Value());
     }
     else
     {
-        LED_setOff(sAppRedHandle);
+        PLAT_LOG("Increase flow value");
+        PLAT_LOG("Stored flow value: %d", storedFlowValue.Value());
     }
 
-    attributeValue.SetRaw(!bitValue);
-    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Set(1, attributeValue);
+    PLAT_LOG("New flow value: %d", flowValue);
+    chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Set(1, flowValue);
 }

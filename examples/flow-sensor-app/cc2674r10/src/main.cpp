@@ -1,7 +1,6 @@
 /*
  *
  *    Copyright (c) 2020 Project CHIP Authors
- *    Copyright (c) 2020 Texas Instruments Incorporated
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,8 +20,8 @@
 
 #include <platform/CHIPDeviceLayer.h>
 
-#include <AppConfig.h>
-#include <AppTask.h>
+#include "AppConfig.h"
+#include "AppTask.h"
 
 #include <FreeRTOS.h>
 
@@ -37,7 +36,7 @@
 #include <ti/drivers/SHA2.h>
 
 #include <bget.h>
-#define TOTAL_ICALL_HEAP_SIZE (0xb600)
+#define TOTAL_ICALL_HEAP_SIZE (0x22900)
 
 using namespace ::chip;
 using namespace ::chip::Inet;
@@ -49,14 +48,6 @@ uint32_t heapSize = TOTAL_ICALL_HEAP_SIZE;
 // ================================================================================
 // FreeRTOS Callbacks
 // ================================================================================
-extern "C" void vApplicationStackOverflowHook(void)
-{
-    while (true)
-    {
-        ;
-    }
-}
-
 /* Wrapper functions for using the queue registry regardless of whether it is enabled or disabled */
 extern "C" void vQueueAddToRegistryWrapper(QueueHandle_t xQueue, const char * pcQueueName)
 {
@@ -93,13 +84,13 @@ int main(void)
     {
         // can't log until the kernel is started
         // PLAT_LOG("GetAppTask().StartAppTask() failed");
-        while (true)
+        while (1)
             ;
     }
 
     vTaskStartScheduler();
 
     // Should never get here.
-    while (true)
+    while (1)
         ;
 }

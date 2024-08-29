@@ -78,6 +78,7 @@ ti_simplelink_executable("water_leak_detector_app") {
     "${chip_root}/examples/water-leak-detector-app/water-leak-detector-common",
     "${chip_root}/examples/platform/cc13x4_26x4:cc13x4_26x4-attestation-credentials",
     "${chip_root}/src/lib",
+    "${chip_root}/src/platform/logging:default",
     "${chip_root}/third_party/openthread:openthread",
   ]
   defines = []

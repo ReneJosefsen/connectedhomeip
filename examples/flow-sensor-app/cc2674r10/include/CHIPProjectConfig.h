@@ -28,9 +28,6 @@
 #ifndef CHIP_PROJECT_CONFIG_H
 #define CHIP_PROJECT_CONFIG_H
 
-// Security and Authentication always enabled
-#define CHIP_CONFIG_SECURITY_TEST_MODE 0
-
 #if BUILD_RELEASE // release build
 // Note: Default Pairing/PIN/Serial Numbers being used. These should not be enabled for production builds
 #endif // BUILD_RELEASE
@@ -40,6 +37,14 @@
 #define CHIP_DEVICE_CONFIG_USE_TEST_SETUP_DISCRIMINATOR 0xF00
 
 /**
+ * CHIP_DEVICE_CONFIG_TEST_SERIAL_NUMBER
+ *
+ * Enables the use of a hard-coded default serial number if none
+ * is found in CHIP NV storage.
+ */
+#define CHIP_DEVICE_CONFIG_TEST_SERIAL_NUMBER "TEST_SN"
+
+/**
  * CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION
  *
  * The hardware version number assigned to device or product by the device vendor.  This
@@ -47,7 +52,9 @@
  * physical device, a change to its packaging, and/or a change to its marketing presentation.
  * This value is generally *not* incremented for device software versions.
  */
+#ifndef CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION
 #define CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION 1
+#endif
 
 /**
  * Values set by args.gni:
@@ -99,20 +106,14 @@
  * @def CHIP_IM_MAX_NUM_COMMAND_HANDLER
  *
  * @brief Defines the maximum number of CommandHandler, limits the number of active commands transactions on server.
- *
- * TODO: (#17080) 1 should be OK since almost all commands are synchronous, should be some larger number after we resolved the issue
- * of the large memory footprint of ReadHandler.
  */
-#define CHIP_IM_MAX_NUM_COMMAND_HANDLER 1
+#define CHIP_IM_MAX_NUM_COMMAND_HANDLER 2
 
 /**
  * @def CHIP_IM_MAX_NUM_WRITE_HANDLER
  *
  * @brief Defines the maximum number of WriteHandler, limits the number of active write transactions on server.
- *
- * TODO: (#17080) 1 should be OK since most write requests can be synchronous (not chunked), should be some larger number after we
- * resolved the issue of the large memory footprint of ReadHandler.
  */
-#define CHIP_IM_MAX_NUM_WRITE_HANDLER 1
+#define CHIP_IM_MAX_NUM_WRITE_HANDLER 2
 
 #endif // CHIP_PROJECT_CONFIG_H
