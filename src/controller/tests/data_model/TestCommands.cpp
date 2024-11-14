@@ -42,8 +42,6 @@
 #include <protocols/interaction_model/Constants.h>
 #include <protocols/interaction_model/StatusCode.h>
 
-using TestContext = chip::Test::AppContext;
-
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
@@ -52,34 +50,50 @@ using namespace chip::Protocols;
 
 namespace {
 
-class TestCommands : public ::testing::Test
+const chip::Test::MockNodeConfig & TestMockNodeConfig()
+{
+    using namespace chip::app;
+    using namespace chip::Test;
+    using namespace chip::app::Clusters::Globals::Attributes;
+
+    // clang-format off
+    static const MockNodeConfig config({
+        MockEndpointConfig(kTestEndpointId, {
+            MockClusterConfig(Clusters::UnitTesting::Id, {
+                ClusterRevision::Id, FeatureMap::Id,
+            },
+            {},      // events
+            {
+               Clusters::UnitTesting::Commands::TestSimpleArgumentRequest::Id,
+            }, // accepted commands
+            {} // generated commands
+          ),
+        }),
+    });
+    // clang-format on
+    return config;
+}
+
+class TestCommands : public chip::Test::AppContext
 {
 public:
-    // Performs shared setup for all tests in the test suite
-    static void SetUpTestSuite()
+    void SetUp() override
     {
-        mpContext = new TestContext();
-        ASSERT_NE(mpContext, nullptr);
-        mpContext->SetUpTestSuite();
+        AppContext::SetUp();
+        mOldProvider = InteractionModelEngine::GetInstance()->SetDataModelProvider(&CustomDataModel::Instance());
+        chip::Test::SetMockNodeConfig(TestMockNodeConfig());
     }
 
-    // Performs shared teardown for all tests in the test suite
-    static void TearDownTestSuite()
+    void TearDown() override
     {
-        mpContext->TearDownTestSuite();
-        delete mpContext;
+        chip::Test::ResetMockNodeConfig();
+        InteractionModelEngine::GetInstance()->SetDataModelProvider(mOldProvider);
+        AppContext::TearDown();
     }
 
 protected:
-    // Performs setup for each individual test in the test suite
-    void SetUp() { mpContext->SetUp(); }
-
-    // Performs teardown for each individual test in the test suite
-    void TearDown() { mpContext->TearDown(); }
-
-    static TestContext * mpContext;
+    chip::app::DataModel::Provider * mOldProvider = nullptr;
 };
-TestContext * TestCommands::mpContext = nullptr;
 
 TEST_F(TestCommands, TestDataResponse)
 {
@@ -92,7 +106,7 @@ TEST_F(TestCommands, TestDataResponse)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -128,13 +142,14 @@ TEST_F(TestCommands, TestDataResponse)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendDataResponse);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
-    EXPECT_TRUE(onSuccessWasCalled && !onFailureWasCalled);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_TRUE(onSuccessWasCalled);
+    EXPECT_FALSE(onFailureWasCalled);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestSuccessNoDataResponse)
@@ -145,7 +160,7 @@ TEST_F(TestCommands, TestSuccessNoDataResponse)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -166,13 +181,13 @@ TEST_F(TestCommands, TestSuccessNoDataResponse)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendSuccessStatusCode);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(onSuccessWasCalled && !onFailureWasCalled && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestMultipleSuccessNoDataResponses)
@@ -183,7 +198,7 @@ TEST_F(TestCommands, TestMultipleSuccessNoDataResponses)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     size_t successCalls = 0;
     size_t failureCalls = 0;
@@ -194,7 +209,7 @@ TEST_F(TestCommands, TestMultipleSuccessNoDataResponses)
     // not safe to do so.
     auto onSuccessCb = [&successCalls, &statusCheck](const ConcreteCommandPath & commandPath, const StatusIB & aStatus,
                                                      const auto & dataResponse) {
-        statusCheck = (aStatus.mStatus == InteractionModel::Status::Success);
+        statusCheck = (aStatus.mStatus == Protocols::InteractionModel::Status::Success);
         ++successCalls;
     };
 
@@ -204,14 +219,13 @@ TEST_F(TestCommands, TestMultipleSuccessNoDataResponses)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendMultipleSuccessStatusCodes);
 
-    Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
-                                     onFailureCb);
+    Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb, onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(successCalls == 1 && statusCheck);
     EXPECT_EQ(failureCalls, 0u);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestAsyncResponse)
@@ -222,7 +236,7 @@ TEST_F(TestCommands, TestAsyncResponse)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -243,13 +257,13 @@ TEST_F(TestCommands, TestAsyncResponse)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kAsync);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(!onSuccessWasCalled && !onFailureWasCalled && !statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 2u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 2u);
 
     CommandHandler * commandHandle = gAsyncCommandHandle.Get();
     ASSERT_NE(commandHandle, nullptr);
@@ -258,16 +272,16 @@ TEST_F(TestCommands, TestAsyncResponse)
                              Protocols::InteractionModel::Status::Success);
     gAsyncCommandHandle.Release();
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(onSuccessWasCalled && !onFailureWasCalled && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestFailure)
 {
     Clusters::UnitTesting::Commands::TestSimpleArgumentRequest::Type request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -288,13 +302,13 @@ TEST_F(TestCommands, TestFailure)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendError);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(!onSuccessWasCalled && onFailureWasCalled && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestMultipleFailures)
@@ -305,7 +319,7 @@ TEST_F(TestCommands, TestMultipleFailures)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     size_t successCalls = 0;
     size_t failureCalls = 0;
@@ -320,20 +334,19 @@ TEST_F(TestCommands, TestMultipleFailures)
     // Passing of stack variables by reference is only safe because of synchronous completion of the interaction. Otherwise, it's
     // not safe to do so.
     auto onFailureCb = [&failureCalls, &statusCheck](CHIP_ERROR aError) {
-        statusCheck = aError.IsIMStatus() && StatusIB(aError).mStatus == InteractionModel::Status::Failure;
+        statusCheck = aError.IsIMStatus() && StatusIB(aError).mStatus == Protocols::InteractionModel::Status::Failure;
         ++failureCalls;
     };
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendMultipleErrors);
 
-    Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
-                                     onFailureCb);
+    Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb, onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_EQ(successCalls, 0u);
     EXPECT_TRUE(failureCalls == 1 && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestSuccessNoDataResponseWithClusterStatus)
@@ -344,7 +357,7 @@ TEST_F(TestCommands, TestSuccessNoDataResponseWithClusterStatus)
     };
 
     FakeRequest request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -366,19 +379,19 @@ TEST_F(TestCommands, TestSuccessNoDataResponseWithClusterStatus)
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendSuccessStatusCodeWithClusterStatus);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(onSuccessWasCalled && !onFailureWasCalled && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 TEST_F(TestCommands, TestFailureWithClusterStatus)
 {
     Clusters::UnitTesting::Commands::TestSimpleArgumentRequest::Type request;
-    auto sessionHandle = mpContext->GetSessionBobToAlice();
+    auto sessionHandle = GetSessionBobToAlice();
 
     bool onSuccessWasCalled = false;
     bool onFailureWasCalled = false;
@@ -398,20 +411,20 @@ TEST_F(TestCommands, TestFailureWithClusterStatus)
         {
             app::StatusIB status(aError);
             statusCheck = (status.mStatus == Protocols::InteractionModel::Status::Failure &&
-                           status.mClusterStatus.Value() == kTestFailureClusterStatus);
+                           status.mClusterStatus == MakeOptional(kTestFailureClusterStatus));
         }
         onFailureWasCalled = true;
     };
 
     ScopedChange directive(gCommandResponseDirective, CommandResponseDirective::kSendErrorWithClusterStatus);
 
-    chip::Controller::InvokeCommandRequest(&mpContext->GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
+    chip::Controller::InvokeCommandRequest(&GetExchangeManager(), sessionHandle, kTestEndpointId, request, onSuccessCb,
                                            onFailureCb);
 
-    mpContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     EXPECT_TRUE(!onSuccessWasCalled && onFailureWasCalled && statusCheck);
-    EXPECT_EQ(mpContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 } // namespace

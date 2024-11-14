@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Project CHIP Authors
+# Copyright (c) 2024 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,9 @@
 # limitations under the License.
 
 import("//build_overrides/chip.gni")
-
 import("${chip_root}/src/app/chip_data_model.gni")
 
 chip_data_model("water-leak-detector-common") {
   zap_file = "water-leak-detector-app.zap"
-
   is_server = true
 }

@@ -15,20 +15,17 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <type_traits>
-
-#include "app/tests/test-interaction-model-api.h"
-#include "lib/support/CHIPMem.h"
 #include <access/examples/PermissiveAccessControlDelegate.h>
 #include <app/AttributeValueEncoder.h>
 #include <app/InteractionModelEngine.h>
 #include <app/InteractionModelHelper.h>
 #include <app/MessageDef/AttributeReportIBs.h>
 #include <app/MessageDef/EventDataIB.h>
+#include <app/codegen-data-model-provider/Instance.h>
 #include <app/icd/server/ICDServerConfig.h>
 #include <app/reporting/tests/MockReportScheduler.h>
 #include <app/tests/AppTestContext.h>
+#include <app/tests/test-interaction-model-api.h>
 #include <app/util/basic-types.h>
 #include <app/util/mock/Constants.h>
 #include <app/util/mock/Functions.h>
@@ -39,6 +36,7 @@
 #include <lib/core/TLVDebug.h>
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/CHIPCounter.h>
+#include <lib/support/CHIPMem.h>
 #include <lib/support/tests/ExtraPwTestMacros.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
@@ -50,7 +48,7 @@ uint8_t gDebugEventBuffer[128];
 uint8_t gInfoEventBuffer[128];
 uint8_t gCritEventBuffer[128];
 chip::app::CircularEventBuffer gCircularEventBuffer[3];
-chip::ClusterId kTestClusterId          = 6;
+chip::ClusterId kTestClusterId          = 6; // OnOff, but not used as OnOff directly
 chip::ClusterId kTestEventClusterId     = chip::Test::MockClusterId(1);
 chip::ClusterId kInvalidTestClusterId   = 7;
 chip::EndpointId kTestEndpointId        = 1;
@@ -69,6 +67,65 @@ static chip::System::Clock::Internal::MockClock gMockClock;
 static chip::System::Clock::ClockBase * gRealClock;
 static chip::app::reporting::ReportSchedulerImpl * gReportScheduler;
 static bool sUsingSubSync = false;
+
+const chip::Test::MockNodeConfig & TestMockNodeConfig()
+{
+    using namespace chip::app;
+    using namespace chip::app::Clusters::Globals::Attributes;
+    using namespace chip::Test;
+
+    // clang-format off
+    static const chip::Test::MockNodeConfig config({
+        MockEndpointConfig(kTestEndpointId, {
+            MockClusterConfig(kTestClusterId, {
+                ClusterRevision::Id, FeatureMap::Id,
+                1,
+                2, // treated as a list
+            }),
+            MockClusterConfig(kInvalidTestClusterId, {
+                ClusterRevision::Id, FeatureMap::Id,
+                1,
+            }),
+        }),
+        MockEndpointConfig(kMockEndpoint1, {
+            MockClusterConfig(MockClusterId(1), {
+                ClusterRevision::Id, FeatureMap::Id,
+            }, {
+                MockEventId(1), MockEventId(2),
+            }),
+            MockClusterConfig(MockClusterId(2), {
+                ClusterRevision::Id, FeatureMap::Id, MockAttributeId(1),
+            }),
+        }),
+        MockEndpointConfig(kMockEndpoint2, {
+            MockClusterConfig(MockClusterId(1), {
+                ClusterRevision::Id, FeatureMap::Id,
+            }),
+            MockClusterConfig(MockClusterId(2), {
+                ClusterRevision::Id, FeatureMap::Id, MockAttributeId(1), MockAttributeId(2),
+            }),
+            MockClusterConfig(MockClusterId(3), {
+                ClusterRevision::Id, FeatureMap::Id, MockAttributeId(1), MockAttributeId(2), MockAttributeId(3),
+            }),
+        }),
+        MockEndpointConfig(chip::Test::kMockEndpoint3, {
+            MockClusterConfig(MockClusterId(1), {
+                ClusterRevision::Id, FeatureMap::Id, MockAttributeId(1),
+            }),
+            MockClusterConfig(MockClusterId(2), {
+                ClusterRevision::Id, FeatureMap::Id, MockAttributeId(1), MockAttributeId(2), MockAttributeId(3), MockAttributeId(4),
+            }),
+            MockClusterConfig(MockClusterId(3), {
+                ClusterRevision::Id, FeatureMap::Id,
+            }),
+            MockClusterConfig(MockClusterId(4), {
+                ClusterRevision::Id, FeatureMap::Id,
+            }),
+        }),
+    });
+    // clang-format on
+    return config;
+}
 
 class TestEventGenerator : public chip::app::EventLoggingDelegate
 {
@@ -229,38 +286,31 @@ namespace app {
 using Seconds16      = System::Clock::Seconds16;
 using Milliseconds32 = System::Clock::Milliseconds32;
 
-// TODO: Add support for a 2nd Test Context by making sSyncScheduler = true (this was not ported from NL Tests yet)
-class TestReadInteraction : public ::testing::Test
+class TestReadInteraction : public chip::Test::AppContext
 {
-
 public:
-    static void SetUpTestSuite()
+    static void SetUpTestSuiteCommon(bool syncScheduler = false)
     {
-        mpTestContext = new chip::Test::AppContext;
-        mpTestContext->SetUpTestSuite();
+        AppContext::SetUpTestSuite();
 
         gRealClock = &chip::System::SystemClock();
         chip::System::Clock::Internal::SetSystemClockForTesting(&gMockClock);
 
-        if (sSyncScheduler)
-        {
-            gReportScheduler = chip::app::reporting::GetSynchronizedReportScheduler();
-            sUsingSubSync    = true;
-        }
-        else
-        {
-            gReportScheduler = chip::app::reporting::GetDefaultReportScheduler();
-        }
+        sUsingSubSync    = syncScheduler;
+        gReportScheduler = syncScheduler ? chip::app::reporting::GetSynchronizedReportScheduler()
+                                         : chip::app::reporting::GetDefaultReportScheduler();
     }
+
+    static void SetUpTestSuite() { SetUpTestSuiteCommon(false); }
+
     static void TearDownTestSuite()
     {
         chip::System::Clock::Internal::SetSystemClockForTesting(gRealClock);
 
-        mpTestContext->TearDownTestSuite();
-        delete mpTestContext;
+        AppContext::TearDownTestSuite();
     }
 
-    void SetUp()
+    void SetUp() override
     {
         const chip::app::LogStorageResources logStorageResources[] = {
             { &gDebugEventBuffer[0], sizeof(gDebugEventBuffer), chip::app::PriorityLevel::Debug },
@@ -268,56 +318,84 @@ public:
             { &gCritEventBuffer[0], sizeof(gCritEventBuffer), chip::app::PriorityLevel::Critical },
         };
 
-        mpTestContext->SetUp();
+        AppContext::SetUp();
 
         ASSERT_EQ(mEventCounter.Init(0), CHIP_NO_ERROR);
-        chip::app::EventManagement::CreateEventManagement(&mpTestContext->GetExchangeManager(), ArraySize(logStorageResources),
+        chip::app::EventManagement::CreateEventManagement(&GetExchangeManager(), ArraySize(logStorageResources),
                                                           gCircularEventBuffer, logStorageResources, &mEventCounter);
+        mOldProvider = InteractionModelEngine::GetInstance()->SetDataModelProvider(&TestImCustomDataModel::Instance());
+        chip::Test::SetMockNodeConfig(TestMockNodeConfig());
+        chip::Test::SetVersionTo(chip::Test::kTestDataVersion1);
     }
-    void TearDown()
+
+    void TearDown() override
     {
+        chip::Test::ResetMockNodeConfig();
+        InteractionModelEngine::GetInstance()->SetDataModelProvider(mOldProvider);
         chip::app::EventManagement::DestroyEventManagement();
-        mpTestContext->TearDown();
+        AppContext::TearDown();
     }
 
-    static chip::Test::AppContext * mpTestContext;
-
+    void TestICDProcessSubscribeRequestInfMaxIntervalCeiling();
+    void TestICDProcessSubscribeRequestInvalidIdleModeDuration();
+    void TestICDProcessSubscribeRequestMaxMinInterval();
+    void TestICDProcessSubscribeRequestSupMaxIntervalCeiling();
+    void TestICDProcessSubscribeRequestSupMinInterval();
+    void TestPostSubscribeRoundtripChunkReport();
+    void TestPostSubscribeRoundtripChunkReportTimeout();
+    void TestPostSubscribeRoundtripChunkStatusReportTimeout();
+    void TestPostSubscribeRoundtripStatusReportTimeout();
+    void TestProcessSubscribeRequest();
+    void TestReadChunking();
+    void TestReadChunkingInvalidSubscriptionId();
+    void TestReadChunkingStatusReportTimeout();
     void TestReadClient();
-    void TestReadUnexpectedSubscriptionId();
-    void TestReadHandler();
     void TestReadClientGenerateAttributePathList();
     void TestReadClientGenerateInvalidAttributePathList();
-    void TestReadClientInvalidReport();
-    void TestReadClientInvalidAttributeId();
-    void TestReadHandlerInvalidAttributePath();
     void TestReadClientGenerateOneEventPaths();
     void TestReadClientGenerateTwoEventPaths();
-    void TestProcessSubscribeRequest();
-    void TestICDProcessSubscribeRequestSupMaxIntervalCeiling();
-    void TestICDProcessSubscribeRequestInfMaxIntervalCeiling();
-    void TestICDProcessSubscribeRequestSupMinInterval();
-    void TestICDProcessSubscribeRequestMaxMinInterval();
-    void TestICDProcessSubscribeRequestInvalidIdleModeDuration();
-    void TestSubscribeRoundtrip();
-    void TestSubscribeEarlyReport();
-    void TestSubscribeUrgentWildcardEvent();
-    void TestSubscribeInvalidAttributePathRoundtrip();
-    void TestPostSubscribeRoundtripStatusReportTimeout();
+    void TestReadClientInvalidAttributeId();
+    void TestReadClientInvalidReport();
     void TestReadClientReceiveInvalidMessage();
-    void TestSubscribeClientReceiveInvalidStatusResponse();
-    void TestSubscribeClientReceiveWellFormedStatusResponse();
-    void TestSubscribeClientReceiveInvalidReportMessage();
-    void TestSubscribeClientReceiveUnsolicitedInvalidReportMessage();
-    void TestSubscribeClientReceiveInvalidSubscribeResponseMessage();
-    void TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId();
-    void TestReadChunkingInvalidSubscriptionId();
-    void TestReadHandlerMalformedSubscribeRequest();
+    void TestReadHandler();
+    void TestReadHandlerInvalidAttributePath();
+    void TestReadHandlerInvalidSubscribeRequest();
     void TestReadHandlerMalformedReadRequest1();
     void TestReadHandlerMalformedReadRequest2();
-    void TestSubscribeSendUnknownMessage();
-    void TestSubscribeSendInvalidStatusReport();
-    void TestReadHandlerInvalidSubscribeRequest();
+    void TestReadHandlerMalformedSubscribeRequest();
+    void TestReadHandlerSetMaxReportingInterval();
+    void TestReadInvalidAttributePathRoundtrip();
+    void TestReadReportFailure();
+    void TestReadRoundtrip();
+    void TestReadRoundtripWithDataVersionFilter();
+    void TestReadRoundtripWithMultiSamePathDifferentDataVersionFilter();
+    void TestReadRoundtripWithNoMatchPathDataVersionFilter();
+    void TestReadRoundtripWithSameDifferentPathsDataVersionFilter();
+    void TestReadShutdown();
+    void TestReadUnexpectedSubscriptionId();
+    void TestReadWildcard();
+    void TestSetDirtyBetweenChunks();
     void TestShutdownSubscription();
+    void TestSubscribeClientReceiveInvalidReportMessage();
+    void TestSubscribeClientReceiveInvalidStatusResponse();
+    void TestSubscribeClientReceiveInvalidSubscribeResponseMessage();
+    void TestSubscribeClientReceiveUnsolicitedInvalidReportMessage();
+    void TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId();
+    void TestSubscribeClientReceiveWellFormedStatusResponse();
+    void TestSubscribeEarlyReport();
+    void TestSubscribeEarlyShutdown();
+    void TestSubscribeInvalidateFabric();
+    void TestSubscribeInvalidAttributePathRoundtrip();
+    void TestSubscribeInvalidInterval();
+    void TestSubscribePartialOverlap();
+    void TestSubscribeRoundtrip();
+    void TestSubscribeRoundtripChunkStatusReportTimeout();
+    void TestSubscribeRoundtripStatusReportTimeout();
+    void TestSubscribeSendInvalidStatusReport();
+    void TestSubscribeSendUnknownMessage();
+    void TestSubscribeSetDirtyFullyOverlap();
+    void TestSubscribeUrgentWildcardEvent();
+    void TestSubscribeWildcard();
     void TestSubscriptionReportWithDefunctSession();
 
     enum class ReportType : uint8_t
@@ -326,16 +404,23 @@ public:
         kInvalidNoAttributeId,
         kInvalidOutOfRangeAttributeId,
     };
+
     static void GenerateReportData(System::PacketBufferHandle & aPayload, ReportType aReportType, bool aSuppressResponse,
                                    bool aHasSubscriptionId);
 
 protected:
     chip::MonotonicallyIncreasingCounter<chip::EventNumber> mEventCounter;
-    static bool sSyncScheduler;
+    chip::app::DataModel::Provider * mOldProvider = nullptr;
 };
 
-chip::Test::AppContext * TestReadInteraction::mpTestContext = nullptr;
-bool TestReadInteraction::sSyncScheduler                    = false;
+class TestReadInteractionSync : public TestReadInteraction
+{
+public:
+    static void SetUpTestSuite() { TestReadInteraction::SetUpTestSuiteCommon(true); }
+    static void TearDownTestSuite() { TestReadInteraction::TearDownTestSuite(); }
+    void SetUp() { TestReadInteraction::SetUp(); }
+    void TearDown() { TestReadInteraction::TearDown(); }
+};
 
 void TestReadInteraction::GenerateReportData(System::PacketBufferHandle & aPayload, ReportType aReportType, bool aSuppressResponse,
                                              bool aHasSubscriptionId = false)
@@ -417,43 +502,47 @@ void TestReadInteraction::GenerateReportData(System::PacketBufferHandle & aPaylo
     EXPECT_EQ(writer.Finalize(&aPayload), CHIP_NO_ERROR);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClient)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClient)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClient)
+void TestReadInteraction::TestReadClient()
 {
     MockInteractionModelApp delegate;
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     System::PacketBufferHandle buf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
     // We don't actually want to deliver that message, because we want to
     // synthesize the read response.  But we don't want it hanging around
     // forever either.
-    mpTestContext->GetLoopback().mNumMessagesToDrop = 1;
-    mpTestContext->DrainAndServiceIO();
+    GetLoopback().mNumMessagesToDrop = 1;
+    DrainAndServiceIO();
 
     GenerateReportData(buf, ReportType::kValid, true /* aSuppressResponse*/);
     EXPECT_EQ(readClient.ProcessReportData(std::move(buf), ReadClient::ReportType::kContinuingTransaction), CHIP_NO_ERROR);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadUnexpectedSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadUnexpectedSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadUnexpectedSubscriptionId)
+void TestReadInteraction::TestReadUnexpectedSubscriptionId()
 {
     MockInteractionModelApp delegate;
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     System::PacketBufferHandle buf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
     // We don't actually want to deliver that message, because we want to
     // synthesize the read response.  But we don't want it hanging around
     // forever either.
-    mpTestContext->GetLoopback().mNumMessagesToDrop = 1;
-    mpTestContext->DrainAndServiceIO();
+    GetLoopback().mNumMessagesToDrop = 1;
+    DrainAndServiceIO();
 
     // For read, we don't expect there is subscription id in report data.
     GenerateReportData(buf, ReportType::kValid, true /* aSuppressResponse*/, true /*aHasSubscriptionId*/);
@@ -461,7 +550,9 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadUnexpectedSubscriptionId)
               CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandler)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandler)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandler)
+void TestReadInteraction::TestReadHandler()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle reportDatabuf  = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
@@ -470,12 +561,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandler)
     NullReadHandlerCallback nullCallback;
 
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     {
-        Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
-        ReadHandler readHandler(nullCallback, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
+        ReadHandler readHandler(nullCallback, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         GenerateReportData(reportDatabuf, ReportType::kValid, false /* aSuppressResponse*/);
         EXPECT_EQ(readHandler.SendReportData(std::move(reportDatabuf), false), CHIP_ERROR_INCORRECT_STATE);
@@ -507,10 +598,123 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandler)
 
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateAttributePathList)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerSetMaxReportingInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerSetMaxReportingInterval)
+void TestReadInteraction::TestReadHandlerSetMaxReportingInterval()
+{
+    System::PacketBufferTLVWriter writer;
+    System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
+    SubscribeRequestMessage::Builder subscribeRequestBuilder;
+
+    auto * engine = chip::app::InteractionModelEngine::GetInstance();
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
+
+    uint16_t kIntervalInfMinInterval = 119;
+    uint16_t kMinInterval            = 120;
+    uint16_t kMaxIntervalCeiling     = 500;
+
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
+
+    {
+
+        uint16_t minInterval;
+        uint16_t maxInterval;
+
+        // Configure ReadHandler
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
+
+        writer.Init(std::move(subscribeRequestbuf));
+        EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
+
+        subscribeRequestBuilder.KeepSubscriptions(true);
+        EXPECT_EQ(subscribeRequestBuilder.GetError(), CHIP_NO_ERROR);
+
+        subscribeRequestBuilder.MinIntervalFloorSeconds(kMinInterval);
+        EXPECT_EQ(subscribeRequestBuilder.GetError(), CHIP_NO_ERROR);
+
+        subscribeRequestBuilder.MaxIntervalCeilingSeconds(kMaxIntervalCeiling);
+        EXPECT_EQ(subscribeRequestBuilder.GetError(), CHIP_NO_ERROR);
+
+        AttributePathIBs::Builder & attributePathListBuilder = subscribeRequestBuilder.CreateAttributeRequests();
+        EXPECT_EQ(attributePathListBuilder.GetError(), CHIP_NO_ERROR);
+
+        AttributePathIB::Builder & attributePathBuilder = attributePathListBuilder.CreatePath();
+        EXPECT_EQ(attributePathListBuilder.GetError(), CHIP_NO_ERROR);
+
+        attributePathBuilder.Node(1).Endpoint(2).Cluster(3).Attribute(4).ListIndex(5).EndOfAttributePathIB();
+        EXPECT_EQ(attributePathBuilder.GetError(), CHIP_NO_ERROR);
+
+        attributePathListBuilder.EndOfAttributePathIBs();
+        EXPECT_EQ(attributePathListBuilder.GetError(), CHIP_NO_ERROR);
+
+        subscribeRequestBuilder.IsFabricFiltered(false).EndOfSubscribeRequestMessage();
+        EXPECT_EQ(subscribeRequestBuilder.GetError(), CHIP_NO_ERROR);
+
+        EXPECT_EQ(subscribeRequestBuilder.GetError(), CHIP_NO_ERROR);
+        EXPECT_EQ(writer.Finalize(&subscribeRequestbuf), CHIP_NO_ERROR);
+
+        EXPECT_EQ(readHandler.ProcessSubscribeRequest(std::move(subscribeRequestbuf)), CHIP_NO_ERROR);
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+        // When an ICD build, the default behavior is to select the IdleModeDuration as MaxInterval
+        kMaxIntervalCeiling = readHandler.GetPublisherSelectedIntervalLimit();
+#endif
+        // Try to change the MaxInterval while ReadHandler is active
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(340), CHIP_ERROR_INCORRECT_STATE);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(kMaxIntervalCeiling, maxInterval);
+        // Set ReadHandler to Idle to allow MaxInterval changes
+        readHandler.MoveToState(ReadHandler::HandlerState::Idle);
+
+        // TC1: MaxInterval < MinIntervalFloor
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(kIntervalInfMinInterval), CHIP_ERROR_INVALID_ARGUMENT);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(kMaxIntervalCeiling, maxInterval);
+
+        // TC2: MaxInterval == MinIntervalFloor
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(kMinInterval), CHIP_NO_ERROR);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(kMinInterval, maxInterval);
+
+        // TC3: Minterval < MaxInterval < max(GetPublisherSelectedIntervalLimit(), mSubscriberRequestedMaxInterval)
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(kMaxIntervalCeiling), CHIP_NO_ERROR);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(kMaxIntervalCeiling, maxInterval);
+
+        // TC4: MaxInterval == Subscriber Requested Max Interval
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(readHandler.GetSubscriberRequestedMaxInterval()), CHIP_NO_ERROR);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readHandler.GetSubscriberRequestedMaxInterval(), maxInterval);
+
+        // TC4: MaxInterval == GetPublisherSelectedIntervalLimit()
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(readHandler.GetPublisherSelectedIntervalLimit()), CHIP_NO_ERROR);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readHandler.GetPublisherSelectedIntervalLimit(), maxInterval);
+
+        // TC5: MaxInterval >  max(GetPublisherSelectedIntervalLimit(), mSubscriberRequestedMaxInterval)
+        EXPECT_EQ(readHandler.SetMaxReportingInterval(std::numeric_limits<uint16_t>::max()), CHIP_ERROR_INVALID_ARGUMENT);
+
+        readHandler.GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readHandler.GetPublisherSelectedIntervalLimit(), maxInterval);
+    }
+
+    engine->Shutdown();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+}
+
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientGenerateAttributePathList)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientGenerateAttributePathList)
+void TestReadInteraction::TestReadClientGenerateAttributePathList()
 {
     MockInteractionModelApp delegate;
     System::PacketBufferHandle msgBuf;
@@ -521,7 +725,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateAttributePathList
     writer.Init(std::move(msgBuf));
     EXPECT_EQ(request.Init(&writer), CHIP_NO_ERROR);
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     AttributePathParams attributePathParams[2];
@@ -535,7 +739,9 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateAttributePathList
     EXPECT_EQ(readClient.GenerateAttributePaths(attributePathListBuilder, attributePaths), CHIP_NO_ERROR);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateInvalidAttributePathList)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientGenerateInvalidAttributePathList)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientGenerateInvalidAttributePathList)
+void TestReadInteraction::TestReadClientGenerateInvalidAttributePathList()
 {
     MockInteractionModelApp delegate;
     System::PacketBufferHandle msgBuf;
@@ -545,7 +751,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateInvalidAttributeP
     EXPECT_FALSE(msgBuf.IsNull());
     writer.Init(std::move(msgBuf));
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     EXPECT_EQ(request.Init(&writer), CHIP_NO_ERROR);
@@ -561,23 +767,25 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateInvalidAttributeP
               CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_PATH_IB);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientInvalidReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientInvalidReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientInvalidReport)
+void TestReadInteraction::TestReadClientInvalidReport()
 {
     MockInteractionModelApp delegate;
 
     System::PacketBufferHandle buf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
     // We don't actually want to deliver that message, because we want to
     // synthesize the read response.  But we don't want it hanging around
     // forever either.
-    mpTestContext->GetLoopback().mNumMessagesToDrop = 1;
-    mpTestContext->DrainAndServiceIO();
+    GetLoopback().mNumMessagesToDrop = 1;
+    DrainAndServiceIO();
 
     GenerateReportData(buf, ReportType::kInvalidNoAttributeId, true /* aSuppressResponse*/);
 
@@ -585,23 +793,25 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientInvalidReport)
               CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_PATH_IB);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientInvalidAttributeId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientInvalidAttributeId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientInvalidAttributeId)
+void TestReadInteraction::TestReadClientInvalidAttributeId()
 {
     MockInteractionModelApp delegate;
 
     System::PacketBufferHandle buf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
     // We don't actually want to deliver that message, because we want to
     // synthesize the read response.  But we don't want it hanging around
     // forever either.
-    mpTestContext->GetLoopback().mNumMessagesToDrop = 1;
-    mpTestContext->DrainAndServiceIO();
+    GetLoopback().mNumMessagesToDrop = 1;
+    DrainAndServiceIO();
 
     GenerateReportData(buf, ReportType::kInvalidOutOfRangeAttributeId, true /* aSuppressResponse*/);
 
@@ -615,7 +825,9 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientInvalidAttributeId)
     EXPECT_FALSE(delegate.mReadError);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerInvalidAttributePath)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerInvalidAttributePath)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerInvalidAttributePath)
+void TestReadInteraction::TestReadHandlerInvalidAttributePath()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -626,12 +838,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerInvalidAttributePath)
     NullReadHandlerCallback nullCallback;
 
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     {
-        Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
-        ReadHandler readHandler(nullCallback, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
+        ReadHandler readHandler(nullCallback, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         GenerateReportData(reportDatabuf, ReportType::kValid, false /* aSuppressResponse*/);
         EXPECT_EQ(readHandler.SendReportData(std::move(reportDatabuf), false), CHIP_ERROR_INCORRECT_STATE);
@@ -669,10 +881,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerInvalidAttributePath)
     }
 
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateOneEventPaths)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientGenerateOneEventPaths)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientGenerateOneEventPaths)
+void TestReadInteraction::TestReadClientGenerateOneEventPaths()
 {
     MockInteractionModelApp delegate;
     System::PacketBufferHandle msgBuf;
@@ -683,7 +897,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateOneEventPaths)
     writer.Init(std::move(msgBuf));
     EXPECT_EQ(request.Init(&writer), CHIP_NO_ERROR);
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     chip::app::EventPathParams eventPathParams[1];
@@ -710,10 +924,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateOneEventPaths)
     readRequestParser.PrettyPrint();
 #endif
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateTwoEventPaths)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientGenerateTwoEventPaths)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientGenerateTwoEventPaths)
+void TestReadInteraction::TestReadClientGenerateTwoEventPaths()
 {
     MockInteractionModelApp delegate;
     System::PacketBufferHandle msgBuf;
@@ -724,7 +940,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateTwoEventPaths)
     writer.Init(std::move(msgBuf));
     EXPECT_EQ(request.Init(&writer), CHIP_NO_ERROR);
 
-    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+    app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                chip::app::ReadClient::InteractionType::Read);
 
     chip::app::EventPathParams eventPathParams[2];
@@ -755,13 +971,15 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientGenerateTwoEventPaths)
     readRequestParser.PrettyPrint();
 #endif
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadRoundtrip)
+void TestReadInteraction::TestReadRoundtrip()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -769,8 +987,7 @@ TEST_F(TestReadInteraction, TestReadRoundtrip)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::EventPathParams eventPathParams[1];
@@ -787,7 +1004,7 @@ TEST_F(TestReadInteraction, TestReadRoundtrip)
     attributePathParams[1].mAttributeId = 2;
     attributePathParams[1].mListIndex   = 1;
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = eventPathParams;
     readPrepareParams.mEventPathParamsListSize     = 1;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
@@ -795,12 +1012,12 @@ TEST_F(TestReadInteraction, TestReadRoundtrip)
     readPrepareParams.mEventNumber.SetValue(1);
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(delegate.mNumDataElementIndex, 1);
         EXPECT_TRUE(delegate.mGotEventResponse);
@@ -814,12 +1031,12 @@ TEST_F(TestReadInteraction, TestReadRoundtrip)
     }
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotEventResponse);
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
@@ -833,13 +1050,15 @@ TEST_F(TestReadInteraction, TestReadRoundtrip)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadRoundtripWithDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadRoundtripWithDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadRoundtripWithDataVersionFilter)
+void TestReadInteraction::TestReadRoundtripWithDataVersionFilter()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -847,8 +1066,7 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithDataVersionFilter)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[2];
@@ -866,19 +1084,19 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithDataVersionFilter)
     dataVersionFilters[0].mClusterId  = kTestClusterId;
     dataVersionFilters[0].mDataVersion.SetValue(kTestDataVersion1);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 2;
     readPrepareParams.mpDataVersionFilterList      = dataVersionFilters;
     readPrepareParams.mDataVersionFilterListSize   = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
 
         delegate.mNumAttributeResponse = 0;
@@ -886,13 +1104,15 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithDataVersionFilter)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadRoundtripWithNoMatchPathDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadRoundtripWithNoMatchPathDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadRoundtripWithNoMatchPathDataVersionFilter)
+void TestReadInteraction::TestReadRoundtripWithNoMatchPathDataVersionFilter()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -900,8 +1120,7 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithNoMatchPathDataVersionFilter)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     chip::app::AttributePathParams attributePathParams[2];
     attributePathParams[0].mEndpointId  = kTestEndpointId;
@@ -922,19 +1141,19 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithNoMatchPathDataVersionFilter)
     dataVersionFilters[1].mClusterId  = kTestClusterId;
     dataVersionFilters[1].mDataVersion.SetValue(kTestDataVersion2);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 2;
     readPrepareParams.mpDataVersionFilterList      = dataVersionFilters;
     readPrepareParams.mDataVersionFilterListSize   = 2;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
         EXPECT_FALSE(delegate.mReadError);
 
@@ -943,13 +1162,15 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithNoMatchPathDataVersionFilter)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadRoundtripWithMultiSamePathDifferentDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadRoundtripWithMultiSamePathDifferentDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadRoundtripWithMultiSamePathDifferentDataVersionFilter)
+void TestReadInteraction::TestReadRoundtripWithMultiSamePathDifferentDataVersionFilter()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -957,8 +1178,7 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithMultiSamePathDifferentDataVersi
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[2];
@@ -980,19 +1200,19 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithMultiSamePathDifferentDataVersi
     dataVersionFilters[1].mClusterId  = kTestClusterId;
     dataVersionFilters[1].mDataVersion.SetValue(kTestDataVersion2);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 2;
     readPrepareParams.mpDataVersionFilterList      = dataVersionFilters;
     readPrepareParams.mDataVersionFilterListSize   = 2;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
         EXPECT_FALSE(delegate.mReadError);
 
@@ -1001,13 +1221,15 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithMultiSamePathDifferentDataVersi
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadRoundtripWithSameDifferentPathsDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadRoundtripWithSameDifferentPathsDataVersionFilter)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadRoundtripWithSameDifferentPathsDataVersionFilter)
+void TestReadInteraction::TestReadRoundtripWithSameDifferentPathsDataVersionFilter()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -1015,8 +1237,7 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithSameDifferentPathsDataVersionFi
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[2];
@@ -1038,19 +1259,19 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithSameDifferentPathsDataVersionFi
     dataVersionFilters[1].mClusterId  = kTestClusterId;
     dataVersionFilters[1].mDataVersion.SetValue(kTestDataVersion2);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 2;
     readPrepareParams.mpDataVersionFilterList      = dataVersionFilters;
     readPrepareParams.mDataVersionFilterListSize   = 2;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
         EXPECT_FALSE(delegate.mReadError);
 
@@ -1059,13 +1280,15 @@ TEST_F(TestReadInteraction, TestReadRoundtripWithSameDifferentPathsDataVersionFi
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadWildcard)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadWildcard)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadWildcard)
+void TestReadInteraction::TestReadWildcard()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -1073,15 +1296,14 @@ TEST_F(TestReadInteraction, TestReadWildcard)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
     attributePathParams[0].mEndpointId = chip::Test::kMockEndpoint2;
     attributePathParams[0].mClusterId  = chip::Test::MockClusterId(3);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
@@ -1089,12 +1311,12 @@ TEST_F(TestReadInteraction, TestReadWildcard)
 
     {
 
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mNumAttributeResponse, 5);
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_FALSE(delegate.mReadError);
@@ -1105,14 +1327,16 @@ TEST_F(TestReadInteraction, TestReadWildcard)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // TestReadChunking will try to read a few large attributes, the report won't fit into the MTU and result in chunking.
-TEST_F(TestReadInteraction, TestReadChunking)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadChunking)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadChunking)
+void TestReadInteraction::TestReadChunking()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -1120,8 +1344,7 @@ TEST_F(TestReadInteraction, TestReadChunking)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
@@ -1131,19 +1354,19 @@ TEST_F(TestReadInteraction, TestReadChunking)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(4);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // We get one chunk with 4 array elements, and then one chunk per
         // element, and the total size of the array is
@@ -1159,21 +1382,22 @@ TEST_F(TestReadInteraction, TestReadChunking)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestSetDirtyBetweenChunks)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSetDirtyBetweenChunks)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSetDirtyBetweenChunks)
+void TestReadInteraction::TestSetDirtyBetweenChunks()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     GenerateEvents();
 
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     chip::app::AttributePathParams attributePathParams[2];
     for (auto & attributePathParam : attributePathParams)
@@ -1183,7 +1407,7 @@ TEST_F(TestReadInteraction, TestSetDirtyBetweenChunks)
         attributePathParam.mAttributeId = chip::Test::MockAttributeId(4);
     }
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
@@ -1283,12 +1507,12 @@ TEST_F(TestReadInteraction, TestSetDirtyBetweenChunks)
         DirtyingMockDelegate delegate(attributePathParams, currentAttributeResponsesWhenSetDirty, currentArrayItemsWhenSetDirty);
         EXPECT_FALSE(delegate.mGotEventResponse);
 
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // Our list has length kMockAttribute4ListLength.  Since the underlying
         // path iterator should be reset to the beginning of the cluster it is
@@ -1309,13 +1533,15 @@ TEST_F(TestReadInteraction, TestSetDirtyBetweenChunks)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadInvalidAttributePathRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadInvalidAttributePathRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadInvalidAttributePathRoundtrip)
+void TestReadInteraction::TestReadInvalidAttributePathRoundtrip()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -1323,8 +1549,7 @@ TEST_F(TestReadInteraction, TestReadInvalidAttributePathRoundtrip)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[2];
@@ -1332,17 +1557,17 @@ TEST_F(TestReadInteraction, TestReadInvalidAttributePathRoundtrip)
     attributePathParams[0].mClusterId   = kInvalidTestClusterId;
     attributePathParams[0].mAttributeId = 1;
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
         // By now we should have closed all exchanges and sent all pending acks, so
@@ -1351,22 +1576,24 @@ TEST_F(TestReadInteraction, TestReadInvalidAttributePathRoundtrip)
     }
 
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestProcessSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestProcessSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestProcessSubscribeRequest)
+void TestReadInteraction::TestProcessSubscribeRequest()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1403,7 +1630,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestProcessSubscribeRequest)
 
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
@@ -1411,22 +1638,24 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestProcessSubscribeRequest)
  * @brief Test validates that an ICD will choose its IdleModeDuration (GetPublisherSelectedIntervalLimit)
  *        as MaxInterval when the MaxIntervalCeiling is superior.
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestSupMaxIntervalCeiling)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestICDProcessSubscribeRequestSupMaxIntervalCeiling)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestICDProcessSubscribeRequestSupMaxIntervalCeiling)
+void TestReadInteraction::TestICDProcessSubscribeRequestSupMaxIntervalCeiling()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     uint16_t kMinInterval        = 0;
     uint16_t kMaxIntervalCeiling = 1;
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1468,32 +1697,35 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestSupMaxInt
 
         EXPECT_EQ(minInterval, kMinInterval);
         EXPECT_EQ(maxInterval, idleModeDuration);
+        EXPECT_EQ(kMaxIntervalCeiling, readHandler.GetSubscriberRequestedMaxInterval());
     }
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 /**
  * @brief Test validates that an ICD will choose its IdleModeDuration (GetPublisherSelectedIntervalLimit)
  *        as MaxInterval when the MaxIntervalCeiling is inferior.
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestInfMaxIntervalCeiling)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestICDProcessSubscribeRequestInfMaxIntervalCeiling)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestICDProcessSubscribeRequestInfMaxIntervalCeiling)
+void TestReadInteraction::TestICDProcessSubscribeRequestInfMaxIntervalCeiling()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     uint16_t kMinInterval        = 0;
     uint16_t kMaxIntervalCeiling = 1;
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1535,32 +1767,35 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestInfMaxInt
 
         EXPECT_EQ(minInterval, kMinInterval);
         EXPECT_EQ(maxInterval, idleModeDuration);
+        EXPECT_EQ(kMaxIntervalCeiling, readHandler.GetSubscriberRequestedMaxInterval());
     }
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 /**
  * @brief Test validates that an ICD will choose a multiple of its IdleModeDuration (GetPublisherSelectedIntervalLimit)
  *        as MaxInterval when the MinInterval > IdleModeDuration.
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestSupMinInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestICDProcessSubscribeRequestSupMinInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestICDProcessSubscribeRequestSupMinInterval)
+void TestReadInteraction::TestICDProcessSubscribeRequestSupMinInterval()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     uint16_t kMinInterval        = 305; // Default IdleModeDuration is 300
     uint16_t kMaxIntervalCeiling = 605;
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1602,32 +1837,35 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestSupMinInt
 
         EXPECT_EQ(minInterval, kMinInterval);
         EXPECT_EQ(maxInterval, (2 * idleModeDuration));
+        EXPECT_EQ(kMaxIntervalCeiling, readHandler.GetSubscriberRequestedMaxInterval());
     }
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 /**
  * @brief Test validates that an ICD will choose a maximal value for an uint16 if the multiple of the IdleModeDuration
  *        is greater than variable size.
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestMaxMinInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestICDProcessSubscribeRequestMaxMinInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestICDProcessSubscribeRequestMaxMinInterval)
+void TestReadInteraction::TestICDProcessSubscribeRequestMaxMinInterval()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     uint16_t kMinInterval        = System::Clock::Seconds16::max().count();
     uint16_t kMaxIntervalCeiling = System::Clock::Seconds16::max().count();
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1667,32 +1905,35 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestMaxMinInt
 
         EXPECT_EQ(minInterval, kMinInterval);
         EXPECT_EQ(maxInterval, kMaxIntervalCeiling);
+        EXPECT_EQ(kMaxIntervalCeiling, readHandler.GetSubscriberRequestedMaxInterval());
     }
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 /**
  * @brief Test validates that an ICD will choose the MaxIntervalCeiling as MaxInterval if the next multiple after the MinInterval
  *        is greater than the IdleModeDuration and MaxIntervalCeiling
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestInvalidIdleModeDuration)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestICDProcessSubscribeRequestInvalidIdleModeDuration)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestICDProcessSubscribeRequestInvalidIdleModeDuration)
+void TestReadInteraction::TestICDProcessSubscribeRequestInvalidIdleModeDuration()
 {
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle subscribeRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     SubscribeRequestMessage::Builder subscribeRequestBuilder;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     uint16_t kMinInterval        = 400;
     uint16_t kMaxIntervalCeiling = 400;
 
-    Messaging::ExchangeContext * exchangeCtx = mpTestContext->NewExchangeToAlice(nullptr, false);
+    Messaging::ExchangeContext * exchangeCtx = NewExchangeToAlice(nullptr, false);
 
     {
-        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler);
+        ReadHandler readHandler(*engine, exchangeCtx, chip::app::ReadHandler::InteractionType::Read, gReportScheduler,
+                                CodegenDataModelProviderInstance());
 
         writer.Init(std::move(subscribeRequestbuf));
         EXPECT_EQ(subscribeRequestBuilder.Init(&writer), CHIP_NO_ERROR);
@@ -1732,29 +1973,31 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestICDProcessSubscribeRequestInvalidId
 
         EXPECT_EQ(minInterval, kMinInterval);
         EXPECT_EQ(maxInterval, kMaxIntervalCeiling);
+        EXPECT_EQ(kMaxIntervalCeiling, readHandler.GetSubscriberRequestedMaxInterval());
     }
     engine->Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeRoundtrip)
+void TestReadInteraction::TestSubscribeRoundtrip()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
 
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -1784,12 +2027,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
     printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
     }
@@ -1798,12 +2041,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -1844,7 +2087,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
 
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMinIntervalFloorSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         delegate.mGotReport            = false;
         delegate.mGotEventResponse     = false;
@@ -1854,7 +2097,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
 
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_TRUE(delegate.mGotEventResponse);
@@ -1863,7 +2106,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         // Test report with 2 different path, and 1 same path
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMinIntervalFloorSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
@@ -1871,7 +2114,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
@@ -1879,7 +2122,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         // Test report with 3 different path, and one path is overlapped with another
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMinIntervalFloorSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
@@ -1887,7 +2130,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath3), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
@@ -1895,7 +2138,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         // Test report with 3 different path, all are not overlapped, one path is not interested for current subscription
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMinIntervalFloorSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
@@ -1903,7 +2146,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath4), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
@@ -1911,17 +2154,18 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
         uint16_t minInterval;
         uint16_t maxInterval;
         delegate.mpReadHandler->GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readPrepareParams.mMaxIntervalCeilingSeconds, delegate.mpReadHandler->GetSubscriberRequestedMaxInterval());
 
         // Test empty report
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(maxInterval));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_TRUE(engine->GetReportingEngine().IsRunScheduled());
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
     }
@@ -1932,23 +2176,24 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeRoundtrip)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeEarlyReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeEarlyReport)
+void TestReadInteraction::TestSubscribeEarlyReport()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[1];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -1965,13 +2210,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
     readPrepareParams.mKeepSubscriptions = true;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         readPrepareParams.mpEventPathParamsList[0].mIsUrgentEvent = true;
         delegate.mGotEventResponse                                = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         System::Clock::Timestamp startTime = gMockClock.GetMonotonicTimestamp();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
@@ -1981,6 +2226,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
         uint16_t minInterval;
         uint16_t maxInterval;
         delegate.mpReadHandler->GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readPrepareParams.mMaxIntervalCeilingSeconds, delegate.mpReadHandler->GetSubscriberRequestedMaxInterval());
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe), 1u);
 
@@ -2009,7 +2255,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
         gMockClock.AdvanceMonotonic(Seconds16(readPrepareParams.mMinIntervalFloorSeconds));
         EXPECT_FALSE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
         // Service Timer expired event
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_GT(gReportScheduler->GetMinTimestampForHandler(delegate.mpReadHandler), gMockClock.GetMonotonicTimestamp());
 
@@ -2021,10 +2267,10 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
             EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
 
             // Service Engine Run
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             // Service EventManagement event
-            mpTestContext->GetIOContext().DriveIO();
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             EXPECT_TRUE(delegate.mGotEventResponse);
         }
         else
@@ -2040,14 +2286,14 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
             gMockClock.AdvanceMonotonic(Milliseconds32(50));
 
             // Service Timer expired event
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
 
             // Service Engine Run
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             // Service EventManagement event
-            mpTestContext->GetIOContext().DriveIO();
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             EXPECT_TRUE(delegate.mGotEventResponse);
         }
 
@@ -2074,7 +2320,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
 
         EXPECT_FALSE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
         // Service Timer expired event
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         // Verify the ReadHandler is considered as reportable even if its node's min timestamp has not expired
         EXPECT_GT(gReportScheduler->GetMaxTimestampForHandler(delegate.mpReadHandler), gMockClock.GetMonotonicTimestamp());
@@ -2083,35 +2329,36 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeEarlyReport)
         EXPECT_FALSE(delegate.mpReadHandler->IsDirty());
         EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
         // Service Engine Run
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
         // Service EventManagement event
-        mpTestContext->GetIOContext().DriveIO();
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
         EXPECT_TRUE(gReportScheduler->IsReportScheduled(delegate.mpReadHandler));
         EXPECT_FALSE(InteractionModelEngine::GetInstance()->GetReportingEngine().IsRunScheduled());
     }
-    mpTestContext->DrainAndServiceIO();
+    DrainAndServiceIO();
 
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeUrgentWildcardEvent)
+void TestReadInteraction::TestSubscribeUrgentWildcardEvent()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     MockInteractionModelApp nonUrgentDelegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
     EXPECT_FALSE(nonUrgentDelegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -2134,18 +2381,18 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
     readPrepareParams.mKeepSubscriptions = true;
 
     {
-        app::ReadClient nonUrgentReadClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(),
+        app::ReadClient nonUrgentReadClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(),
                                             nonUrgentDelegate, chip::app::ReadClient::InteractionType::Subscribe);
         nonUrgentDelegate.mGotReport = false;
         EXPECT_EQ(nonUrgentReadClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         readPrepareParams.mpEventPathParamsList[0].mIsUrgentEvent = true;
         delegate.mGotReport                                       = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         System::Clock::Timestamp startTime = gMockClock.GetMonotonicTimestamp();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 2u);
@@ -2178,7 +2425,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
 
         // Advance monotonic looping to allow events to trigger
         gMockClock.AdvanceMonotonic(System::Clock::Milliseconds32(600));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_FALSE(delegate.mGotEventResponse);
         EXPECT_FALSE(nonUrgentDelegate.mGotEventResponse);
@@ -2187,13 +2434,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
         gMockClock.AdvanceMonotonic(System::Clock::Milliseconds32(800));
 
         // Service Timer expired event
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         // Service Engine Run
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         // Service EventManagement event
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_TRUE(delegate.mGotEventResponse);
 
@@ -2217,7 +2464,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
 
             // Advance monotonic timestamp for min interval to elapse
             gMockClock.AdvanceMonotonic(System::Clock::Milliseconds32(2100));
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
 
             // No reporting should have happened.
             EXPECT_FALSE(delegate.mGotEventResponse);
@@ -2260,7 +2507,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
             EXPECT_FALSE(delegate.mGotEventResponse);
             EXPECT_FALSE(nonUrgentDelegate.mGotEventResponse);
 
-            mpTestContext->DrainAndServiceIO();
+            DrainAndServiceIO();
 
             // Should get those urgent events reported.
             EXPECT_TRUE(delegate.mGotEventResponse);
@@ -2286,7 +2533,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
 
             // Advance monotonic timestamp for min interval to elapse
             gMockClock.AdvanceMonotonic(System::Clock::Milliseconds32(2100));
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
 
             // No reporting should have happened.
             EXPECT_FALSE(delegate.mGotEventResponse);
@@ -2324,7 +2571,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
             EXPECT_FALSE(delegate.mGotEventResponse);
             EXPECT_FALSE(nonUrgentDelegate.mGotEventResponse);
 
-            mpTestContext->DrainAndServiceIO();
+            DrainAndServiceIO();
 
             // Should get those urgent events reported and the non urgent reported for synchronisation
             EXPECT_TRUE(delegate.mGotEventResponse);
@@ -2338,13 +2585,19 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeUrgentWildcardEvent)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestSubscribeWildcard)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeWildcard)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeWildcard)
+void TestReadInteraction::TestSubscribeWildcard()
 {
+    // This test in particular is completely tied to the DefaultMockConfig in the mock
+    // attribute storage, so reset to that (figuring out chunking location is extra hard to
+    // maintain)
+    chip::Test::ResetMockNodeConfig();
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -2352,24 +2605,23 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mEventPathParamsListSize = 0;
 
-    std::unique_ptr<chip::app::AttributePathParams[]> attributePathParams(new chip::app::AttributePathParams[2]);
-    // Subscribe to full wildcard paths, repeat twice to ensure chunking.
-    readPrepareParams.mpAttributePathParamsList    = attributePathParams.get();
     readPrepareParams.mAttributePathParamsListSize = 2;
+    auto attributePathParams = std::make_unique<chip::app::AttributePathParams[]>(readPrepareParams.mAttributePathParamsListSize);
+    // Subscribe to full wildcard paths, repeat twice to ensure chunking.
+    readPrepareParams.mpAttributePathParamsList = attributePathParams.get();
 
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 1;
     printf("\nSend subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
@@ -2377,13 +2629,12 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
         attributePathParams.release();
         EXPECT_EQ(readClient.SendAutoResubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
 
-#if CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE
-        // Mock attribute storage in src/app/util/mock/attribute-storage.cpp
-        // has the following items
+        // Mock attribute storage that is reset and resides in src/app/util/mock/attribute-storage.cpp
+        // has the following items:
         // - Endpoint 0xFFFE
         //    - cluster 0xFFF1'FC01 (2 attributes)
         //    - cluster 0xFFF1'FC02 (3 attributes)
@@ -2409,18 +2660,7 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
         // 0xFFFC::0xFFF1'FC02::0xFFF1'0004 is chunked.  For each of the two instances of that attribute
         // in the response, there will be one AttributeDataIB for the start of the list (which will include
         // some number of 256-byte elements), then one AttributeDataIB for each of the remaining elements.
-        //
-        // When EventList is enabled, for the first report for the list attribute we receive three
-        // of its items in the initial list, then the remaining items.  For the second report we
-        // receive 2 items in the initial list followed by the remaining items.
-        constexpr size_t kExpectedAttributeResponse = 29 * 2 + (kMockAttribute4ListLength - 3) + (kMockAttribute4ListLength - 2);
-#else
-        // When EventList is not enabled, the packet boundaries shift and for the first
-        // report for the list attribute we receive four of its items in the initial list,
-        // then additional items.  For the second report we receive 4 items in
-        // the initial list followed by additional items.
         constexpr size_t kExpectedAttributeResponse = 29 * 2 + (kMockAttribute4ListLength - 4) + (kMockAttribute4ListLength - 4);
-#endif
         EXPECT_EQ((unsigned) delegate.mNumAttributeResponse, kExpectedAttributeResponse);
         EXPECT_EQ(delegate.mNumArrayItems, 12);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe), 1u);
@@ -2439,7 +2679,7 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
 
             EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath), CHIP_NO_ERROR);
 
-            mpTestContext->DrainAndServiceIO();
+            DrainAndServiceIO();
 
             EXPECT_TRUE(delegate.mGotReport);
             // We subscribed wildcard path twice, so we will receive two reports here.
@@ -2465,7 +2705,7 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
             do
             {
                 last = delegate.mNumAttributeResponse;
-                mpTestContext->DrainAndServiceIO();
+                DrainAndServiceIO();
             } while (last != delegate.mNumAttributeResponse);
 
             // Mock endpoint3 has 13 attributes in total, and we subscribed twice.
@@ -2484,38 +2724,39 @@ TEST_F(TestReadInteraction, TestSubscribeWildcard)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Subscribe (wildcard, C3, A1), then setDirty (E2, C3, wildcard), receive one attribute after setDirty
-TEST_F(TestReadInteraction, TestSubscribePartialOverlap)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribePartialOverlap)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribePartialOverlap)
+void TestReadInteraction::TestSubscribePartialOverlap()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mEventPathParamsListSize = 0;
 
-    std::unique_ptr<chip::app::AttributePathParams[]> attributePathParams(new chip::app::AttributePathParams[2]);
-    attributePathParams[0].mClusterId              = chip::Test::MockClusterId(3);
-    attributePathParams[0].mAttributeId            = chip::Test::MockAttributeId(1);
-    readPrepareParams.mpAttributePathParamsList    = attributePathParams.get();
     readPrepareParams.mAttributePathParamsListSize = 1;
+    auto attributePathParams = std::make_unique<chip::app::AttributePathParams[]>(readPrepareParams.mAttributePathParamsListSize);
+    attributePathParams[0].mClusterId           = chip::Test::MockClusterId(3);
+    attributePathParams[0].mAttributeId         = chip::Test::MockAttributeId(1);
+    readPrepareParams.mpAttributePathParamsList = attributePathParams.get();
 
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 1;
     printf("\nSend subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
@@ -2523,7 +2764,7 @@ TEST_F(TestReadInteraction, TestSubscribePartialOverlap)
         attributePathParams.release();
         EXPECT_EQ(readClient.SendAutoResubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
 
@@ -2543,7 +2784,7 @@ TEST_F(TestReadInteraction, TestSubscribePartialOverlap)
 
             EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath), CHIP_NO_ERROR);
 
-            mpTestContext->DrainAndServiceIO();
+            DrainAndServiceIO();
 
             EXPECT_TRUE(delegate.mGotReport);
             EXPECT_EQ(delegate.mNumAttributeResponse, 1);
@@ -2555,39 +2796,40 @@ TEST_F(TestReadInteraction, TestSubscribePartialOverlap)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Subscribe (E2, C3, A1), then setDirty (wildcard, wildcard, wildcard), receive one attribute after setDirty
-TEST_F(TestReadInteraction, TestSubscribeSetDirtyFullyOverlap)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeSetDirtyFullyOverlap)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeSetDirtyFullyOverlap)
+void TestReadInteraction::TestSubscribeSetDirtyFullyOverlap()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mEventPathParamsListSize = 0;
 
-    std::unique_ptr<chip::app::AttributePathParams[]> attributePathParams(new chip::app::AttributePathParams[1]);
-    attributePathParams[0].mClusterId              = chip::Test::kMockEndpoint2;
-    attributePathParams[0].mClusterId              = chip::Test::MockClusterId(3);
-    attributePathParams[0].mAttributeId            = chip::Test::MockAttributeId(1);
-    readPrepareParams.mpAttributePathParamsList    = attributePathParams.get();
     readPrepareParams.mAttributePathParamsListSize = 1;
+    auto attributePathParams = std::make_unique<chip::app::AttributePathParams[]>(readPrepareParams.mAttributePathParamsListSize);
+    attributePathParams[0].mEndpointId          = chip::Test::kMockEndpoint2;
+    attributePathParams[0].mClusterId           = chip::Test::MockClusterId(3);
+    attributePathParams[0].mAttributeId         = chip::Test::MockAttributeId(1);
+    readPrepareParams.mpAttributePathParamsList = attributePathParams.get();
 
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 1;
     printf("\nSend subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
@@ -2595,7 +2837,7 @@ TEST_F(TestReadInteraction, TestSubscribeSetDirtyFullyOverlap)
         attributePathParams.release();
         EXPECT_EQ(readClient.SendAutoResubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
 
@@ -2612,7 +2854,7 @@ TEST_F(TestReadInteraction, TestSubscribeSetDirtyFullyOverlap)
             AttributePathParams dirtyPath;
             EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath), CHIP_NO_ERROR);
 
-            mpTestContext->DrainAndServiceIO();
+            DrainAndServiceIO();
 
             EXPECT_TRUE(delegate.mGotReport);
             EXPECT_EQ(delegate.mNumAttributeResponse, 1);
@@ -2624,20 +2866,22 @@ TEST_F(TestReadInteraction, TestSubscribeSetDirtyFullyOverlap)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Verify that subscription can be shut down just after receiving SUBSCRIBE RESPONSE,
 // before receiving any subsequent REPORT DATA.
-TEST_F(TestReadInteraction, TestSubscribeEarlyShutdown)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeEarlyShutdown)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeEarlyShutdown)
+void TestReadInteraction::TestSubscribeEarlyShutdown()
 {
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     InteractionModelEngine & engine    = *InteractionModelEngine::GetInstance();
     MockInteractionModelApp delegate;
 
     // Initialize Interaction Model Engine
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
-    EXPECT_EQ(engine.Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
+    EXPECT_EQ(engine.Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     // Subscribe to the attribute
     AttributePathParams attributePathParams;
@@ -2645,7 +2889,7 @@ TEST_F(TestReadInteraction, TestSubscribeEarlyShutdown)
     attributePathParams.mClusterId   = kTestClusterId;
     attributePathParams.mAttributeId = 1;
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = &attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
     readPrepareParams.mMinIntervalFloorSeconds     = 2;
@@ -2655,12 +2899,12 @@ TEST_F(TestReadInteraction, TestSubscribeEarlyShutdown)
     printf("Send subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 1);
@@ -2675,13 +2919,15 @@ TEST_F(TestReadInteraction, TestSubscribeEarlyShutdown)
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
     engine.Shutdown();
 
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeInvalidAttributePathRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeInvalidAttributePathRoundtrip)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeInvalidAttributePathRoundtrip)
+void TestReadInteraction::TestSubscribeInvalidAttributePathRoundtrip()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -2690,11 +2936,10 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeInvalidAttributePathRoundt
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
 
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::AttributePathParams attributePathParams[1];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
     readPrepareParams.mpAttributePathParamsList[0].mEndpointId  = kTestEndpointId;
@@ -2703,20 +2948,20 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeInvalidAttributePathRoundt
 
     readPrepareParams.mAttributePathParamsListSize = 1;
 
-    readPrepareParams.mSessionHolder.Grab(mpTestContext->GetSessionBobToAlice());
+    readPrepareParams.mSessionHolder.Grab(GetSessionBobToAlice());
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 1;
     printf("\nSend subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
         delegate.mNumAttributeResponse = 0;
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
 
@@ -2726,25 +2971,28 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeInvalidAttributePathRoundt
         uint16_t minInterval;
         uint16_t maxInterval;
         delegate.mpReadHandler->GetReportingIntervals(minInterval, maxInterval);
+        EXPECT_EQ(readPrepareParams.mMaxIntervalCeilingSeconds, delegate.mpReadHandler->GetSubscriberRequestedMaxInterval());
 
         // Advance monotonic timestamp for min interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(maxInterval));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_TRUE(engine->GetReportingEngine().IsRunScheduled());
         EXPECT_TRUE(engine->GetReportingEngine().IsRunScheduled());
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestReadShutdown)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadShutdown)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadShutdown)
+void TestReadInteraction::TestReadShutdown()
 {
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
     app::ReadClient * pClients[4];
@@ -2755,7 +3003,7 @@ TEST_F(TestReadInteraction, TestReadShutdown)
     //
     for (auto & client : pClients)
     {
-        client = Platform::New<app::ReadClient>(engine, &mpTestContext->GetExchangeManager(), delegate,
+        client = Platform::New<app::ReadClient>(engine, &GetExchangeManager(), delegate,
                                                 chip::app::ReadClient::InteractionType::Subscribe);
     }
 
@@ -2781,10 +3029,12 @@ TEST_F(TestReadInteraction, TestReadShutdown)
     Platform::Delete(pClients[2]);
 }
 
-TEST_F(TestReadInteraction, TestSubscribeInvalidInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeInvalidInterval)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeInvalidInterval)
+void TestReadInteraction::TestSubscribeInvalidInterval()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -2792,11 +3042,10 @@ TEST_F(TestReadInteraction, TestSubscribeInvalidInterval)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::AttributePathParams attributePathParams[1];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
     readPrepareParams.mpAttributePathParamsList[0].mEndpointId  = kTestEndpointId;
@@ -2805,41 +3054,42 @@ TEST_F(TestReadInteraction, TestSubscribeInvalidInterval)
 
     readPrepareParams.mAttributePathParamsListSize = 1;
 
-    readPrepareParams.mSessionHolder.Grab(mpTestContext->GetSessionBobToAlice());
+    readPrepareParams.mSessionHolder.Grab(GetSessionBobToAlice());
     readPrepareParams.mMinIntervalFloorSeconds   = 6;
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_ERROR_INVALID_ARGUMENT);
 
         printf("\nSend subscribe request message to Node: 0x" ChipLogFormatX64 "\n", ChipLogValueX64(chip::kTestDeviceNodeId));
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
 
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestPostSubscribeRoundtripStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestPostSubscribeRoundtripStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestPostSubscribeRoundtripStatusReportTimeout)
+void TestReadInteraction::TestPostSubscribeRoundtripStatusReportTimeout()
 {
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
 
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -2871,14 +3121,14 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestPostSubscribeRoundtripStatusReportT
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -2907,18 +3157,18 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestPostSubscribeRoundtripStatusReportT
 
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath2), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 2);
 
         // Wait for max interval to elapse
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMaxIntervalCeilingSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionBobToAlice();
 
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath1), CHIP_NO_ERROR);
 
@@ -2926,9 +3176,9 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestPostSubscribeRoundtripStatusReportT
 
         EXPECT_TRUE(engine->GetReportingEngine().IsRunScheduled());
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
-        mpTestContext->ExpireSessionAliceToBob();
+        ExpireSessionAliceToBob();
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 0u);
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
     }
@@ -2939,25 +3189,26 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestPostSubscribeRoundtripStatusReportT
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
-TEST_F(TestReadInteraction, TestSubscribeRoundtripStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeRoundtripStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeRoundtripStatusReportTimeout)
+void TestReadInteraction::TestSubscribeRoundtripStatusReportTimeout()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -2989,18 +3240,18 @@ TEST_F(TestReadInteraction, TestSubscribeRoundtripStatusReportTimeout)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->ExpireSessionAliceToBob();
+        ExpireSessionAliceToBob();
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionBobToAlice();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 0u);
@@ -3013,15 +3264,17 @@ TEST_F(TestReadInteraction, TestSubscribeRoundtripStatusReportTimeout)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
-TEST_F(TestReadInteraction, TestReadChunkingStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadChunkingStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadChunkingStatusReportTimeout)
+void TestReadInteraction::TestReadChunkingStatusReportTimeout()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -3029,8 +3282,7 @@ TEST_F(TestReadInteraction, TestReadChunkingStatusReportTimeout)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
@@ -3039,21 +3291,21 @@ TEST_F(TestReadInteraction, TestReadChunkingStatusReportTimeout)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(4);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->ExpireSessionAliceToBob();
-        mpTestContext->DrainAndServiceIO();
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionAliceToBob();
+        DrainAndServiceIO();
+        ExpireSessionBobToAlice();
 
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 0u);
         // By now we should have closed all exchanges and sent all pending acks, so
@@ -3063,25 +3315,26 @@ TEST_F(TestReadInteraction, TestReadChunkingStatusReportTimeout)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // ReadClient sends the read request, but handler fails to send the one report (SendMessage returns an error).
 // Since this is an un-chunked read, we are not in the AwaitingReportResponse state, so the "reports in flight"
 // counter should not increase.
-TEST_F(TestReadInteraction, TestReadReportFailure)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadReportFailure)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadReportFailure)
+void TestReadInteraction::TestReadReportFailure()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
@@ -3089,47 +3342,48 @@ TEST_F(TestReadInteraction, TestReadReportFailure)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(3);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(1);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeError = 1;
-        mpTestContext->GetLoopback().mMessageSendError              = CHIP_ERROR_INCORRECT_STATE;
+        GetLoopback().mNumMessagesToAllowBeforeError = 1;
+        GetLoopback().mMessageSendError              = CHIP_ERROR_INCORRECT_STATE;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 0u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
 
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeError = 0;
-        mpTestContext->GetLoopback().mMessageSendError              = CHIP_NO_ERROR;
+        GetLoopback().mNumMessagesToAllowBeforeError = 0;
+        GetLoopback().mMessageSendError              = CHIP_NO_ERROR;
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F(TestReadInteraction, TestSubscribeRoundtripChunkStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeRoundtripChunkStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeRoundtripChunkStatusReportTimeout)
+void TestReadInteraction::TestSubscribeRoundtripChunkStatusReportTimeout()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -3158,16 +3412,16 @@ TEST_F(TestReadInteraction, TestSubscribeRoundtripChunkStatusReportTimeout)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->ExpireSessionAliceToBob();
-        mpTestContext->DrainAndServiceIO();
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionAliceToBob();
+        DrainAndServiceIO();
+        ExpireSessionBobToAlice();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 0u);
@@ -3180,25 +3434,26 @@ TEST_F(TestReadInteraction, TestSubscribeRoundtripChunkStatusReportTimeout)
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
-TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestPostSubscribeRoundtripChunkStatusReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestPostSubscribeRoundtripChunkStatusReportTimeout)
+void TestReadInteraction::TestPostSubscribeRoundtripChunkStatusReportTimeout()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -3227,14 +3482,14 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkStatusReportTimeout)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -3250,55 +3505,56 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkStatusReportTimeout)
         dirtyPath1.mAttributeId = chip::Test::MockAttributeId(4);
 
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMaxIntervalCeilingSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath1), CHIP_NO_ERROR);
 
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         // Drop status report for the first chunked report, then expire session, handler would be timeout
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 1u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
 
-        mpTestContext->ExpireSessionAliceToBob();
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionAliceToBob();
+        ExpireSessionBobToAlice();
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
-TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestPostSubscribeRoundtripChunkReportTimeout)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestPostSubscribeRoundtripChunkReportTimeout)
+void TestReadInteraction::TestPostSubscribeRoundtripChunkReportTimeout()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -3327,14 +3583,14 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReportTimeout)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -3350,7 +3606,7 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReportTimeout)
         dirtyPath1.mAttributeId = chip::Test::MockAttributeId(4);
 
         gMockClock.AdvanceMonotonic(System::Clock::Seconds16(readPrepareParams.mMaxIntervalCeilingSeconds));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_EQ(engine->GetReportingEngine().SetDirty(dirtyPath1), CHIP_NO_ERROR);
 
@@ -3358,46 +3614,47 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReportTimeout)
         delegate.mNumAttributeResponse = 0;
 
         // Drop second chunked report then expire session, client would be timeout
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 2;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 2;
+        GetLoopback().mDroppedMessageCount              = 0;
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(engine->GetReportingEngine().GetNumReportsInFlight(), 1u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 3u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 3u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
 
-        mpTestContext->ExpireSessionAliceToBob();
-        mpTestContext->ExpireSessionBobToAlice();
+        ExpireSessionAliceToBob();
+        ExpireSessionBobToAlice();
         EXPECT_EQ(delegate.mError, CHIP_ERROR_TIMEOUT);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
-TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestPostSubscribeRoundtripChunkReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestPostSubscribeRoundtripChunkReport)
+void TestReadInteraction::TestPostSubscribeRoundtripChunkReport()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     chip::app::EventPathParams eventPathParams[2];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
     readPrepareParams.mpEventPathParamsList[0].mEndpointId = kTestEventEndpointId;
@@ -3426,14 +3683,14 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReport)
     readPrepareParams.mKeepSubscriptions = false;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
         printf("\nSend first subscribe request message to Node: 0x" ChipLogFormatX64 "\n",
                ChipLogValueX64(chip::kTestDeviceNodeId));
         delegate.mGotReport = false;
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -3456,7 +3713,7 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReport)
         // wait for min interval 1 seconds(in test, we use 0.9second considering the time variation), expect no event is
         // received, then wait for 0.5 seconds, then all chunked dirty reports are sent out, which would not honor minInterval
         gMockClock.AdvanceMonotonic(System::Clock::Milliseconds32(900));
-        mpTestContext->GetIOContext().DriveIO();
+        GetIOContext().DriveIO();
 
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
         System::Clock::Timestamp startTime = gMockClock.GetMonotonicTimestamp();
@@ -3465,7 +3722,7 @@ TEST_F(TestReadInteraction, TestPostSubscribeRoundtripChunkReport)
         // be rescheduled accordingly
         while (true)
         {
-            mpTestContext->GetIOContext().DriveIO();
+            GetIOContext().DriveIO();
             if ((gMockClock.GetMonotonicTimestamp() - startTime) >= System::Clock::Milliseconds32(500))
             {
                 break;
@@ -3498,19 +3755,20 @@ void CheckForInvalidAction(Test::MessageCapturer & messageLog)
 
 // Read Client sends the read request, Read Handler drops the response, then test injects unknown status reponse message for
 // Read Client.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientReceiveInvalidMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadClientReceiveInvalidMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadClientReceiveInvalidMessage)
+void TestReadInteraction::TestReadClientReceiveInvalidMessage()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3525,20 +3783,19 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientReceiveInvalidMessage)
     readPrepareParams.mAttributePathParamsListSize = 2;
 
     {
-        app::ReadClient readClient(engine, &mpTestContext->GetExchangeManager(), delegate,
-                                   chip::app::ReadClient::InteractionType::Read);
+        app::ReadClient readClient(engine, &GetExchangeManager(), delegate, chip::app::ReadClient::InteractionType::Read);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -3552,21 +3809,21 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientReceiveInvalidMessage)
         payloadHeader.SetExchangeID(0);
         payloadHeader.SetMessageType(chip::Protocols::InteractionModel::MsgType::StatusResponse);
 
-        chip::Test::MessageCapturer messageLog(*mpTestContext);
+        chip::Test::MessageCapturer messageLog(*this);
         messageLog.mCaptureStandaloneAcks = false;
 
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // The ReadHandler closed its exchange when it sent the Report Data (which we dropped).
         // Since we synthesized the StatusResponse to the ReadClient, instead of sending it from the ReadHandler,
@@ -3577,27 +3834,28 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadClientReceiveInvalidMessage)
     }
 
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client sends the subscribe request, Read Handler drops the response, then test injects unknown status response message
 // for Read Client.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidStatusResponse)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveInvalidStatusResponse)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveInvalidStatusResponse)
+void TestReadInteraction::TestSubscribeClientReceiveInvalidStatusResponse()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3615,17 +3873,17 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidStatus
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -3642,54 +3900,55 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidStatus
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // TODO: Need to validate what status is being sent to the ReadHandler
         // The ReadHandler's exchange is closed when we synthesize the subscribe response, since it sent the
         // Subscribe Response as the last message in the transaction.
         // Since we synthesized the subscribe response to the ReadClient, instead of sending it from the ReadHandler,
         // the only messages here are the ReadClient's StatusResponse to the unexpected message and an MRP ack.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
 
         EXPECT_EQ(delegate.mError, CHIP_IM_GLOBAL_STATUS(Busy));
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client sends the subscribe request, Read Handler drops the response, then test injects well-formed status response
 // message with Success for Read Client, we expect the error with CHIP_ERROR_INVALID_MESSAGE_TYPE
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveWellFormedStatusResponse)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveWellFormedStatusResponse)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveWellFormedStatusResponse)
+void TestReadInteraction::TestSubscribeClientReceiveWellFormedStatusResponse()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3707,17 +3966,17 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveWellFormedSta
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -3734,53 +3993,54 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveWellFormedSta
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // TODO: Need to validate what status is being sent to the ReadHandler
         // The ReadHandler's exchange is still open when we synthesize the StatusResponse.
         // Since we synthesized the StatusResponse to the ReadClient, instead of sending it from the ReadHandler,
         // the only messages here are the ReadClient's StatusResponse to the unexpected message and an MRP ack.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
 
         EXPECT_EQ(delegate.mError, CHIP_ERROR_INVALID_MESSAGE_TYPE);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client sends the subscribe request, Read Handler drops the response, then test injects invalid report message for Read
 // Client.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidReportMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveInvalidReportMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveInvalidReportMessage)
+void TestReadInteraction::TestSubscribeClientReceiveInvalidReportMessage()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3798,17 +4058,17 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidReport
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -3824,26 +4084,26 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidReport
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // TODO: Need to validate what status is being sent to the ReadHandler
         // The ReadHandler's exchange is still open when we synthesize the ReportData.
         // Since we synthesized the ReportData to the ReadClient, instead of sending it from the ReadHandler,
         // the only messages here are the ReadClient's StatusResponse to the unexpected message and an MRP ack.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
 
         EXPECT_EQ(delegate.mError, CHIP_ERROR_END_OF_TLV);
 
@@ -3851,27 +4111,28 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidReport
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client create the subscription, handler sends unsolicited malformed report to client,
 // InteractionModelEngine::OnUnsolicitedReportData would process this malformed report and sends out status report
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedInvalidReportMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedInvalidReportMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveUnsolicitedInvalidReportMessage)
+void TestReadInteraction::TestSubscribeClientReceiveUnsolicitedInvalidReportMessage()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3889,13 +4150,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedIn
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        GetLoopback().mSentMessageCount = 0;
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 5u);
+        DrainAndServiceIO();
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 5u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
         delegate.mpReadHandler = engine->ActiveHandlerAt(0);
@@ -3908,8 +4169,8 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedIn
         response.Init(&writer);
         EXPECT_EQ(writer.Finalize(&msgBuf), CHIP_NO_ERROR);
 
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
-        auto exchange                                  = InteractionModelEngine::GetInstance()->GetExchangeManager()->NewContext(
+        GetLoopback().mSentMessageCount = 0;
+        auto exchange                   = InteractionModelEngine::GetInstance()->GetExchangeManager()->NewContext(
             delegate.mpReadHandler->mSessionHandle.Get().Value(), delegate.mpReadHandler);
 
         delegate.mpReadHandler->mExchangeCtx.Grab(exchange);
@@ -3918,12 +4179,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedIn
                                                                     std::move(msgBuf),
                                                                     Messaging::SendMessageFlags::kExpectResponse),
                   CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // The server sends a data report.
         // The client receives the data report data and sends out status report with invalid action.
         // The server acks the status report.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 3u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 3u);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
@@ -3931,19 +4192,20 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedIn
 
 // Read Client sends the subscribe request, Read Handler drops the subscribe response, then test injects invalid subscribe
 // response message
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidSubscribeResponseMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveInvalidSubscribeResponseMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveInvalidSubscribeResponseMessage)
+void TestReadInteraction::TestSubscribeClientReceiveInvalidSubscribeResponseMessage()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -3961,17 +4223,17 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidSubscr
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 3;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 3;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -3990,52 +4252,53 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveInvalidSubscr
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 4u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 4u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // TODO: Need to validate what status is being sent to the ReadHandler
         // The ReadHandler's exchange is still open when we synthesize the subscribe response.
         // Since we synthesized the subscribe response to the ReadClient, instead of sending it from the ReadHandler,
         // the only messages here are the ReadClient's StatusResponse to the unexpected message and an MRP ack.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
 
         EXPECT_EQ(delegate.mError, CHIP_ERROR_INVALID_SUBSCRIPTION);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client create the subscription, handler sends unsolicited malformed report with invalid subscription id to client,
 // InteractionModelEngine::OnUnsolicitedReportData would process this malformed report and sends out status report
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId)
+void TestReadInteraction::TestSubscribeClientReceiveUnsolicitedReportMessageWithInvalidSubscriptionId()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     chip::app::AttributePathParams attributePathParams[2];
     readPrepareParams.mpAttributePathParamsList                 = attributePathParams;
@@ -4053,13 +4316,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedRe
     readPrepareParams.mMaxIntervalCeilingSeconds = 5;
 
     {
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        GetLoopback().mSentMessageCount = 0;
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 5u);
+        DrainAndServiceIO();
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 5u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
         delegate.mpReadHandler = engine->ActiveHandlerAt(0);
@@ -4075,8 +4338,8 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedRe
 
         EXPECT_EQ(writer.Finalize(&msgBuf), CHIP_NO_ERROR);
 
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
-        auto exchange                                  = InteractionModelEngine::GetInstance()->GetExchangeManager()->NewContext(
+        GetLoopback().mSentMessageCount = 0;
+        auto exchange                   = InteractionModelEngine::GetInstance()->GetExchangeManager()->NewContext(
             delegate.mpReadHandler->mSessionHandle.Get().Value(), delegate.mpReadHandler);
 
         delegate.mpReadHandler->mExchangeCtx.Grab(exchange);
@@ -4085,13 +4348,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedRe
                                                                     std::move(msgBuf),
                                                                     Messaging::SendMessageFlags::kExpectResponse),
                   CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // The server sends a data report.
         // The client receives the data report data and sends out status report with invalid subsciption.
         // The server should respond with a status report of its own, leading to 4 messages (because
         // the client would ack the server's status report), just sends an ack to the status report it got.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 3u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 3u);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
@@ -4100,10 +4363,12 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeClientReceiveUnsolicitedRe
 // TestReadChunkingInvalidSubscriptionId will try to read a few large attributes, the report won't fit into the MTU and result
 // in chunking, second report has different subscription id from the first one, read client sends out the status report with
 // invalid subscription
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadChunkingInvalidSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadChunkingInvalidSubscriptionId)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadChunkingInvalidSubscriptionId)
+void TestReadInteraction::TestReadChunkingInvalidSubscriptionId()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -4111,8 +4376,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadChunkingInvalidSubscriptionId)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
     EXPECT_FALSE(delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
@@ -4121,24 +4385,24 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadChunkingInvalidSubscriptionId)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(4);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpEventPathParamsList        = nullptr;
     readPrepareParams.mEventPathParamsListSize     = 0;
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 3;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 3;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         System::PacketBufferHandle msgBuf = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
         EXPECT_FALSE(msgBuf.IsNull());
@@ -4157,56 +4421,57 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadChunkingInvalidSubscriptionId)
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 4u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 4u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 0;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 0;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 0;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         readClient.OnMessageReceived(readClient.mExchange.Get(), payloadHeader, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // TODO: Need to validate what status is being sent to the ReadHandler
         // The ReadHandler's exchange is still open when we synthesize the report data message.
         // Since we synthesized the second report data message to the ReadClient with invalid subscription id, instead of
         // sending it from the ReadHandler, the only messages here are the ReadClient's StatusResponse to the unexpected message
         // and an MRP ack.
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
 
         EXPECT_EQ(delegate.mError, CHIP_ERROR_INVALID_SUBSCRIPTION);
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client sends a malformed subscribe request, interaction model engine fails to parse the request and generates a status
 // report to client, and client is closed.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerMalformedSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerMalformedSubscribeRequest)
+void TestReadInteraction::TestReadHandlerMalformedSubscribeRequest()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         System::PacketBufferHandle msgBuf;
@@ -4226,32 +4491,33 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedSubscribeReques
                                                     Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse)),
                   CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mError, CHIP_IM_GLOBAL_STATUS(InvalidAction));
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Read Client sends a malformed read request, interaction model engine fails to parse the request and generates a status report
 // to client, and client is closed.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedReadRequest1)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerMalformedReadRequest1)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerMalformedReadRequest1)
+void TestReadInteraction::TestReadHandlerMalformedReadRequest1()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         System::PacketBufferHandle msgBuf;
@@ -4269,32 +4535,33 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedReadRequest1)
         EXPECT_EQ(readClient.mExchange->SendMessage(Protocols::InteractionModel::MsgType::ReadRequest, std::move(msgBuf),
                                                     Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse)),
                   CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mError, CHIP_IM_GLOBAL_STATUS(InvalidAction));
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Read Client sends a malformed read request, read handler fails to parse the request and generates a status report to client,
 // and client is closed.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedReadRequest2)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerMalformedReadRequest2)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerMalformedReadRequest2)
+void TestReadInteraction::TestReadHandlerMalformedReadRequest2()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Read);
 
         System::PacketBufferHandle msgBuf;
@@ -4312,28 +4579,29 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerMalformedReadRequest2)
         EXPECT_EQ(readClient.mExchange->SendMessage(Protocols::InteractionModel::MsgType::ReadRequest, std::move(msgBuf),
                                                     Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse)),
                   CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         ChipLogError(DataManagement, "The error is %s", ErrorStr(delegate.mError));
         EXPECT_EQ(delegate.mError, CHIP_IM_GLOBAL_STATUS(InvalidAction));
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Read Client creates a subscription with the server, server sends chunked reports, after the handler sends out the first
 // chunked report, client sends out invalid write request message, handler sends status report with invalid action and closes
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendUnknownMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeSendUnknownMessage)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeSendUnknownMessage)
+void TestReadInteraction::TestSubscribeSendUnknownMessage()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     chip::app::AttributePathParams attributePathParams[1];
     // Mock Attribute 4 is a big attribute, with 6 large OCTET_STRING
@@ -4341,34 +4609,34 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendUnknownMessage)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(4);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
 
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
+        GetLoopback().mSentMessageCount = 0;
 
         // Server sends out status report, client should send status report along with Piggybacking ack, but we don't do that
         // Instead, we send out unknown message to server
@@ -4381,34 +4649,35 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendUnknownMessage)
         writer.Finalize(&msgBuf);
 
         readClient.mExchange->SendMessage(Protocols::InteractionModel::MsgType::WriteRequest, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         // client sends invalid write request, server sends out status report with invalid action and closes, client replies
         // with status report server replies with MRP Ack
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 4u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 4u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client creates a subscription with the server, server sends chunked reports, after the handler sends out invalid status
 // report, client sends out invalid status report message, handler sends status report with invalid action and close
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendInvalidStatusReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeSendInvalidStatusReport)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeSendInvalidStatusReport)
+void TestReadInteraction::TestSubscribeSendInvalidStatusReport()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     chip::app::AttributePathParams attributePathParams[1];
     // Mock Attribute 4 is a big attribute, with 6 large OCTET_STRING
@@ -4416,30 +4685,30 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendInvalidStatusReport)
     attributePathParams[0].mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = chip::Test::MockAttributeId(4);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
-        mpTestContext->GetLoopback().mSentMessageCount                 = 0;
-        mpTestContext->GetLoopback().mNumMessagesToDrop                = 1;
-        mpTestContext->GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
-        mpTestContext->GetLoopback().mDroppedMessageCount              = 0;
+        GetLoopback().mSentMessageCount                 = 0;
+        GetLoopback().mNumMessagesToDrop                = 1;
+        GetLoopback().mNumMessagesToAllowBeforeDropping = 1;
+        GetLoopback().mDroppedMessageCount              = 0;
 
         EXPECT_EQ(readClient.SendRequest(readPrepareParams), CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // Since we are dropping packets, things are not getting acked.  Set up
         // our MRP state to look like what it would have looked like if the
         // packet had not gotten dropped.
-        PretendWeGotReplyFromServer(*mpTestContext, readClient.mExchange.Get());
+        PretendWeGotReplyFromServer(*this, readClient.mExchange.Get());
 
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 2u);
-        EXPECT_EQ(mpTestContext->GetLoopback().mDroppedMessageCount, 1u);
-        mpTestContext->GetLoopback().mSentMessageCount = 0;
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 2u);
+        EXPECT_EQ(GetLoopback().mDroppedMessageCount, 1u);
+        GetLoopback().mSentMessageCount = 0;
 
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
@@ -4452,40 +4721,41 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscribeSendInvalidStatusReport)
         writer.Finalize(&msgBuf);
 
         readClient.mExchange->SendMessage(Protocols::InteractionModel::MsgType::StatusResponse, std::move(msgBuf));
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         // client sends malformed status response, server sends out status report with invalid action and close, client replies
         // with status report server replies with MRP Ack
-        EXPECT_EQ(mpTestContext->GetLoopback().mSentMessageCount, 4u);
+        EXPECT_EQ(GetLoopback().mSentMessageCount, 4u);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(), 0u);
     }
 
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->ExpireSessionBobToAlice();
-    mpTestContext->CreateSessionAliceToBob();
-    mpTestContext->CreateSessionBobToAlice();
+    ExpireSessionAliceToBob();
+    ExpireSessionBobToAlice();
+    CreateSessionAliceToBob();
+    CreateSessionBobToAlice();
 }
 
 // Read Client sends a malformed subscribe request, the server fails to parse the request and generates a status report to the
 // client, and client closes itself.
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerInvalidSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestReadHandlerInvalidSubscribeRequest)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestReadHandlerInvalidSubscribeRequest)
+void TestReadInteraction::TestReadHandlerInvalidSubscribeRequest()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         System::PacketBufferHandle msgBuf;
@@ -4503,20 +4773,22 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestReadHandlerInvalidSubscribeRequest)
         EXPECT_EQ(readClient.mExchange->SendMessage(Protocols::InteractionModel::MsgType::SubscribeRequest, std::move(msgBuf),
                                                     Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse)),
                   CHIP_NO_ERROR);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
         EXPECT_EQ(delegate.mError, CHIP_IM_GLOBAL_STATUS(InvalidAction));
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 // Create the subscription, then remove the corresponding fabric in client and handler, the corresponding
 // client and handler would be released as well.
-TEST_F(TestReadInteraction, TestSubscribeInvalidateFabric)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscribeInvalidateFabric)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscribeInvalidateFabric)
+void TestReadInteraction::TestSubscribeInvalidateFabric()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -4524,55 +4796,58 @@ TEST_F(TestReadInteraction, TestSubscribeInvalidateFabric)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
-    readPrepareParams.mpAttributePathParamsList    = new chip::app::AttributePathParams[1];
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
+
     readPrepareParams.mAttributePathParamsListSize = 1;
-
-    readPrepareParams.mpAttributePathParamsList[0].mEndpointId  = chip::Test::kMockEndpoint3;
-    readPrepareParams.mpAttributePathParamsList[0].mClusterId   = chip::Test::MockClusterId(2);
-    readPrepareParams.mpAttributePathParamsList[0].mAttributeId = chip::Test::MockAttributeId(1);
+    auto attributePathParams = std::make_unique<chip::app::AttributePathParams[]>(readPrepareParams.mAttributePathParamsListSize);
+    attributePathParams[0].mEndpointId          = chip::Test::kMockEndpoint3;
+    attributePathParams[0].mClusterId           = chip::Test::MockClusterId(2);
+    attributePathParams[0].mAttributeId         = chip::Test::MockAttributeId(1);
+    readPrepareParams.mpAttributePathParamsList = attributePathParams.get();
 
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 0;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
 
+        attributePathParams.release();
         EXPECT_EQ(readClient.SendAutoResubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe), 1u);
         ASSERT_NE(engine->ActiveHandlerAt(0), nullptr);
         delegate.mpReadHandler = engine->ActiveHandlerAt(0);
 
-        mpTestContext->GetFabricTable().Delete(mpTestContext->GetAliceFabricIndex());
+        GetFabricTable().Delete(GetAliceFabricIndex());
         EXPECT_EQ(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe), 0u);
-        mpTestContext->GetFabricTable().Delete(mpTestContext->GetBobFabricIndex());
+        GetFabricTable().Delete(GetBobFabricIndex());
         EXPECT_EQ(delegate.mError, CHIP_ERROR_IM_FABRIC_DELETED);
-        mpTestContext->ExpireSessionAliceToBob();
-        mpTestContext->ExpireSessionBobToAlice();
-        mpTestContext->CreateAliceFabric();
-        mpTestContext->CreateBobFabric();
-        mpTestContext->CreateSessionAliceToBob();
-        mpTestContext->CreateSessionBobToAlice();
+        ExpireSessionAliceToBob();
+        ExpireSessionBobToAlice();
+        CreateAliceFabric();
+        CreateBobFabric();
+        CreateSessionAliceToBob();
+        CreateSessionBobToAlice();
     }
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
     engine->Shutdown();
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestShutdownSubscription)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestShutdownSubscription)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestShutdownSubscription)
+void TestReadInteraction::TestShutdownSubscription()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
@@ -4580,29 +4855,30 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestShutdownSubscription)
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
-    readPrepareParams.mpAttributePathParamsList    = new chip::app::AttributePathParams[1];
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
+
     readPrepareParams.mAttributePathParamsListSize = 1;
-
-    readPrepareParams.mpAttributePathParamsList[0].mEndpointId  = chip::Test::kMockEndpoint3;
-    readPrepareParams.mpAttributePathParamsList[0].mClusterId   = chip::Test::MockClusterId(2);
-    readPrepareParams.mpAttributePathParamsList[0].mAttributeId = chip::Test::MockAttributeId(1);
+    auto attributePathParams = std::make_unique<chip::app::AttributePathParams[]>(readPrepareParams.mAttributePathParamsListSize);
+    attributePathParams[0].mEndpointId          = chip::Test::kMockEndpoint3;
+    attributePathParams[0].mClusterId           = chip::Test::MockClusterId(2);
+    attributePathParams[0].mAttributeId         = chip::Test::MockAttributeId(1);
+    readPrepareParams.mpAttributePathParamsList = attributePathParams.get();
 
     readPrepareParams.mMinIntervalFloorSeconds   = 0;
     readPrepareParams.mMaxIntervalCeilingSeconds = 0;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
 
+        attributePathParams.release();
         EXPECT_EQ(readClient.SendAutoResubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe), 1u);
@@ -4613,7 +4889,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestShutdownSubscription)
     }
     engine->Shutdown();
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 }
 
 /**
@@ -4621,21 +4897,22 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestShutdownSubscription)
  * session it has is defunct.  Makes sure we correctly tear down the ReadHandler
  * and don't increment the "reports in flight" count.
  */
-TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscriptionReportWithDefunctSession)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteraction, TestSubscriptionReportWithDefunctSession)
+TEST_F_FROM_FIXTURE_NO_BODY(TestReadInteractionSync, TestSubscriptionReportWithDefunctSession)
+void TestReadInteraction::TestSubscriptionReportWithDefunctSession()
 {
 
-    Messaging::ReliableMessageMgr * rm = mpTestContext->GetExchangeManager().GetReliableMessageMgr();
+    Messaging::ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
     // Shouldn't have anything in the retransmit table when starting the test.
     EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
-    EXPECT_EQ(engine->Init(&mpTestContext->GetExchangeManager(), &mpTestContext->GetFabricTable(), gReportScheduler),
-              CHIP_NO_ERROR);
+    EXPECT_EQ(engine->Init(&GetExchangeManager(), &GetFabricTable(), gReportScheduler), CHIP_NO_ERROR);
 
     AttributePathParams subscribePath(chip::Test::kMockEndpoint3, chip::Test::MockClusterId(2), chip::Test::MockAttributeId(1));
 
-    ReadPrepareParams readPrepareParams(mpTestContext->GetSessionBobToAlice());
+    ReadPrepareParams readPrepareParams(GetSessionBobToAlice());
     readPrepareParams.mpAttributePathParamsList    = &subscribePath;
     readPrepareParams.mAttributePathParamsListSize = 1;
 
@@ -4643,14 +4920,14 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscriptionReportWithDefunctSessio
     readPrepareParams.mMaxIntervalCeilingSeconds = 0;
 
     {
-        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &mpTestContext->GetExchangeManager(), delegate,
+        app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &GetExchangeManager(), delegate,
                                    chip::app::ReadClient::InteractionType::Subscribe);
 
         delegate.mGotReport = false;
 
         EXPECT_EQ(readClient.SendSubscribeRequest(std::move(readPrepareParams)), CHIP_NO_ERROR);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 1);
@@ -4663,13 +4940,13 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscriptionReportWithDefunctSessio
 
         // Verify that the session we will reset later is the one we will mess
         // with now.
-        EXPECT_EQ(SessionHandle(*readHandler->GetSession()), mpTestContext->GetSessionAliceToBob());
+        EXPECT_EQ(SessionHandle(*readHandler->GetSession()), GetSessionAliceToBob());
 
         // Test that we send reports as needed.
         delegate.mGotReport            = false;
         delegate.mNumAttributeResponse = 0;
         engine->GetReportingEngine().SetDirty(subscribePath);
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_TRUE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 1);
@@ -4684,7 +4961,7 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscriptionReportWithDefunctSessio
         delegate.mNumAttributeResponse = 0;
         engine->GetReportingEngine().SetDirty(subscribePath);
 
-        mpTestContext->DrainAndServiceIO();
+        DrainAndServiceIO();
 
         EXPECT_FALSE(delegate.mGotReport);
         EXPECT_EQ(delegate.mNumAttributeResponse, 0);
@@ -4694,11 +4971,11 @@ TEST_F_FROM_FIXTURE(TestReadInteraction, TestSubscriptionReportWithDefunctSessio
     }
     engine->Shutdown();
     EXPECT_EQ(engine->GetNumActiveReadClients(), 0u);
-    EXPECT_EQ(mpTestContext->GetExchangeManager().GetNumActiveExchanges(), 0u);
+    EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
 
     // Get rid of our defunct session.
-    mpTestContext->ExpireSessionAliceToBob();
-    mpTestContext->CreateSessionAliceToBob();
+    ExpireSessionAliceToBob();
+    CreateSessionAliceToBob();
 }
 
 } // namespace app
