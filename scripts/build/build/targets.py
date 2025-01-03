@@ -197,6 +197,7 @@ def BuildHostTarget():
     target.AppendModifier('disable-dnssd-tests', enable_dnssd_tests=False).OnlyIfRe('-tests')
     target.AppendModifier('chip-casting-simplified', chip_casting_simplified=True).OnlyIfRe('-tv-casting-app')
     target.AppendModifier('googletest', use_googletest=True).OnlyIfRe('-tests')
+    target.AppendModifier('terms-and-conditions', terms_and_conditions_required=True)
 
     return target
 
@@ -770,6 +771,7 @@ def BuildTelinkTarget():
         TargetPart('tlsr9528a_retention', board=TelinkBoard.TLSR9528A_RETENTION),
         TargetPart('tlsr9258a', board=TelinkBoard.TLSR9258A),
         TargetPart('tlsr9258a_retention', board=TelinkBoard.TLSR9258A_RETENTION),
+        TargetPart('tl3218x', board=TelinkBoard.TL3218X),
     ])
 
     target.AppendFixedTargets([
@@ -801,6 +803,7 @@ def BuildTelinkTarget():
     target.AppendModifier('mars', mars_board_config=True)
     target.AppendModifier('usb', usb_board_config=True)
     target.AppendModifier('compress-lzma', compress_lzma_config=True)
+    target.AppendModifier('thread-analyzer', thread_analyzer_config=True)
 
     return target
 
