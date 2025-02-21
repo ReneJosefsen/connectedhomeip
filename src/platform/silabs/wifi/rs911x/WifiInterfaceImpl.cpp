@@ -71,10 +71,6 @@ osThreadAttr_t kDrvTaskAttr = { .name       = "drv_rsi",
                                 .stack_size = kDrvTaskSize,
                                 .priority   = osPriorityHigh };
 
-#if (RSI_BLE_ENABLE)
-extern rsi_semaphore_handle_t sl_rs_ble_init_sem;
-#endif
-
 static osMessageQueueId_t sWifiEventQueue = NULL;
 /*
  * This file implements the interface to the RSI SAPIs
@@ -142,6 +138,30 @@ CHIP_ERROR ResetCounters()
 
     return CHIP_NO_ERROR;
 }
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+CHIP_ERROR ConfigurePowerSave()
+{
+    int32_t status = RSI_SUCCESS;
+#ifdef RSI_BLE_ENABLE
+    status = rsi_bt_power_save_profile(RSI_SLEEP_MODE_2, RSI_MAX_PSP);
+    VerifyOrReturnError(status == RSI_SUCCESS, CHIP_ERROR_INTERNAL,
+                        ChipLogError(DeviceLayer, "BT Powersave Config Failed, Error Code : 0x%lX", status));
+#endif /* RSI_BLE_ENABLE */
+
+    status = rsi_wlan_power_save_profile(RSI_SLEEP_MODE_2, RSI_MAX_PSP);
+    VerifyOrReturnError(status == RSI_SUCCESS, CHIP_ERROR_INTERNAL,
+                        ChipLogError(DeviceLayer, "WLAN Powersave Config Failed, Error Code : 0x%lX", status));
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ConfigureBroadcastFilter(bool enableBroadcastFilter)
+{
+    // TODO: Implement Broadcast filtering. We do a silent failure to avoid causing problems in higher layers.
+    return CHIP_NO_ERROR;
+}
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 
 /******************************************************************
  * @fn   void rsi_wireless_driver_task_wrapper(void * argument)
@@ -330,10 +350,6 @@ static int32_t sl_matter_wifi_init(void)
         ChipLogError(DeviceLayer, "rsi_wlan_register_callbacks failed: %ld", status);
         return status;
     }
-
-#if (RSI_BLE_ENABLE)
-    rsi_semaphore_post(&sl_rs_ble_init_sem);
-#endif
 
     wfx_rsi.dev_state.Set(WifiState::kStationInit);
     return RSI_SUCCESS;
@@ -646,15 +662,17 @@ void ProcessEvent(WifiPlatformEvent event)
     }
 }
 
+CHIP_ERROR InitWiFiStack(void)
+{
+    int32_t status = sl_matter_wifi_init();
+    VerifyOrReturnError(status == RSI_SUCCESS, CHIP_ERROR_INTERNAL,
+                        ChipLogError(DeviceLayer, "sl_matter_wifi_init failed: %lx", status));
+    return CHIP_NO_ERROR;
+}
+
 void MatterWifiTask(void * arg)
 {
     (void) arg;
-    uint32_t rsi_status = sl_matter_wifi_init();
-    if (rsi_status != RSI_SUCCESS)
-    {
-        ChipLogError(DeviceLayer, "MatterWifiTask: sl_matter_wifi_init failed: %ld", rsi_status);
-        return;
-    }
     WifiPlatformEvent event;
     sl_matter_lwip_start();
     sl_matter_wifi_task_started();
@@ -786,36 +804,3 @@ int32_t wfx_rsi_send_data(void * p, uint16_t len)
 
     return status;
 }
-
-#if SL_ICD_ENABLED
-/*********************************************************************
- * @fn  sl_status_t wfx_power_save(void)
- * @brief
- *      Implements the power save in sleepy application
- * @param[in]  None
- * @return  SL_STATUS_OK if successful,
- *          SL_STATUS_FAIL otherwise
- ***********************************************************************/
-sl_status_t wfx_power_save(void)
-{
-    int32_t status;
-#ifdef RSI_BLE_ENABLE
-    status = rsi_bt_power_save_profile(RSI_SLEEP_MODE_2, RSI_MAX_PSP);
-    if (status != RSI_SUCCESS)
-    {
-        ChipLogError(DeviceLayer, "BT Powersave Config Failed, Error Code : 0x%lX", status);
-        return SL_STATUS_FAIL;
-    }
-#endif /* RSI_BLE_ENABLE */
-
-    status = rsi_wlan_power_save_profile(RSI_SLEEP_MODE_2, RSI_MAX_PSP);
-    if (status != RSI_SUCCESS)
-    {
-        ChipLogError(DeviceLayer, "Powersave Config Failed, Error Code : 0x%lX", status);
-        return SL_STATUS_FAIL;
-    }
-
-    ChipLogDetail(DeviceLayer, "Powersave Config Success");
-    return SL_STATUS_OK;
-}
-#endif /* SL_ICD_ENABLED */

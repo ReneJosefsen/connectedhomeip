@@ -21,8 +21,10 @@
 #include <app/ConcreteClusterPath.h>
 #include <app/data-model-provider/MetadataList.h>
 #include <app/data-model-provider/MetadataTypes.h>
+#include <app/data-model-provider/ProviderMetadataTree.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/support/CodeUtils.h>
+#include <protocols/interaction_model/StatusCode.h>
 
 #include <optional>
 
@@ -44,7 +46,7 @@ public:
 private:
     ProviderMetadataTree * mProvider;
     EndpointId mEndpointId = kInvalidEndpointId;
-    MetadataList<ServerClusterEntry> mClusterEntries;
+    ReadOnlyBuffer<ServerClusterEntry> mClusterEntries;
 };
 
 /// Helps search for a specific server attribute in the given
@@ -61,30 +63,25 @@ public:
 private:
     ProviderMetadataTree * mProvider;
     ConcreteClusterPath mClusterPath;
-    MetadataList<AttributeEntry> mAttributes;
+    ReadOnlyBuffer<AttributeEntry> mAttributes;
 };
 
-/// Helps search for a specific server endpoint in the given
-/// metadata provider.
+/// Validates that the cluster identified by `path` exists within the given provider.
 ///
-/// Facilitates the operation of "find an endpoint with a given ID".
-class EndpointFinder
-{
-public:
-    EndpointFinder(ProviderMetadataTree * provider) : mProvider(provider)
-    {
-        if (mProvider != nullptr)
-        {
-            mEndpoints = mProvider->Endpoints();
-        }
-    }
+/// If the endpoint identified by the path does not exist, will return Status::UnsupportedEndpoint.
+/// If the endpoint exists but does not have the cluster identified by the path, will return Status::UnsupportedCluster.
+///
+/// otherwise, it will return successStatus.
+Protocols::InteractionModel::Status ValidateClusterPath(ProviderMetadataTree * provider, const ConcreteClusterPath & path,
+                                                        Protocols::InteractionModel::Status successStatus);
 
-    std::optional<EndpointEntry> Find(EndpointId endpointId);
-
-private:
-    ProviderMetadataTree * mProvider;
-    MetadataList<EndpointEntry> mEndpoints;
-};
+/// Validates that the cluster identified by `path` exists within the given provider.
+/// If the endpoint does not exist, will return Status::UnsupportedEndpoint.
+/// If the endpoint exists but does not have the cluster identified by the path, will return Status::UnsupportedCluster.
+///
+/// Otherwise, will return successStatus.
+Protocols::InteractionModel::Status ValidateClusterPath(ProviderMetadataTree * provider, const ConcreteClusterPath & path,
+                                                        Protocols::InteractionModel::Status successStatus);
 
 } // namespace DataModel
 } // namespace app

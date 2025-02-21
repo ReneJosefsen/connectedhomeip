@@ -37,9 +37,11 @@
 #include <app/EventPathParams.h>
 #include <app/RequiredPrivilege.h>
 #include <app/data-model-provider/ActionReturnStatus.h>
+#include <app/data-model-provider/MetadataList.h>
 #include <app/data-model-provider/MetadataLookup.h>
 #include <app/data-model-provider/MetadataTypes.h>
 #include <app/data-model-provider/OperationTypes.h>
+#include <app/data-model/List.h>
 #include <app/util/IMClusterCommandHandler.h>
 #include <app/util/af-types.h>
 #include <app/util/endpoint-config-api.h>
@@ -91,8 +93,7 @@ bool MayHaveAccessibleEventPathForEndpoint(DataModel::Provider * aProvider, Endp
                                                                aSubjectDescriptor);
     }
 
-    auto serverClusters = aProvider->ServerClusters(aEventPath.mEndpointId);
-    for (auto & cluster : serverClusters.GetSpanValidForLifetime())
+    for (auto & cluster : aProvider->ServerClustersIgnoreError(aEventPath.mEndpointId))
     {
         if (MayHaveAccessibleEventPathForEndpointAndCluster(ConcreteClusterPath(aEventPath.mEndpointId, cluster.clusterId),
                                                             aEventPath, aSubjectDescriptor))
@@ -114,8 +115,7 @@ bool MayHaveAccessibleEventPath(DataModel::Provider * aProvider, const EventPath
         return MayHaveAccessibleEventPathForEndpoint(aProvider, aEventPath.mEndpointId, aEventPath, subjectDescriptor);
     }
 
-    auto endpoints = aProvider->Endpoints();
-    for (const DataModel::EndpointEntry & ep : endpoints.GetSpanValidForLifetime())
+    for (const DataModel::EndpointEntry & ep : aProvider->EndpointsIgnoreError())
     {
         if (MayHaveAccessibleEventPathForEndpoint(aProvider, ep.id, aEventPath, subjectDescriptor))
         {
@@ -1790,8 +1790,9 @@ Protocols::InteractionModel::Status InteractionModelEngine::CheckCommandExistenc
 {
     auto provider = GetDataModelProvider();
 
-    DataModel::MetadataList<DataModel::AcceptedCommandEntry> acceptedCommands = provider->AcceptedCommands(aCommandPath);
-    for (auto & existing : acceptedCommands.GetSpanValidForLifetime())
+    DataModel::ListBuilder<DataModel::AcceptedCommandEntry> acceptedCommands;
+    (void) provider->AcceptedCommands(aCommandPath, acceptedCommands);
+    for (auto & existing : acceptedCommands.TakeBuffer())
     {
         if (existing.commandId == aCommandPath.mCommandId)
         {
@@ -1800,28 +1801,8 @@ Protocols::InteractionModel::Status InteractionModelEngine::CheckCommandExistenc
         }
     }
 
-    {
-        DataModel::ServerClusterFinder finder(provider);
-        if (finder.Find(aCommandPath).has_value())
-        {
-            // cluster exists, so command is invalid
-            return Protocols::InteractionModel::Status::UnsupportedCommand;
-        }
-    }
-
-    // At this point either cluster or endpoint does not exist. If we find the endpoint, then the cluster
-    // is invalid
-    {
-        DataModel::EndpointFinder finder(provider);
-        if (finder.Find(aCommandPath.mEndpointId))
-        {
-            // endpoint exists, so cluster is invalid
-            return Protocols::InteractionModel::Status::UnsupportedCluster;
-        }
-    }
-
-    // endpoint not found
-    return Protocols::InteractionModel::Status::UnsupportedEndpoint;
+    // invalid command, return the right failure status
+    return DataModel::ValidateClusterPath(provider, aCommandPath, Protocols::InteractionModel::Status::UnsupportedCommand);
 }
 
 DataModel::Provider * InteractionModelEngine::SetDataModelProvider(DataModel::Provider * model)
@@ -1966,12 +1947,20 @@ void InteractionModelEngine::OnFabricRemoved(const FabricTable & fabricTable, Fa
     });
 
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
-    for (auto * readClient = mpActiveReadClientList; readClient != nullptr; readClient = readClient->GetNextClient())
+    for (auto * readClient = mpActiveReadClientList; readClient != nullptr;)
     {
+        // ReadClient::Close may delete the read client so that readClient->GetNextClient() will be use-after-free.
+        // We need save readClient as nextReadClient before closing.
         if (readClient->GetFabricIndex() == fabricIndex)
         {
             ChipLogProgress(InteractionModel, "Fabric removed, deleting obsolete read client with FabricIndex: %u", fabricIndex);
+            auto * nextReadClient = readClient->GetNextClient();
             readClient->Close(CHIP_ERROR_IM_FABRIC_DELETED, false);
+            readClient = nextReadClient;
+        }
+        else
+        {
+            readClient = readClient->GetNextClient();
         }
     }
 #endif // CHIP_CONFIG_ENABLE_READ_CLIENT

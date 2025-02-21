@@ -15,9 +15,13 @@
  */
 #include <app/data-model-provider/MetadataLookup.h>
 
+#include <app/data-model-provider/MetadataList.h>
+
 namespace chip {
 namespace app {
 namespace DataModel {
+
+using Protocols::InteractionModel::Status;
 
 std::optional<ServerClusterEntry> ServerClusterFinder::Find(const ConcreteClusterPath & path)
 {
@@ -26,12 +30,10 @@ std::optional<ServerClusterEntry> ServerClusterFinder::Find(const ConcreteCluste
     if (mEndpointId != path.mEndpointId)
     {
         mEndpointId     = path.mEndpointId;
-        mClusterEntries = mProvider->ServerClusters(path.mEndpointId);
+        mClusterEntries = mProvider->ServerClustersIgnoreError(path.mEndpointId);
     }
 
-    auto serverClustersSpan = mClusterEntries.GetSpanValidForLifetime();
-
-    for (auto & clusterEntry : serverClustersSpan)
+    for (auto & clusterEntry : mClusterEntries)
     {
         if (clusterEntry.clusterId == path.mClusterId)
         {
@@ -49,11 +51,10 @@ std::optional<AttributeEntry> AttributeFinder::Find(const ConcreteAttributePath 
     if (mClusterPath != path)
     {
         mClusterPath = path;
-        mAttributes  = mProvider->Attributes(path);
+        mAttributes  = mProvider->AttributesIgnoreError(path);
     }
 
-    auto attributesSpan = mAttributes.GetSpanValidForLifetime();
-    for (auto & attributeEntry : attributesSpan)
+    for (auto & attributeEntry : mAttributes)
     {
         if (attributeEntry.attributeId == path.mAttributeId)
         {
@@ -64,18 +65,26 @@ std::optional<AttributeEntry> AttributeFinder::Find(const ConcreteAttributePath 
     return std::nullopt;
 }
 
-std::optional<EndpointEntry> EndpointFinder::Find(EndpointId endpointId)
+Protocols::InteractionModel::Status ValidateClusterPath(ProviderMetadataTree * provider, const ConcreteClusterPath & path,
+                                                        Protocols::InteractionModel::Status successStatus)
 {
-    auto endpointsSpan = mEndpoints.GetSpanValidForLifetime();
-    for (auto & endpointEntry : endpointsSpan)
+    if (ServerClusterFinder(provider).Find(path).has_value())
     {
-        if (endpointEntry.id == endpointId)
+        return successStatus;
+    }
+
+    // If we get here, the cluster identified by the path does not exist.
+    auto endpoints = provider->EndpointsIgnoreError();
+    for (auto & endpointEntry : endpoints)
+    {
+        if (endpointEntry.id == path.mEndpointId)
         {
-            return endpointEntry;
+            // endpoint is valid
+            return Protocols::InteractionModel::Status::UnsupportedCluster;
         }
     }
 
-    return std::nullopt;
+    return Protocols::InteractionModel::Status::UnsupportedEndpoint;
 }
 
 } // namespace DataModel
