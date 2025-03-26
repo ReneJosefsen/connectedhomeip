@@ -267,7 +267,7 @@ COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-tool apps/chip-t
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-shell apps/chip-shell
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-cert apps/chip-cert
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-all-clusters-app apps/chip-all-clusters-app
-COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-all-clusters-app-nlfaultinject apps/hip-all-clusters-app-nlfaultinject
+COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-all-clusters-app-nlfaultinject apps/chip-all-clusters-app-nlfaultinject
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-all-clusters-minimal-app apps/chip-all-clusters-minimal-app
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-lighting-app apps/chip-lighting-app
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-tv-casting-app apps/chip-tv-casting-app
@@ -305,6 +305,9 @@ RUN pip install --break-system-packages -r /tmp/requirements.txt && rm /tmp/requ
 
 COPY --from=chip-build-cert-bins /root/connectedhomeip/src/python_testing/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Stage 3.2: Setup the Mock Server
+COPY --from=chip-build-cert-bins /root/connectedhomeip/integrations/mock_server mock_server
 
 # PIP requires MASON package compilation, which seems to require a JDK
 RUN set -x && DEBIAN_FRONTEND=noninteractive apt-get update; apt-get install -fy openjdk-8-jdk
