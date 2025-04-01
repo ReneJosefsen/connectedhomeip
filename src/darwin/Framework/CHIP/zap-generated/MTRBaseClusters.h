@@ -3363,7 +3363,7 @@ MTR_AVAILABLE(ios(18.4), macos(15.4), watchos(11.4), tvos(18.4))
 /**
  * Cluster Bridged Device Basic Information
  *
- * The UniqueID attribute was optional in cluster revisions prior to revision 4.
+ * This cluster is derived from the Basic Information cluster and serves two purposes towards a Node communicating with a Bridge:
  */
 MTR_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRBaseClusterBridgedDeviceBasicInformation : MTRGenericBaseCluster

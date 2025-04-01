@@ -1018,7 +1018,7 @@ cluster BasicInformation = 40 {
   readonly attribute optional ProductAppearanceStruct productAppearance = 20;
   readonly attribute int32u specificationVersion = 21;
   readonly attribute int16u maxPathsPerInvoke = 22;
-  readonly attribute optional int32u configurationVersion = 24;
+  readonly attribute int32u configurationVersion = 24;
   readonly attribute command_id generatedCommandList[] = 65528;
   readonly attribute command_id acceptedCommandList[] = 65529;
   readonly attribute event_id eventList[] = 65530;
@@ -2462,7 +2462,7 @@ cluster TimeSynchronization = 56 {
   command access(invoke: administer) SetDefaultNTP(SetDefaultNTPRequest): DefaultSuccess = 5;
 }
 
-/** The UniqueID attribute was optional in cluster revisions prior to revision 4. */
+/** This cluster is derived from the Basic Information cluster and serves two purposes towards a Node communicating with a Bridge: */
 cluster BridgedDeviceBasicInformation = 57 {
   revision 5;
 

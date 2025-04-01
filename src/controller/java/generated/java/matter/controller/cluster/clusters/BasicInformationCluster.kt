@@ -2217,7 +2217,7 @@ class BasicInformationCluster(
     }
   }
 
-  suspend fun readConfigurationVersionAttribute(): UInt? {
+  suspend fun readConfigurationVersionAttribute(): UInt {
     val ATTRIBUTE_ID: UInt = 24u
 
     val attributePath =
@@ -2243,12 +2243,7 @@ class BasicInformationCluster(
 
     // Decode the TLV data into the appropriate type
     val tlvReader = TlvReader(attributeData.data)
-    val decodedValue: UInt? =
-      if (tlvReader.isNextTag(AnonymousTag)) {
-        tlvReader.getUInt(AnonymousTag)
-      } else {
-        null
-      }
+    val decodedValue: UInt = tlvReader.getUInt(AnonymousTag)
 
     return decodedValue
   }
@@ -2294,14 +2289,9 @@ class BasicInformationCluster(
 
           // Decode the TLV data into the appropriate type
           val tlvReader = TlvReader(attributeData.data)
-          val decodedValue: UInt? =
-            if (tlvReader.isNextTag(AnonymousTag)) {
-              tlvReader.getUInt(AnonymousTag)
-            } else {
-              null
-            }
+          val decodedValue: UInt = tlvReader.getUInt(AnonymousTag)
 
-          decodedValue?.let { emit(UIntSubscriptionState.Success(it)) }
+          emit(UIntSubscriptionState.Success(decodedValue))
         }
         SubscriptionState.SubscriptionEstablished -> {
           emit(UIntSubscriptionState.SubscriptionEstablished)
