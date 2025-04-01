@@ -292,7 +292,7 @@ CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::GetConfigurationVersion
 }
 
 template <class ConfigClass>
-inline CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::StoreConfigurationVersion(uint32_t softwareVer)
+inline CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::StoreConfigurationVersion(uint32_t configurationVer)
 {
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }

@@ -121,7 +121,7 @@ CHIP_ERROR ConfigurationManagerImpl::Init()
     if (!PosixConfig::ConfigValueExists(PosixConfig::kConfigKey_ConfigurationVersion))
     {
         // The first boot after factory reset of the Node.
-        err = StoreConfigurationVersion(10);
+        err = StoreConfigurationVersion(1);
         SuccessOrExit(err);
     }
 

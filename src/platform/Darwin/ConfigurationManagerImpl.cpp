@@ -198,7 +198,7 @@ CHIP_ERROR ConfigurationManagerImpl::Init()
 
     if (!PosixConfig::ConfigValueExists(PosixConfig::kConfigKey_ConfigurationVersion))
     {
-        ReturnErrorOnFailure(StoreConfigurationVersion(10));
+        ReturnErrorOnFailure(StoreConfigurationVersion(1));
     }
 
     return CHIP_NO_ERROR;
