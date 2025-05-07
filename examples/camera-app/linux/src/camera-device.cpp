@@ -33,7 +33,14 @@
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::Chime;
 using namespace chip::app::Clusters::CameraAvStreamManagement;
+using namespace chip::app::Clusters::CameraAvSettingsUserLevelManagement;
+
 using namespace Camera;
+
+// Using Gstreamer video test source's ball animation pattern for the live streaming visual verification.
+// Refer https://gstreamer.freedesktop.org/documentation/videotestsrc/index.html?gi-language=c#GstVideoTestSrcPattern
+
+const int kBallAnimationPattern = 18;
 
 CameraDevice::CameraDevice()
 {
@@ -47,8 +54,17 @@ CameraDevice::CameraDevice()
     // Initialize Audio Sources
     mNetworkAudioSource.Init(&mMediaController, AUDIO_STREAM_GST_DEST_PORT, StreamType::kAudio);
 
-    // Set the CameraHALInterface in CameraAVStreamManager.
+    // Initialize WebRTC connnection
+    mWebRTCProviderManager.Init();
+
+    // Set the CameraHALInterface in CameraAVStreamManager and CameraAVsettingsUserLevelManager.
     mCameraAVStreamManager.SetCameraDeviceHAL(this);
+    mCameraAVSettingsUserLevelManager.SetCameraDeviceHAL(this);
+
+    // Provider manager uses the Media controller to register WebRTC Transport with media controller for AV source data
+    mWebRTCProviderManager.SetMediaController(&mMediaController);
+
+    mCameraAVSettingsUserLevelManager.SetCameraDeviceHAL(this);
 }
 
 CameraDevice::~CameraDevice()
@@ -144,25 +160,47 @@ GstElement * CameraDevice::CreateSnapshotPipeline(const std::string & device, in
 GstElement * CameraDevice::CreateVideoPipeline(const std::string & device, int width, int height, int framerate,
                                                CameraError & error)
 {
-    GstElement *pipeline, *source, *capsfilter, *videoconvert, *videoscale, *x264enc, *rtph264pay, *udpsink;
+    GstElement * pipeline     = nullptr;
+    GstElement * source       = nullptr;
+    GstElement * capsfilter   = nullptr;
+    GstElement * videoconvert = nullptr;
+    GstElement * x264enc      = nullptr;
+    GstElement * rtph264pay   = nullptr;
+    GstElement * udpsink      = nullptr;
 
     // Create the pipeline elements
     pipeline = gst_pipeline_new("video-pipeline");
 
     // Create elements
-    source       = gst_element_factory_make("v4l2src", "source");
+#ifdef AV_STREAM_GST_USE_TEST_SRC
+    source = gst_element_factory_make("videotestsrc", "source");
+#else
+    source = gst_element_factory_make("v4l2src", "source");
+#endif
     capsfilter   = gst_element_factory_make("capsfilter", "filter");
     videoconvert = gst_element_factory_make("videoconvert", "videoconvert");
-    videoscale   = gst_element_factory_make("videoscale", "videoscale");
     x264enc      = gst_element_factory_make("x264enc", "encoder");
     rtph264pay   = gst_element_factory_make("rtph264pay", "rtph264");
     udpsink      = gst_element_factory_make("udpsink", "udpsink");
 
-    if (!pipeline || !source || !capsfilter || !videoconvert || !videoscale || !x264enc || !rtph264pay || !udpsink)
+    if (pipeline == nullptr || source == nullptr || capsfilter == nullptr || videoconvert == nullptr || x264enc == nullptr ||
+        rtph264pay == nullptr || udpsink == nullptr)
     {
         ChipLogError(Camera, "Not all elements could be created.");
         if (pipeline)
             gst_object_unref(pipeline);
+        if (source)
+            gst_object_unref(source);
+        if (capsfilter)
+            gst_object_unref(capsfilter);
+        if (videoconvert)
+            gst_object_unref(videoconvert);
+        if (x264enc)
+            gst_object_unref(x264enc);
+        if (rtph264pay)
+            gst_object_unref(rtph264pay);
+        if (udpsink)
+            gst_object_unref(udpsink);
         error = CameraError::ERROR_INIT_FAILED;
         return nullptr;
     }
@@ -171,10 +209,23 @@ GstElement * CameraDevice::CreateVideoPipeline(const std::string & device, int w
     gst_bin_add_many(GST_BIN(pipeline), source, capsfilter, videoconvert, x264enc, rtph264pay, udpsink, NULL);
 
     // Link the elements
-    if (gst_element_link_many(source, capsfilter, videoconvert, x264enc, rtph264pay, udpsink, NULL) != TRUE)
+    if (!gst_element_link_many(source, capsfilter, videoconvert, x264enc, rtph264pay, udpsink, NULL))
     {
         ChipLogError(Camera, "Elements could not be linked.");
-        gst_object_unref(pipeline);
+        if (pipeline)
+            gst_object_unref(pipeline);
+        if (source)
+            gst_object_unref(source);
+        if (capsfilter)
+            gst_object_unref(capsfilter);
+        if (videoconvert)
+            gst_object_unref(videoconvert);
+        if (x264enc)
+            gst_object_unref(x264enc);
+        if (rtph264pay)
+            gst_object_unref(rtph264pay);
+        if (udpsink)
+            gst_object_unref(udpsink);
         error = CameraError::ERROR_INIT_FAILED;
         return nullptr;
     }
@@ -183,6 +234,11 @@ GstElement * CameraDevice::CreateVideoPipeline(const std::string & device, int w
     GstCaps * caps = gst_caps_new_simple("video/x-raw", "width", G_TYPE_INT, width, "height", G_TYPE_INT, height, "format",
                                          G_TYPE_STRING, "NV12", // Adjust format as needed
                                          "framerate", GST_TYPE_FRACTION, framerate, 1, NULL);
+
+    // Set video test src pattern
+#ifdef AV_STREAM_GST_USE_TEST_SRC
+    g_object_set(source, "pattern", kBallAnimationPattern, NULL);
+#endif
 
     // Set the caps on the capsfilter element
     g_object_set(capsfilter, "caps", caps, NULL);
@@ -199,24 +255,47 @@ GstElement * CameraDevice::CreateVideoPipeline(const std::string & device, int w
 // Helper function to create a GStreamer pipeline
 GstElement * CameraDevice::CreateAudioPipeline(const std::string & device, int channels, int sampleRate, CameraError & error)
 {
-    GstElement *pipeline, *source, *capsfilter, *audioconvert, *opusenc, *rtpopuspay, *udpsink;
+    GstElement * pipeline     = nullptr;
+    GstElement * source       = nullptr;
+    GstElement * capsfilter   = nullptr;
+    GstElement * audioconvert = nullptr;
+    GstElement * opusenc      = nullptr;
+    GstElement * rtpopuspay   = nullptr;
+    GstElement * udpsink      = nullptr;
 
     // Create the pipeline elements
     pipeline = gst_pipeline_new("audio-pipeline");
 
     // Create elements
-    source       = gst_element_factory_make("pulsesrc", "source");
+#ifdef AV_STREAM_GST_USE_TEST_SRC
+    source = gst_element_factory_make("audiotestsrc", "source");
+#else
+    source = gst_element_factory_make("pulsesrc", "source");
+#endif
     capsfilter   = gst_element_factory_make("capsfilter", "filter");
     audioconvert = gst_element_factory_make("audioconvert", "audio-convert");
     opusenc      = gst_element_factory_make("opusenc", "opus-encoder");
     rtpopuspay   = gst_element_factory_make("rtpopuspay", "rtpopuspay");
     udpsink      = gst_element_factory_make("udpsink", "udpsink");
 
-    if (!source || !capsfilter || !audioconvert || !opusenc || !rtpopuspay || !udpsink)
+    if (pipeline == nullptr || source == nullptr || capsfilter == nullptr || audioconvert == nullptr || opusenc == nullptr ||
+        rtpopuspay == nullptr || udpsink == nullptr)
     {
         ChipLogError(Camera, "Not all elements could be created.");
         if (pipeline)
             gst_object_unref(pipeline);
+        if (source)
+            gst_object_unref(source);
+        if (capsfilter)
+            gst_object_unref(capsfilter);
+        if (audioconvert)
+            gst_object_unref(audioconvert);
+        if (opusenc)
+            gst_object_unref(opusenc);
+        if (rtpopuspay)
+            gst_object_unref(rtpopuspay);
+        if (udpsink)
+            gst_object_unref(udpsink);
         error = CameraError::ERROR_INIT_FAILED;
         return nullptr;
     }
@@ -237,10 +316,23 @@ GstElement * CameraDevice::CreateAudioPipeline(const std::string & device, int c
     gst_bin_add_many(GST_BIN(pipeline), source, capsfilter, audioconvert, opusenc, rtpopuspay, udpsink, NULL);
 
     // Link elements
-    if (gst_element_link_many(source, capsfilter, audioconvert, opusenc, rtpopuspay, udpsink, NULL))
+    if (!gst_element_link_many(source, capsfilter, audioconvert, opusenc, rtpopuspay, udpsink, NULL))
     {
         ChipLogError(Camera, "Elements could not be linked.");
-        gst_object_unref(pipeline);
+        if (pipeline)
+            gst_object_unref(pipeline);
+        if (source)
+            gst_object_unref(source);
+        if (capsfilter)
+            gst_object_unref(capsfilter);
+        if (audioconvert)
+            gst_object_unref(audioconvert);
+        if (opusenc)
+            gst_object_unref(opusenc);
+        if (rtpopuspay)
+            gst_object_unref(rtpopuspay);
+        if (udpsink)
+            gst_object_unref(udpsink);
         error = CameraError::ERROR_INIT_FAILED;
         return nullptr;
     }
@@ -270,14 +362,15 @@ CameraError CameraDevice::SetV4l2Control(uint32_t controlId, int value)
     return CameraError::SUCCESS;
 }
 
-CameraError CameraDevice::CaptureSnapshot(const uint16_t streamID, const VideoResolutionStruct & resolution,
-                                          ImageSnapshot & outImageSnapshot)
+CameraError CameraDevice::CaptureSnapshot(const chip::app::DataModel::Nullable<uint16_t> streamID,
+                                          const VideoResolutionStruct & resolution, ImageSnapshot & outImageSnapshot)
 {
-    auto it = std::find_if(snapshotStreams.begin(), snapshotStreams.end(),
-                           [streamID](const SnapshotStream & s) { return s.snapshotStreamParams.snapshotStreamID == streamID; });
+    uint16_t streamId = streamID.IsNull() ? 1 : streamID.Value();
+    auto it           = std::find_if(snapshotStreams.begin(), snapshotStreams.end(),
+                                     [streamId](const SnapshotStream & s) { return s.snapshotStreamParams.snapshotStreamID == streamId; });
     if (it == snapshotStreams.end())
     {
-        ChipLogError(Camera, "Snapshot streamID : %u not found", streamID);
+        ChipLogError(Camera, "Snapshot streamID : %u not found", streamId);
         return CameraError::ERROR_CAPTURE_SNAPSHOT_FAILED;
     }
 
@@ -571,42 +664,81 @@ CameraError CameraDevice::StopSnapshotStream(uint16_t streamID)
     return CameraError::SUCCESS;
 }
 
-uint8_t CameraDevice::GetMaxConcurrentVideoEncoders()
+uint8_t CameraDevice::GetMaxConcurrentEncoders()
 {
-    return MAX_CONCURRENT_VIDEO_ENCODERS;
+    return kMaxConcurrentEncoders;
 }
 
 uint32_t CameraDevice::GetMaxEncodedPixelRate()
 {
-    return MAX_ENCODED_PIXEL_RATE;
+    return kMaxEncodedPixelRate;
 }
 
 VideoSensorParamsStruct & CameraDevice::GetVideoSensorParams()
 {
-    static VideoSensorParamsStruct videoSensorParams = { 4608, 2592, 120,
+    static VideoSensorParamsStruct videoSensorParams = { kVideoSensorWidthPixels, kVideoSensorHeightPixels, kMaxVideoFrameRate,
                                                          chip::Optional<uint16_t>(30) }; // Typical numbers for Pi camera.
     return videoSensorParams;
 }
 
-bool CameraDevice::GetNightVisionCapable()
+bool CameraDevice::GetCameraSupportsNightVision()
+{
+    return true;
+}
+
+bool CameraDevice::GetNightVisionUsesInfrared()
 {
     return false;
 }
 
 VideoResolutionStruct & CameraDevice::GetMinViewport()
 {
-    static VideoResolutionStruct minViewport = { 854, 480 }; // Assuming 480p resolution.
+    static VideoResolutionStruct minViewport = { kMinResolutionWidth, kMinResolutionHeight };
     return minViewport;
+}
+
+std::vector<RateDistortionTradeOffStruct> & CameraDevice::GetRateDistortionTradeOffPoints()
+{
+    static std::vector<RateDistortionTradeOffStruct> rateDistTradeOffs = {
+        { VideoCodecEnum::kH264, { kMinResolutionWidth, kMinResolutionHeight }, 10000 /* bitrate */ }
+    };
+    return rateDistTradeOffs;
 }
 
 uint32_t CameraDevice::GetMaxContentBufferSize()
 {
-    return MAX_CONTENT_BUFFER_SIZE_BYTES;
+    return kMaxContentBufferSizeBytes;
+}
+
+AudioCapabilitiesStruct & CameraDevice::GetMicrophoneCapabilities()
+{
+    static std::array<AudioCodecEnum, 2> audioCodecs = { AudioCodecEnum::kOpus, AudioCodecEnum::kAacLc };
+    static std::array<uint32_t, 2> sampleRates       = { 48000, 32000 }; // Sample rates in Hz
+    static std::array<uint8_t, 2> bitDepths          = { 24, 32 };
+    static AudioCapabilitiesStruct audioCapabilities = { kMicrophoneMaxChannelCount, chip::Span<AudioCodecEnum>(audioCodecs),
+                                                         chip::Span<uint32_t>(sampleRates), chip::Span<uint8_t>(bitDepths) };
+    return audioCapabilities;
+}
+
+AudioCapabilitiesStruct & CameraDevice::GetSpeakerCapabilities()
+{
+    static AudioCapabilitiesStruct speakerCapabilities = {};
+    return speakerCapabilities;
+}
+
+std::vector<SnapshotCapabilitiesStruct> & CameraDevice::GetSnapshotCapabilities()
+{
+    static std::vector<SnapshotCapabilitiesStruct> snapshotCapabilities = { { { kMinResolutionWidth, kMinResolutionHeight },
+                                                                              kSnapshotStreamFrameRate,
+                                                                              ImageCodecEnum::kJpeg,
+                                                                              false,
+                                                                              chip::MakeOptional(static_cast<bool>(false)) } };
+    return snapshotCapabilities;
 }
 
 uint32_t CameraDevice::GetMaxNetworkBandwidth()
 {
-    return MAX_NETWORK_BANDWIDTH_MBPS;
+    return kMaxNetworkBandwidthMbps;
 }
 
 uint16_t CameraDevice::GetCurrentFrameRate()
@@ -621,10 +753,24 @@ CameraError CameraDevice::SetHDRMode(bool hdrMode)
     return CameraError::SUCCESS;
 }
 
+std::vector<StreamUsageEnum> & CameraDevice::GetSupportedStreamUsages()
+{
+    static std::vector<StreamUsageEnum> supportedStreamUsage = { StreamUsageEnum::kLiveView, StreamUsageEnum::kRecording };
+    return supportedStreamUsage;
+}
+
 CameraError CameraDevice::SetViewport(const ViewportStruct & viewPort)
 {
     mViewport = viewPort;
 
+    return CameraError::SUCCESS;
+}
+
+CameraError CameraDevice::SetViewport(VideoStream & stream, const ViewportStruct & viewport)
+{
+    ChipLogDetail(Camera, "Setting per stream viewport for stream %d.", stream.videoStreamParams.videoStreamID);
+    ChipLogDetail(Camera, "New viewport. x1=%d, x2=%d, y1=%d, y2=%d.", viewport.x1, viewport.x2, viewport.y1, viewport.y2);
+    stream.viewport = viewport;
     return CameraError::SUCCESS;
 }
 
@@ -644,24 +790,71 @@ CameraError CameraDevice::SetMicrophoneVolume(uint8_t microphoneVol)
     return CameraError::SUCCESS;
 }
 
+int16_t CameraDevice::GetPanMin()
+{
+    return kMinPanValue;
+}
+
+int16_t CameraDevice::GetPanMax()
+{
+    return kMaxPanValue;
+}
+
+int16_t CameraDevice::GetTiltMin()
+{
+    return kMinTiltValue;
+}
+
+int16_t CameraDevice::GetTiltMax()
+{
+    return kMaxTiltValue;
+}
+
+uint8_t CameraDevice::GetZoomMax()
+{
+    return kMaxZoomValue;
+}
+
+// Set the Pan level
+CameraError CameraDevice::SetPan(int16_t aPan)
+{
+    mPan = aPan;
+    return CameraError::SUCCESS;
+}
+
+// Set the Tilt level
+CameraError CameraDevice::SetTilt(int16_t aTilt)
+{
+    mTilt = aTilt;
+    return CameraError::SUCCESS;
+}
+
+// Set the Zoom level
+CameraError CameraDevice::SetZoom(uint8_t aZoom)
+{
+    mZoom = aZoom;
+    return CameraError::SUCCESS;
+}
+
 void CameraDevice::InitializeVideoStreams()
 {
     // Create single video stream with typical supported parameters
     VideoStream videoStream = { { 1 /* Id */,
                                   StreamUsageEnum::kLiveView /* StreamUsage */,
                                   VideoCodecEnum::kH264,
-                                  15 /* MinFrameRate */,
-                                  120 /* MaxFrameRate */,
-                                  { 320, 240 } /* MinResolution */,
-                                  { 640, 480 } /* MaxResolution */,
-                                  10000 /* MinBitRate */,
-                                  2000000 /* MaxBitRate */,
-                                  1000 /* MinFragmentLen */,
-                                  10000 /* MaxFragmentLen */,
+                                  kMinVideoFrameRate /* MinFrameRate */,
+                                  kMaxVideoFrameRate /* MaxFrameRate */,
+                                  { kMinResolutionWidth, kMinResolutionHeight } /* MinResolution */,
+                                  { kMaxResolutionWidth, kMaxResolutionHeight } /* MaxResolution */,
+                                  kMinBitRateBps /* MinBitRate */,
+                                  kMaxBitRateBps /* MaxBitRate */,
+                                  kMinFragLenMsec /* MinFragmentLen */,
+                                  kMaxFragLenMsec /* MaxFragmentLen */,
                                   chip::MakeOptional(static_cast<bool>(false)) /* WMark */,
                                   chip::MakeOptional(static_cast<bool>(false)) /* OSD */,
                                   0 /* RefCount */ },
                                 false,
+                                { mViewport.x1, mViewport.y1, mViewport.x2, mViewport.y2 },
                                 nullptr };
 
     videoStreams.push_back(videoStream);
@@ -684,10 +877,9 @@ void CameraDevice::InitializeSnapshotStreams()
     // Create single snapshot stream with typical supported parameters
     SnapshotStream snapshotStream = { { 1 /* Id */,
                                         ImageCodecEnum::kJpeg,
-                                        30 /* FrameRate */,
-                                        512000 /* BitRate*/,
-                                        { 320, 240 } /* MinResolution*/,
-                                        { 320, 240 } /* MaxResolution */,
+                                        kSnapshotStreamFrameRate /* FrameRate */,
+                                        { kMinResolutionWidth, kMinResolutionHeight } /* MinResolution*/,
+                                        { kMaxResolutionWidth, kMaxResolutionHeight } /* MaxResolution */,
                                         90 /* Quality */,
                                         0 /* RefCount */ },
                                       false,
@@ -709,4 +901,14 @@ WebRTCTransportProvider::Delegate & CameraDevice::GetWebRTCProviderDelegate()
 CameraAVStreamMgmtDelegate & CameraDevice::GetCameraAVStreamMgmtDelegate()
 {
     return mCameraAVStreamManager;
+}
+
+CameraAvSettingsUserLevelManagement::Delegate & CameraDevice::GetCameraAVSettingsUserLevelMgmtDelegate()
+{
+    return mCameraAVSettingsUserLevelManager;
+}
+
+MediaController & CameraDevice::GetMediaController()
+{
+    return mMediaController;
 }
