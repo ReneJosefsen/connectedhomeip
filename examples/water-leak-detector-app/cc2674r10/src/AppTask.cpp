@@ -1,7 +1,6 @@
 /*
  *
  *    Copyright (c) 2020 Project CHIP Authors
- *    Copyright (c) 2020 Texas Instruments Incorporated
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +20,6 @@
 #include "AppConfig.h"
 #include "AppEvent.h"
 #include "DeviceCallbacks.h"
-#include <app/server/Server.h>
 
 #include "FreeRTOS.h"
 
@@ -46,10 +44,10 @@
 #include <app-common/zap-generated/attributes/Accessors.h>
 
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/clusters/on-off-server/on-off-server.h>
-#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
+#include <data-model-providers/codegen/Instance.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>
@@ -70,17 +68,21 @@
 #define APP_TASK_PRIORITY 4
 #define APP_EVENT_QUEUE_SIZE 10
 
-using namespace chip;
-using namespace chip::Credentials;
-using namespace chip::DeviceLayer;
+using namespace ::chip;
+using namespace ::chip::app;
+using namespace ::chip::Credentials;
+using namespace ::chip::DeviceLayer;
 
 static TaskHandle_t sAppTaskHandle;
 static QueueHandle_t sAppEventQueue;
 
 static LED_Handle sAppRedHandle;
 static LED_Handle sAppGreenHandle;
+
 static Button_Handle sAppLeftHandle;
 static Button_Handle sAppRightHandle;
+
+static DeviceInfoProviderImpl sExampleDeviceInfoProvider;
 
 AppTask AppTask::sAppTask;
 
@@ -163,7 +165,7 @@ int AppTask::Init()
 
 #if CHIP_DEVICE_CONFIG_THREAD_FTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
-#elif CONFIG_OPENTHREAD_MTD_SED
+#elif CHIP_CONFIG_ENABLE_ICD_SERVER
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
 #else
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
@@ -212,9 +214,22 @@ int AppTask::Init()
     sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
+    // Initialize device attestation config
+#ifdef CC13X4_26X4_ATTESTATION_CREDENTIALS
+#ifdef CC13XX_26XX_FACTORY_DATA
+    SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
+    SetCommissionableDataProvider(&mFactoryDataProvider);
+#else
+    SetDeviceAttestationCredentialsProvider(CC13X4_26X4::GetCC13X4_26X4DacProvider());
+#endif
+#else
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif
+
     // Init ZCL Data Model and start server
     ChipLogProgress(NotSpecified, "Initialize Server");
-    static chip::CommonCaseDeviceServerInitParams initParams;
+    static CommonCaseDeviceServerInitParams initParams;
 
     // TestEventTrigger
 #if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
@@ -227,14 +242,13 @@ int AppTask::Init()
 
     // Init ZCL Data Model
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    chip::Server::GetInstance().Init(initParams);
+    initParams.dataModelProvider = CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
 
-    // Initialize device attestation config
-#ifdef CC13X2_26X2_ATTESTATION_CREDENTIALS
-    SetDeviceAttestationCredentialsProvider(CC13X2_26X2::GetCC13X2_26X2DacProvider());
-#else
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-#endif
+    // Initialize info provider
+    sExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
+    SetDeviceInfoProvider(&sExampleDeviceInfoProvider);
+
+    Server::GetInstance().Init(initParams);
 
     ConfigurationMgr().LogDeviceConfig();
 

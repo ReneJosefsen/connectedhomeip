@@ -1,7 +1,6 @@
 /*
  *
  *    Copyright (c) 2020 Project CHIP Authors
- *    Copyright (c) 2020 Texas Instruments Incorporated
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +20,6 @@
 #include "AppConfig.h"
 #include "AppEvent.h"
 #include "DeviceCallbacks.h"
-#include <app/server/Server.h>
 
 #include "FreeRTOS.h"
 
@@ -46,10 +44,10 @@
 #include <app-common/zap-generated/attributes/Accessors.h>
 
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/clusters/on-off-server/on-off-server.h>
-#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
+#include <data-model-providers/codegen/Instance.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>
@@ -61,17 +59,21 @@
 #define APP_TASK_PRIORITY 4
 #define APP_EVENT_QUEUE_SIZE 10
 
-using namespace chip;
-using namespace chip::Credentials;
-using namespace chip::DeviceLayer;
+using namespace ::chip;
+using namespace ::chip::app;
+using namespace ::chip::Credentials;
+using namespace ::chip::DeviceLayer;
 
 static TaskHandle_t sAppTaskHandle;
 static QueueHandle_t sAppEventQueue;
 
 static LED_Handle sAppRedHandle;
 static LED_Handle sAppGreenHandle;
+
 static Button_Handle sAppLeftHandle;
 static Button_Handle sAppRightHandle;
+
+static DeviceInfoProviderImpl sExampleDeviceInfoProvider;
 
 AppTask AppTask::sAppTask;
 
@@ -104,7 +106,7 @@ int AppTask::StartAppTask()
     sAppEventQueue = xQueueCreate(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent));
     if (sAppEventQueue == NULL)
     {
-        PLAT_LOG("Failed to allocate app event queue");
+        ChipLogProgress(NotSpecified, "Failed to allocate app event queue");
         while (true)
             ;
     }
@@ -113,7 +115,7 @@ int AppTask::StartAppTask()
     if (xTaskCreate(AppTaskMain, "APP", APP_TASK_STACK_SIZE / sizeof(StackType_t), NULL, APP_TASK_PRIORITY, &sAppTaskHandle) !=
         pdPASS)
     {
-        PLAT_LOG("Failed to create app task");
+        ChipLogProgress(NotSpecified, "Failed to create app task");
         while (true)
             ;
     }
@@ -133,7 +135,7 @@ int AppTask::Init()
     CHIP_ERROR ret = PlatformMgr().InitChipStack();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("PlatformMgr().InitChipStack() failed");
+        ChipLogProgress(NotSpecified, "PlatformMgr().InitChipStack() failed");
         while (true)
             ;
     }
@@ -141,14 +143,14 @@ int AppTask::Init()
     ret = ThreadStackMgr().InitThreadStack();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ThreadStackMgr().InitThreadStack() failed");
+        ChipLogProgress(NotSpecified, "ThreadStackMgr().InitThreadStack() failed");
         while (true)
             ;
     }
 
 #if CHIP_DEVICE_CONFIG_THREAD_FTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
-#elif CONFIG_OPENTHREAD_MTD_SED
+#elif CHIP_CONFIG_ENABLE_ICD_SERVER
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
 #else
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
@@ -156,7 +158,7 @@ int AppTask::Init()
 
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
+        ChipLogProgress(NotSpecified, "ConnectivityMgr().SetThreadDeviceType() failed");
         while (true)
             ;
     }
@@ -164,13 +166,13 @@ int AppTask::Init()
     ret = ThreadStackMgrImpl().StartThreadTask();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("ThreadStackMgr().StartThreadTask() failed");
+        ChipLogProgress(NotSpecified, "ThreadStackMgr().StartThreadTask() failed");
         while (true)
             ;
     }
 
     // Initialize LEDs
-    PLAT_LOG("Initialize LEDs");
+    ChipLogProgress(NotSpecified, "Initialize LEDs");
     LED_init();
 
     LED_Params_init(&ledParams); // default PWM LED
@@ -182,7 +184,7 @@ int AppTask::Init()
     LED_setOff(sAppGreenHandle);
 
     // Initialize buttons
-    PLAT_LOG("Initialize buttons");
+    ChipLogProgress(NotSpecified, "Initialize buttons");
     Button_init();
 
     Button_Params_init(&buttonParams);
@@ -197,20 +199,31 @@ int AppTask::Init()
     sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
     Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
-    // Init ZCL Data Model and start server
-    PLAT_LOG("Initialize Server");
-
-    // Init ZCL Data Model
-    static chip::CommonCaseDeviceServerInitParams initParams;
-    (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    chip::Server::GetInstance().Init(initParams);
-
-    // Initialize device attestation config
-#ifdef CC13X2_26X2_ATTESTATION_CREDENTIALS
-    SetDeviceAttestationCredentialsProvider(CC13X2_26X2::GetCC13X2_26X2DacProvider());
+// Initialize device attestation config
+#ifdef CC13X4_26X4_ATTESTATION_CREDENTIALS
+#ifdef CC13XX_26XX_FACTORY_DATA
+    SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
+    SetCommissionableDataProvider(&mFactoryDataProvider);
+#else
+    SetDeviceAttestationCredentialsProvider(CC13X4_26X4::GetCC13X4_26X4DacProvider());
+#endif
 #else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 #endif
+
+    // Init ZCL Data Model and start server
+    ChipLogProgress(NotSpecified, "Initialize Server");
+    static CommonCaseDeviceServerInitParams initParams;
+
+    (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    initParams.dataModelProvider = CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
+
+    // Initialize info provider
+    sExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
+    SetDeviceInfoProvider(&sExampleDeviceInfoProvider);
+
+    Server::GetInstance().Init(initParams);
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -222,7 +235,7 @@ int AppTask::Init()
     ret = PlatformMgr().StartEventLoopTask();
     if (ret != CHIP_NO_ERROR)
     {
-        PLAT_LOG("PlatformMgr().StartEventLoopTask() failed");
+        ChipLogProgress(NotSpecified, "PlatformMgr().StartEventLoopTask() failed");
         while (1)
             ;
     }
@@ -356,18 +369,18 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             {
                 if (Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() == CHIP_NO_ERROR)
                 {
-                    PLAT_LOG("Enabled BLE Advertisement");
+                    ChipLogProgress(NotSpecified, "Enabled BLE Advertisement");
                 }
                 else
                 {
-                    PLAT_LOG("OpenBasicCommissioningWindow() failed");
+                    ChipLogProgress(NotSpecified, "OpenBasicCommissioningWindow() failed");
                 }
             }
             // Disable BLE advertisements
             else // if (ConnectivityMgr().IsBLEAdvertisingEnabled())
             {
                 ConnectivityMgr().SetBLEAdvertisingEnabled(false);
-                PLAT_LOG("Disabled BLE Advertisements");
+                ChipLogProgress(NotSpecified, "Disabled BLE Advertisements");
             }
         }
         break;
@@ -375,13 +388,13 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_IdentifyStart:
         LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
         LED_startBlinking(sAppGreenHandle, sIdentifyBlinkRateMs, LED_BLINK_FOREVER);
-        PLAT_LOG("Identify started");
+        ChipLogProgress(NotSpecified, "Identify started");
         break;
 
     case AppEvent::kEventType_IdentifyStop:
         LED_stopBlinking(sAppGreenHandle);
         LED_setOff(sAppGreenHandle);
-        PLAT_LOG("Identify stopped");
+        ChipLogProgress(NotSpecified, "Identify stopped");
         break;
 
     case AppEvent::kEventTyoe_DeviceOperational:
@@ -410,21 +423,21 @@ void AppTask::SetMeasuredFlowValue(uint16_t flowValue)
 
     if (storedFlowValue.IsNull())
     {
-        PLAT_LOG("Setting initial flow values");
+        ChipLogProgress(NotSpecified, "Setting initial flow values");
     }
 
     // Determien direction of change
     else if (storedFlowValue.Value() > flowValue)
     {
-        PLAT_LOG("Decrease flow value");
-        PLAT_LOG("Stored flow value: %d", storedFlowValue.Value());
+        ChipLogProgress(NotSpecified, "Decrease flow value");
+        ChipLogProgress(NotSpecified, "Stored flow value: %d", storedFlowValue.Value());
     }
     else
     {
-        PLAT_LOG("Increase flow value");
-        PLAT_LOG("Stored flow value: %d", storedFlowValue.Value());
+        ChipLogProgress(NotSpecified, "Increase flow value");
+        ChipLogProgress(NotSpecified, "Stored flow value: %d", storedFlowValue.Value());
     }
 
-    PLAT_LOG("New flow value: %d", flowValue);
+    ChipLogProgress(NotSpecified, "New flow value: %d", flowValue);
     chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Set(1, flowValue);
 }
