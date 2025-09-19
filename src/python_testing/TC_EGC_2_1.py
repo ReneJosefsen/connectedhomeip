@@ -39,30 +39,32 @@
 #     quiet: true
 # === END CI TEST ARGUMENTS ===
 
-import chip.clusters as Clusters
-from chip.clusters.Types import NullValue
-from chip.testing import matter_asserts
-from chip.testing.matter_testing import MatterBaseTest, TestStep, default_matter_test_main, has_cluster, run_if_endpoint_matches
 from mobly import asserts
 from TC_EGCTestBase import ElectricalGridConditionsTestBaseHelper
+
+import matter.clusters as Clusters
+from matter.clusters.Types import NullValue
+from matter.testing import matter_asserts
+from matter.testing.matter_testing import MatterBaseTest, TestStep, default_matter_test_main, has_cluster, run_if_endpoint_matches
 
 cluster = Clusters.ElectricalGridConditions
 
 
-class EGC_2_1(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
+class TC_EGC_2_1(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
     """Implementation of test case TC_EGC_2_1."""
 
-    def desc_EGC_2_1(self) -> str:
+    def desc_TC_EGC_2_1(self) -> str:
         """Returns a description of this test"""
         return "[TC-EGC-2.1] Attributes with DUT as Server"
 
-    def pics_EGC_2_1(self) -> list[str]:
+    def pics_TC_EGC_2_1(self) -> list[str]:
         """This function returns a list of PICS for this test case that must be True for the test to be run"""
         return ["EGC.S"]
 
-    def steps_EGC_2_1(self) -> list[TestStep]:
+    def steps_TC_EGC_2_1(self) -> list[TestStep]:
         steps = [
-            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test)."),
+            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test).",
+                     is_commissioning=True),
             TestStep("2", "TH reads from the DUT the LocalGenerationAvailable attribute.",
                      "Verify that the DUT response contains either null or a bool value."),
             TestStep("3", "TH reads from the DUT the CurrentConditions attribute.",
@@ -73,7 +75,7 @@ class EGC_2_1(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
         return steps
 
     @run_if_endpoint_matches(has_cluster(Clusters.ElectricalGridConditions))
-    async def test_EGC_2_1(self):
+    async def test_TC_EGC_2_1(self):
         endpoint = self.get_endpoint()
         attributes = cluster.Attributes
 

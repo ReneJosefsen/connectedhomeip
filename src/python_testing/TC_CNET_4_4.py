@@ -20,10 +20,12 @@ import random
 import string
 from typing import Optional
 
-import chip.clusters as Clusters
-from chip.clusters.Types import NullValue
-from chip.testing.matter_testing import MatterBaseTest, TestStep, async_test_body, default_matter_test_main, type_matches
 from mobly import asserts
+
+import matter.clusters as Clusters
+from matter.clusters.Types import NullValue
+from matter.testing.matter_testing import (MatterBaseTest, TestStep, default_matter_test_main, has_feature, run_if_endpoint_matches,
+                                           type_matches)
 
 
 class TC_CNET_4_4(MatterBaseTest):
@@ -42,9 +44,9 @@ class TC_CNET_4_4(MatterBaseTest):
         return '[TC-CNET-4.4] [Wi-Fi] Verification for ScanNetworks command [DUT-Server]'
 
     def pics_TC_CNET_4_4(self):
-        return ['CNET.S']
+        return ['CNET.S.F00']
 
-    @async_test_body
+    @run_if_endpoint_matches(has_feature(Clusters.NetworkCommissioning, Clusters.NetworkCommissioning.Bitmaps.Feature.kWiFiNetworkInterface))
     async def test_TC_CNET_4_4(self):
         # Commissioning is already done
         self.step("precondition")
@@ -53,11 +55,7 @@ class TC_CNET_4_4(MatterBaseTest):
         attr = cnet.Attributes
 
         self.step(1)
-        feature_map = await self.read_single_attribute_check_success(cluster=cnet, attribute=attr.FeatureMap)
-        if not (feature_map & cnet.Bitmaps.Feature.kWiFiNetworkInterface):
-            logging.info('Device does not support WiFi on endpoint, skipping remaining steps')
-            self.skip_all_remaining_steps(2)
-            return
+        # Already done with decorators
 
         self.step(2)
         supported_wifi_bands = await self.read_single_attribute_check_success(cluster=cnet, attribute=attr.SupportedWiFiBands)

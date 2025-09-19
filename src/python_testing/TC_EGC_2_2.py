@@ -39,30 +39,32 @@
 #     quiet: true
 # === END CI TEST ARGUMENTS ===
 
-import chip.clusters as Clusters
-from chip.clusters.Types import NullValue
-from chip.testing.matter_testing import (EventChangeCallback, MatterBaseTest, TestStep, default_matter_test_main, has_cluster,
-                                         run_if_endpoint_matches)
 from mobly import asserts
 from TC_EGCTestBase import ElectricalGridConditionsTestBaseHelper
+
+import matter.clusters as Clusters
+from matter.clusters.Types import NullValue
+from matter.testing.event_attribute_reporting import EventSubscriptionHandler
+from matter.testing.matter_testing import MatterBaseTest, TestStep, default_matter_test_main, has_cluster, run_if_endpoint_matches
 
 cluster = Clusters.ElectricalGridConditions
 
 
-class EGC_2_2(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
+class TC_EGC_2_2(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
     """Implementation of test case TC_EGC_2_2."""
 
-    def desc_EGC_2_2(self) -> str:
+    def desc_TC_EGC_2_2(self) -> str:
         """Returns a description of this test"""
         return "[TC-EGC-2.2] Primary Functionality with DUT as Server"
 
-    def pics_EGC_2_2(self) -> list[str]:
+    def pics_TC_EGC_2_2(self) -> list[str]:
         """This function returns a list of PICS for this test case that must be True for the test to be run"""
         return ["EGC.S"]
 
-    def steps_EGC_2_2(self) -> list[TestStep]:
+    def steps_TC_EGC_2_2(self) -> list[TestStep]:
         steps = [
-            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test)."),
+            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test).",
+                     is_commissioning=True),
             TestStep("2", "Set up a subscription to all ElectricalGridConditions cluster events"),
             TestStep("3", "TH reads TestEventTriggersEnabled attribute from General Diagnostics Cluster",
                      "Value has to be 1 (True)"),
@@ -76,7 +78,7 @@ class EGC_2_2(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
         return steps
 
     @run_if_endpoint_matches(has_cluster(Clusters.ElectricalGridConditions))
-    async def test_EGC_2_2(self):
+    async def test_TC_EGC_2_2(self):
         endpoint = self.get_endpoint()
         attributes = cluster.Attributes
 
@@ -84,7 +86,7 @@ class EGC_2_2(ElectricalGridConditionsTestBaseHelper, MatterBaseTest):
         # Commission DUT - already done
 
         self.step("2")
-        events_callback = EventChangeCallback(cluster)
+        events_callback = EventSubscriptionHandler(expected_cluster=cluster)
         await events_callback.start(self.default_controller,
                                     self.dut_node_id,
                                     endpoint)

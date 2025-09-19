@@ -43,13 +43,14 @@
 """Define Matter test case TC_SEPR_2_1."""
 
 
-import chip.clusters as Clusters
-from chip.clusters import Globals
-from chip.clusters.Types import NullValue
-from chip.testing import matter_asserts
-from chip.testing.matter_testing import MatterBaseTest, TestStep, default_matter_test_main, has_cluster, run_if_endpoint_matches
 from mobly import asserts
 from TC_SEPRTestBase import CommodityPriceTestBaseHelper
+
+import matter.clusters as Clusters
+from matter.clusters import Globals
+from matter.clusters.Types import NullValue
+from matter.testing import matter_asserts
+from matter.testing.matter_testing import MatterBaseTest, TestStep, default_matter_test_main, has_cluster, run_if_endpoint_matches
 
 cluster = Clusters.CommodityPrice
 
@@ -71,7 +72,8 @@ class TC_SEPR_2_1(CommodityPriceTestBaseHelper, MatterBaseTest):
     def steps_TC_SEPR_2_1(self) -> list[TestStep]:
         """Execute the test steps."""
         steps = [
-            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test)."),
+            TestStep("1", "Commission DUT to TH (can be skipped if done in a preceding test).",
+                     is_commissioning=True),
             TestStep("2", "TH reads from the DUT the TariffUnit attribute.",
                      "Verify that the DUT response contains a TariffUnitEnum value."),
             TestStep("3", "TH reads from the DUT the Currency attribute.",

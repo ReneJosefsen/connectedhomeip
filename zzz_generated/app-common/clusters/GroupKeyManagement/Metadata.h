@@ -5,6 +5,7 @@
 #pragma once
 
 #include <app/data-model-provider/MetadataTypes.h>
+#include <array>
 #include <lib/core/DataModelTypes.h>
 
 #include <cstdint>
@@ -19,72 +20,62 @@ namespace GroupKeyManagement {
 inline constexpr uint32_t kRevision = 1;
 
 namespace Attributes {
+
 namespace GroupKeyMap {
-inline constexpr DataModel::AttributeEntry kMetadataEntry = {
-    .attributeId    = GroupKeyMap::Id,
-    .flags          = BitFlags<DataModel::AttributeQualityFlags>{ DataModel::AttributeQualityFlags::kListAttribute },
-    .readPrivilege  = Access::Privilege::kView,
-    .writePrivilege = Access::Privilege::kManage,
-};
+inline constexpr DataModel::AttributeEntry
+    kMetadataEntry(GroupKeyMap::Id, BitFlags<DataModel::AttributeQualityFlags>(DataModel::AttributeQualityFlags::kListAttribute),
+                   Access::Privilege::kView, Access::Privilege::kManage);
 } // namespace GroupKeyMap
 namespace GroupTable {
-inline constexpr DataModel::AttributeEntry kMetadataEntry = {
-    .attributeId    = GroupTable::Id,
-    .flags          = BitFlags<DataModel::AttributeQualityFlags>{ DataModel::AttributeQualityFlags::kListAttribute },
-    .readPrivilege  = Access::Privilege::kView,
-    .writePrivilege = std::nullopt,
-};
+inline constexpr DataModel::AttributeEntry
+    kMetadataEntry(GroupTable::Id, BitFlags<DataModel::AttributeQualityFlags>(DataModel::AttributeQualityFlags::kListAttribute),
+                   Access::Privilege::kView, std::nullopt);
 } // namespace GroupTable
 namespace MaxGroupsPerFabric {
-inline constexpr DataModel::AttributeEntry kMetadataEntry = {
-    .attributeId    = MaxGroupsPerFabric::Id,
-    .flags          = BitFlags<DataModel::AttributeQualityFlags>{},
-    .readPrivilege  = Access::Privilege::kView,
-    .writePrivilege = std::nullopt,
-};
+inline constexpr DataModel::AttributeEntry kMetadataEntry(MaxGroupsPerFabric::Id, BitFlags<DataModel::AttributeQualityFlags>(),
+                                                          Access::Privilege::kView, std::nullopt);
 } // namespace MaxGroupsPerFabric
 namespace MaxGroupKeysPerFabric {
-inline constexpr DataModel::AttributeEntry kMetadataEntry = {
-    .attributeId    = MaxGroupKeysPerFabric::Id,
-    .flags          = BitFlags<DataModel::AttributeQualityFlags>{},
-    .readPrivilege  = Access::Privilege::kView,
-    .writePrivilege = std::nullopt,
-};
+inline constexpr DataModel::AttributeEntry kMetadataEntry(MaxGroupKeysPerFabric::Id, BitFlags<DataModel::AttributeQualityFlags>(),
+                                                          Access::Privilege::kView, std::nullopt);
 } // namespace MaxGroupKeysPerFabric
+constexpr std::array<DataModel::AttributeEntry, 4> kMandatoryMetadata = {
+    GroupKeyMap::kMetadataEntry,
+    GroupTable::kMetadataEntry,
+    MaxGroupsPerFabric::kMetadataEntry,
+    MaxGroupKeysPerFabric::kMetadataEntry,
+
+};
 
 } // namespace Attributes
 
 namespace Commands {
+
 namespace KeySetWrite {
-inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry = {
-    .commandId       = KeySetWrite::Id,
-    .flags           = BitFlags<DataModel::CommandQualityFlags>{ DataModel::CommandQualityFlags::kFabricScoped },
-    .invokePrivilege = Access::Privilege::kAdminister,
-};
+inline constexpr DataModel::AcceptedCommandEntry
+    kMetadataEntry(KeySetWrite::Id, BitFlags<DataModel::CommandQualityFlags>(DataModel::CommandQualityFlags::kFabricScoped),
+                   Access::Privilege::kAdminister);
 } // namespace KeySetWrite
 namespace KeySetRead {
-inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry = {
-    .commandId       = KeySetRead::Id,
-    .flags           = BitFlags<DataModel::CommandQualityFlags>{ DataModel::CommandQualityFlags::kFabricScoped },
-    .invokePrivilege = Access::Privilege::kAdminister,
-};
+inline constexpr DataModel::AcceptedCommandEntry
+    kMetadataEntry(KeySetRead::Id, BitFlags<DataModel::CommandQualityFlags>(DataModel::CommandQualityFlags::kFabricScoped),
+                   Access::Privilege::kAdminister);
 } // namespace KeySetRead
 namespace KeySetRemove {
-inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry = {
-    .commandId       = KeySetRemove::Id,
-    .flags           = BitFlags<DataModel::CommandQualityFlags>{ DataModel::CommandQualityFlags::kFabricScoped },
-    .invokePrivilege = Access::Privilege::kAdminister,
-};
+inline constexpr DataModel::AcceptedCommandEntry
+    kMetadataEntry(KeySetRemove::Id, BitFlags<DataModel::CommandQualityFlags>(DataModel::CommandQualityFlags::kFabricScoped),
+                   Access::Privilege::kAdminister);
 } // namespace KeySetRemove
 namespace KeySetReadAllIndices {
-inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry = {
-    .commandId       = KeySetReadAllIndices::Id,
-    .flags           = BitFlags<DataModel::CommandQualityFlags>{ DataModel::CommandQualityFlags::kFabricScoped },
-    .invokePrivilege = Access::Privilege::kAdminister,
-};
+inline constexpr DataModel::AcceptedCommandEntry
+    kMetadataEntry(KeySetReadAllIndices::Id,
+                   BitFlags<DataModel::CommandQualityFlags>(DataModel::CommandQualityFlags::kFabricScoped),
+                   Access::Privilege::kAdminister);
 } // namespace KeySetReadAllIndices
 
 } // namespace Commands
+
+namespace Events {} // namespace Events
 } // namespace GroupKeyManagement
 } // namespace Clusters
 } // namespace app

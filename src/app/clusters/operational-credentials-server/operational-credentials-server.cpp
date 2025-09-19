@@ -300,6 +300,10 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
 {
     ChipLogError(Zcl, "OpCreds: Proceeding to FailSafeCleanup on fail-safe expiry!");
 
+    bool nocAddedDuringFailsafe          = event->FailSafeTimerExpired.addNocCommandHasBeenInvoked;
+    bool nocUpdatedDuringFailsafe        = event->FailSafeTimerExpired.updateNocCommandHasBeenInvoked;
+    bool nocAddedOrUpdatedDuringFailsafe = nocAddedDuringFailsafe || nocUpdatedDuringFailsafe;
+
     FabricIndex fabricIndex = event->FailSafeTimerExpired.fabricIndex;
 
     // Report Fabrics table change if SetVIDVerificationStatement had been called.
@@ -322,7 +326,7 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
     // If an AddNOC or UpdateNOC command has been successfully invoked, terminate all CASE sessions associated with the Fabric
     // whose Fabric Index is recorded in the Fail-Safe context (see ArmFailSafe Command) by clearing any associated Secure
     // Session Context at the Server.
-    if (event->FailSafeTimerExpired.addNocCommandHasBeenInvoked || event->FailSafeTimerExpired.updateNocCommandHasBeenInvoked)
+    if (nocAddedOrUpdatedDuringFailsafe)
     {
         SessionManager & sessionMgr = Server::GetInstance().GetSecureSessionManager();
         CleanupSessionsForFabric(sessionMgr, fabricIndex);
@@ -334,7 +338,7 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
     // If an AddNOC command had been successfully invoked, achieve the equivalent effect of invoking the RemoveFabric command
     // against the Fabric Index stored in the Fail-Safe Context for the Fabric Index that was the subject of the AddNOC
     // command.
-    if (event->FailSafeTimerExpired.addNocCommandHasBeenInvoked)
+    if (nocAddedDuringFailsafe)
     {
         CHIP_ERROR err;
         err = DeleteFabricFromTable(fabricIndex);
@@ -342,6 +346,13 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
         {
             ChipLogError(Zcl, "OpCreds: failed to delete fabric at index %u: %" CHIP_ERROR_FORMAT, fabricIndex, err.Format());
         }
+    }
+
+    if (nocUpdatedDuringFailsafe)
+    {
+        // Operational identities/records available may have changed due to NodeID update. Need to refresh all records.
+        // The case of fabric removal that reverts AddNOC is handled by the `DeleteFabricFromTable` flow above.
+        app::DnssdServer::Instance().StartServer();
     }
 }
 
@@ -398,7 +409,10 @@ public:
         //   the leave event will be cancelled.
         // - removing the fabric removes all associated access control entries, so generating
         //   subsequent reports containing the leave event will fail the access control check.
-        InteractionModelEngine::GetInstance()->GetReportingEngine().ScheduleUrgentEventDeliverySync(MakeOptional(fabricIndex));
+        EventReporter & eventReporter = InteractionModelEngine::GetInstance()->GetReportingEngine();
+
+        // public interface of event delivery is through an event reporter.
+        eventReporter.ScheduleUrgentEventDeliverySync(MakeOptional(fabricIndex));
     }
 
     // Gets called when a fabric is deleted
@@ -702,6 +716,24 @@ bool emberAfOperationalCredentialsClusterAddNOCCallback(app::CommandHandler * co
     // Check this explicitly before adding the fabric so we don't need to back out changes if this is an error.
     VerifyOrExit(IsOperationalNodeId(commandData.caseAdminSubject) || IsCASEAuthTag(commandData.caseAdminSubject),
                  nocResponse = NodeOperationalCertStatusEnum::kInvalidAdminSubject);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    // These checks should only run during JCM.
+    if (Server::GetInstance().GetCommissioningWindowManager().IsJCM())
+    {
+        // NOC must contain an Administrator CAT
+        CATValues cats;
+        err = ExtractCATsFromOpCert(NOCValue, cats);
+        VerifyOrExit(err == CHIP_NO_ERROR && cats.ContainsIdentifier(kAdminCATIdentifier),
+                     nocResponse = NodeOperationalCertStatusEnum::kInvalidNOC);
+
+        // CaseAdminSubject must contain an Anchor CAT
+        CASEAuthTag tag = CASEAuthTagFromNodeId(commandData.caseAdminSubject);
+        VerifyOrExit(IsCASEAuthTag(commandData.caseAdminSubject) && IsValidCASEAuthTag(tag) &&
+                         (GetCASEAuthTagIdentifier(tag) == kAnchorCATIdentifier),
+                     nocResponse = NodeOperationalCertStatusEnum::kInvalidAdminSubject);
+    }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     err = fabricTable.AddNewPendingFabricWithOperationalKeystore(NOCValue, ICACValue.ValueOr(ByteSpan{}), adminVendorId,
                                                                  &newFabricIndex);

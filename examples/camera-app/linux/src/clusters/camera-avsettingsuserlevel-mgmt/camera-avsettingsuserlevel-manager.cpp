@@ -20,6 +20,7 @@
 #include <app/clusters/camera-av-stream-management-server/camera-av-stream-management-server.h>
 #include <camera-avsettingsuserlevel-manager.h>
 #include <cmath>
+#include <platform/internal/CHIPDeviceLayerInternal.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -28,7 +29,9 @@ using namespace chip::app::Clusters::CameraAvSettingsUserLevelManagement;
 
 using chip::Protocols::InteractionModel::Status;
 
-void CameraAVSettingsUserLevelManager::SetCameraDeviceHAL(CameraDeviceInterface::CameraHALInterface * aCameraDeviceHAL)
+static void onTimerExpiry(System::Layer * systemLayer, void * data);
+
+void CameraAVSettingsUserLevelManager::SetCameraDeviceHAL(CameraDeviceInterface * aCameraDeviceHAL)
 {
     mCameraDeviceHAL = aCameraDeviceHAL;
 }
@@ -40,91 +43,73 @@ bool CameraAVSettingsUserLevelManager::CanChangeMPTZ()
     return true;
 }
 
-bool CameraAVSettingsUserLevelManager::IsValidVideoStreamID(uint16_t aVideoStreamID)
+void CameraAVSettingsUserLevelManager::VideoStreamAllocated(uint16_t aStreamID)
 {
-    // The server needs to verify that the provided Video Stream ID is valid and known and subject to digital modification
-    // The camera app needs to also have an instance of AV Stream Management, querying that to determine validity of the provided
-    // id.
-    for (VideoStream & stream : mCameraDeviceHAL->GetAvailableVideoStreams())
-    {
-        if (stream.videoStreamParams.videoStreamID == aVideoStreamID && stream.isAllocated)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    Globals::Structs::ViewportStruct::Type viewport = mCameraDeviceHAL->GetCameraHALInterface().GetViewport();
+    this->GetServer()->AddMoveCapableVideoStream(aStreamID, viewport);
 }
 
-Status CameraAVSettingsUserLevelManager::MPTZSetPosition(Optional<int16_t> aPan, Optional<int16_t> aTilt, Optional<uint8_t> aZoom)
+void CameraAVSettingsUserLevelManager::VideoStreamDeallocated(uint16_t aStreamID)
 {
+    this->GetServer()->RemoveMoveCapableVideoStream(aStreamID);
+}
+
+void CameraAVSettingsUserLevelManager::DefaultViewportUpdated(Globals::Structs::ViewportStruct::Type aViewport)
+{
+    this->GetServer()->UpdateMoveCapableVideoStreams(aViewport);
+}
+
+Status CameraAVSettingsUserLevelManager::MPTZSetPosition(Optional<int16_t> aPan, Optional<int16_t> aTilt, Optional<uint8_t> aZoom,
+                                                         PhysicalPTZCallback * callback)
+{
+    mCallback = callback;
+
     // The Cluster implementation has validated that the Feature Flags are set and the values themselves are in range. Do any needed
     // hardware interactions to actually set the camera to the new values of PTZ.  Then return a Status response. The server itself
     // will persist the new values.
     //
-    if (aPan.HasValue())
-    {
-        mCameraDeviceHAL->SetPan(aPan.Value());
-    }
+    mCameraDeviceHAL->GetCameraHALInterface().SetPhysicalPTZ(aPan, aTilt, aZoom);
 
-    if (aTilt.HasValue())
-    {
-        mCameraDeviceHAL->SetTilt(aTilt.Value());
-    }
-
-    if (aZoom.HasValue())
-    {
-        mCameraDeviceHAL->SetZoom(aZoom.Value());
-    }
-
+    // For the purposes of the Camera App, run a timer equivalent to a typical physical elapsed time for PTZ. An actual HAL will
+    // invoke OnPhysicalMoveCompleted method once it has determined via its own means that the move is completed.
+    //
+    DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds16(2), onTimerExpiry, this);
     return Status::Success;
 }
 
-Status CameraAVSettingsUserLevelManager::MPTZRelativeMove(Optional<int16_t> aPan, Optional<int16_t> aTilt, Optional<uint8_t> aZoom)
+Status CameraAVSettingsUserLevelManager::MPTZRelativeMove(Optional<int16_t> aPan, Optional<int16_t> aTilt, Optional<uint8_t> aZoom,
+                                                          PhysicalPTZCallback * callback)
 {
+    mCallback = callback;
+
     // The Cluster implementation has validated that the Feature Flags are set and the values themselves are in range. Do any needed
     // hardware interactions to actually set the camera to the new values of PTZ.  Then return a Status response. The server itself
     // will persist the new values.
     //
-    if (aPan.HasValue())
-    {
-        mCameraDeviceHAL->SetPan(aPan.Value());
-    }
+    mCameraDeviceHAL->GetCameraHALInterface().SetPhysicalPTZ(aPan, aTilt, aZoom);
 
-    if (aTilt.HasValue())
-    {
-        mCameraDeviceHAL->SetTilt(aTilt.Value());
-    }
-
-    if (aZoom.HasValue())
-    {
-        mCameraDeviceHAL->SetZoom(aZoom.Value());
-    }
-
+    // For the purposes of the Camera App, run a timer equivalent to a typical physical elapsed time for PTZ. AAn actual HAL will
+    // invoke OnPhysicalMoveCompleted method once it has determined via its own means that the move is completed.
+    //
+    DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds16(2), onTimerExpiry, this);
     return Status::Success;
 }
 
 Status CameraAVSettingsUserLevelManager::MPTZMoveToPreset(uint8_t aPreset, Optional<int16_t> aPan, Optional<int16_t> aTilt,
-                                                          Optional<uint8_t> aZoom)
+                                                          Optional<uint8_t> aZoom, PhysicalPTZCallback * callback)
 {
-    // The Cluster implementation has validated the preset is valid, and provided the MPTZ values associated with that preset.
-    // Do any needed hardware interactions to actually set the camera to the new values of PTZ.  Then return a Status response.
+    mCallback = callback;
+
+    // The Cluster implementation has validated that the Feature Flags are set and the values themselves are in range. Do any needed
+    // hardware interactions to actually set the camera to the new values of PTZ.  Then return a Status response. The server itself
+    // will persist the new values.
     //
-    if (aPan.HasValue())
-    {
-        mCameraDeviceHAL->SetPan(aPan.Value());
-    }
+    mCameraDeviceHAL->GetCameraHALInterface().SetPhysicalPTZ(aPan, aTilt, aZoom);
 
-    if (aTilt.HasValue())
-    {
-        mCameraDeviceHAL->SetTilt(aTilt.Value());
-    }
-
-    if (aZoom.HasValue())
-    {
-        mCameraDeviceHAL->SetZoom(aZoom.Value());
-    }
-
+    // For the purposes of the Camera App, run a timer equivalent to a typical physical elapsed time for PTZ. AAn actual HAL will
+    // invoke OnPhysicalMoveCompleted method once it has determined via its own means that the move is completed.
+    //
+    DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds16(2), onTimerExpiry, this);
     return Status::Success;
 }
 
@@ -144,13 +129,13 @@ Status CameraAVSettingsUserLevelManager::MPTZRemovePreset(uint8_t aPreset)
     return Status::Success;
 }
 
-Status CameraAVSettingsUserLevelManager::DPTZSetViewport(uint16_t aVideoStreamID, Structs::ViewportStruct::Type aViewport)
+Status CameraAVSettingsUserLevelManager::DPTZSetViewport(uint16_t aVideoStreamID, Globals::Structs::ViewportStruct::Type aViewport)
 {
     // The Cluster implementation has ensured that the videoStreamID represents a valid stream.
-    // The application needs to interact with iHAL to access the stream, validate the viewport
+    // The application needs to interact with HAL to access the stream, validate the viewport
     // and set the new viewport value.
     //
-    for (VideoStream & stream : mCameraDeviceHAL->GetAvailableVideoStreams())
+    for (VideoStream & stream : mCameraDeviceHAL->GetCameraHALInterface().GetAvailableVideoStreams())
     {
         if (stream.videoStreamParams.videoStreamID == aVideoStreamID && stream.isAllocated)
         {
@@ -162,8 +147,8 @@ Status CameraAVSettingsUserLevelManager::DPTZSetViewport(uint16_t aVideoStreamID
             //
             uint16_t requestedWidth             = aViewport.x2 - aViewport.x1;
             uint16_t requestedHeight            = aViewport.y2 - aViewport.y1;
-            VideoResolutionStruct minResolution = mCameraDeviceHAL->GetMinViewport();
-            VideoSensorParamsStruct sensorParms = mCameraDeviceHAL->GetVideoSensorParams();
+            VideoResolutionStruct minResolution = mCameraDeviceHAL->GetCameraHALInterface().GetMinViewport();
+            VideoSensorParamsStruct sensorParms = mCameraDeviceHAL->GetCameraHALInterface().GetVideoSensorParams();
             if ((requestedWidth < minResolution.width) || (requestedHeight < minResolution.height) ||
                 (requestedWidth > sensorParms.sensorWidth) || (requestedHeight > sensorParms.sensorHeight))
             {
@@ -186,7 +171,7 @@ Status CameraAVSettingsUserLevelManager::DPTZSetViewport(uint16_t aVideoStreamID
                 ChipLogError(Camera, "CameraApp: DPTZSetViewport with mismatching aspect ratio.");
                 return Status::ConstraintError;
             }
-            mCameraDeviceHAL->SetViewport(stream, aViewport);
+            mCameraDeviceHAL->GetCameraHALInterface().SetViewport(stream, aViewport);
             return Status::Success;
         }
     }
@@ -196,19 +181,20 @@ Status CameraAVSettingsUserLevelManager::DPTZSetViewport(uint16_t aVideoStreamID
 }
 
 Status CameraAVSettingsUserLevelManager::DPTZRelativeMove(uint16_t aVideoStreamID, Optional<int16_t> aDeltaX,
-                                                          Optional<int16_t> aDeltaY, Optional<int8_t> aZoomDelta)
+                                                          Optional<int16_t> aDeltaY, Optional<int8_t> aZoomDelta,
+                                                          Globals::Structs::ViewportStruct::Type & aViewport)
 {
     // The Cluster implementation has ensured that the videoStreamID represents a valid stream.
     // The application needs to interact with its instance of AVStreamManagement to access the stream, validate the viewport
     // and set the new values for the viewpoort based on the pixel movement requested
     //
-    for (VideoStream & stream : mCameraDeviceHAL->GetAvailableVideoStreams())
+    for (VideoStream & stream : mCameraDeviceHAL->GetCameraHALInterface().GetAvailableVideoStreams())
     {
         if (stream.videoStreamParams.videoStreamID == aVideoStreamID && stream.isAllocated)
         {
-            ViewportStruct viewport             = stream.viewport;
-            VideoResolutionStruct minResolution = mCameraDeviceHAL->GetMinViewport();
-            VideoSensorParamsStruct sensorParms = mCameraDeviceHAL->GetVideoSensorParams();
+            Globals::Structs::ViewportStruct::Type viewport = stream.viewport;
+            VideoResolutionStruct minResolution             = mCameraDeviceHAL->GetCameraHALInterface().GetMinViewport();
+            VideoSensorParamsStruct sensorParms             = mCameraDeviceHAL->GetCameraHALInterface().GetVideoSensorParams();
 
             if (aDeltaX.HasValue())
             {
@@ -216,12 +202,13 @@ Status CameraAVSettingsUserLevelManager::DPTZRelativeMove(uint16_t aVideoStreamI
                 if (deltaX != 0)
                 {
                     // if the delta would move us out of the cartesian plane of the sensor, limit to the left hand edge
-                    //
-                    uint16_t x1Movement = ((deltaX < 0) && (abs(deltaX) > viewport.x1)) ? -viewport.x1 : deltaX;
-                    viewport.x1         = static_cast<uint16_t>(viewport.x1 + x1Movement);
+                    int16_t x1Movement =
+                        ((deltaX < 0) && (abs(deltaX) > viewport.x1)) ? static_cast<int16_t>(-viewport.x1) : deltaX;
+                    viewport.x1 = static_cast<uint16_t>(viewport.x1 + x1Movement);
 
-                    uint16_t x2Movement = ((deltaX < 0) && (abs(deltaX) > viewport.x2)) ? -viewport.x2 : deltaX;
-                    viewport.x2         = static_cast<uint16_t>(viewport.x2 + x2Movement);
+                    int16_t x2Movement =
+                        ((deltaX < 0) && (abs(deltaX) > viewport.x2)) ? static_cast<int16_t>(-viewport.x2) : deltaX;
+                    viewport.x2 = static_cast<uint16_t>(viewport.x2 + x2Movement);
                 }
             }
 
@@ -232,11 +219,13 @@ Status CameraAVSettingsUserLevelManager::DPTZRelativeMove(uint16_t aVideoStreamI
                 {
                     // if the delta would move us out of the cartesian plane of the sensor, limit to the top hand edge
                     //
-                    uint16_t y1Movement = ((deltaY < 0) && (abs(deltaY) > viewport.y1)) ? -viewport.y1 : deltaY;
-                    viewport.y1         = static_cast<uint16_t>(viewport.y1 + y1Movement);
+                    int16_t y1Movement =
+                        ((deltaY < 0) && (abs(deltaY) > viewport.y1)) ? static_cast<int16_t>(-viewport.y1) : deltaY;
+                    viewport.y1 = static_cast<uint16_t>(viewport.y1 + y1Movement);
 
-                    uint16_t y2Movement = ((deltaY < 0) && (abs(deltaY) > viewport.y2)) ? -viewport.y2 : deltaY;
-                    viewport.y2         = static_cast<uint16_t>(viewport.y2 + y2Movement);
+                    int16_t y2Movement =
+                        ((deltaY < 0) && (abs(deltaY) > viewport.y2)) ? static_cast<int16_t>(-viewport.y2) : deltaY;
+                    viewport.y2 = static_cast<uint16_t>(viewport.y2 + y2Movement);
                 }
             }
 
@@ -250,7 +239,7 @@ Status CameraAVSettingsUserLevelManager::DPTZRelativeMove(uint16_t aVideoStreamI
                     uint16_t originalWidth     = viewport.x2 - viewport.x1;
                     uint16_t originalHeight    = viewport.y2 - viewport.y1;
                     uint32_t originalSize      = originalWidth * originalHeight;
-                    uint32_t zoomDeltaInPixels = static_cast<uint32_t>(originalSize * abs(zoomDelta) / 100);
+                    uint32_t zoomDeltaInPixels = originalSize * static_cast<uint32_t>(abs(zoomDelta)) / 100;
                     uint32_t newSize = (zoomDelta < 0) ? originalSize - zoomDeltaInPixels : originalSize + zoomDeltaInPixels;
 
                     // If the new viewport after zoom would be less than the min, scale it to the min
@@ -291,7 +280,8 @@ Status CameraAVSettingsUserLevelManager::DPTZRelativeMove(uint16_t aVideoStreamI
                 viewport.x2 = sensorParms.sensorWidth - 1;
                 viewport.y2 = sensorParms.sensorHeight - 1;
             }
-            mCameraDeviceHAL->SetViewport(stream, viewport);
+            mCameraDeviceHAL->GetCameraHALInterface().SetViewport(stream, viewport);
+            aViewport = viewport;
             return Status::Success;
         }
     }
@@ -306,9 +296,9 @@ CHIP_ERROR CameraAVSettingsUserLevelManager::LoadMPTZPresets(std::vector<MPTZPre
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CameraAVSettingsUserLevelManager::LoadDPTZRelativeMove(std::vector<uint16_t> dptzRelativeMove)
+CHIP_ERROR CameraAVSettingsUserLevelManager::LoadDPTZStreams(std::vector<DPTZStruct> & dptzStreams)
 {
-    dptzRelativeMove.clear();
+    dptzStreams.clear();
     return CHIP_NO_ERROR;
 }
 
@@ -316,4 +306,39 @@ CHIP_ERROR CameraAVSettingsUserLevelManager::PersistentAttributesLoadedCallback(
 {
     ChipLogDetail(Camera, "CameraAvSettingsUserLevelManagement: Persistent attributes loaded");
     return CHIP_NO_ERROR;
+}
+
+// Timer expiration to mimic PTZ physical movememt
+//
+static void onTimerExpiry(System::Layer * systemLayer, void * data)
+{
+    CameraAVSettingsUserLevelManager * delegate = reinterpret_cast<CameraAVSettingsUserLevelManager *>(data);
+
+    // All timers are cancelled on delegate shutdown, hence if this is invoked the delegate is alive
+    delegate->OnPhysicalMoveCompleted(Protocols::InteractionModel::Status::Success);
+}
+
+void CameraAVSettingsUserLevelManager::CancelActiveTimers()
+{
+    // Cancel the PTZ mimic timer if it is active
+    DeviceLayer::SystemLayer().CancelTimer(onTimerExpiry, this);
+}
+
+void CameraAVSettingsUserLevelManager::ShutdownApp()
+{
+    CancelActiveTimers();
+}
+
+// To be invoked by the camera once a physical PTZ action has completed. The callback method is realized by our cluster server,
+// make sure that is still alive before trying to invoke methods thereon.
+//
+void CameraAVSettingsUserLevelManager::OnPhysicalMoveCompleted(Protocols::InteractionModel::Status status)
+{
+    if (GetServer() != nullptr)
+    {
+        if (mCallback != nullptr)
+        {
+            mCallback->OnPhysicalMovementComplete(status);
+        }
+    }
 }
