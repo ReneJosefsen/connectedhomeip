@@ -46,6 +46,7 @@
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
+#include <data-model-providers/codegen/CodegenDataModelProvider.h>
 #include <data-model-providers/codegen/Instance.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 
@@ -56,7 +57,7 @@
 #include <ti_drivers_config.h>
 
 #include "ValveControlDelegate.h"
-#include <app/clusters/soil-measurement-server/soil-measurement-server.h>
+#include <app/clusters/soil-measurement-server/soil-measurement-cluster.h>
 #include <app/clusters/valve-configuration-and-control-server/valve-configuration-and-control-server.h>
 
 #include <app/InteractionModelEngine.h>
@@ -70,6 +71,8 @@ using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::SoilMeasurement;
+using namespace chip::app::Clusters::SoilMeasurement::Attributes;
+
 using namespace chip::Credentials;
 using namespace chip::DeviceLayer;
 using namespace chip::DeviceManager;
@@ -92,18 +95,18 @@ static DeviceCallbacks DeviceEventCallbacks;
 static const uint32_t sIdentifyBlinkRateMs = 500;
 
 static const uint8_t sWaterValveEndpoint = 1;
-static chip::app::Clusters::ValveConfigurationAndControl::ValveControlDelegate sValveDelegate;
+static ValveConfigurationAndControl::ValveControlDelegate sValveDelegate;
 
 static const uint8_t sPumpEndpoint = 2;
 
-static Instance * gSoilMeasurementInstance = nullptr;
+static LazyRegisteredServerCluster<SoilMeasurementCluster> gSoilMeasurementServer;
 static TimerHandle_t sSoilMeasurementTimer = 0;
 
 static const Globals::Structs::MeasurementAccuracyRangeStruct::Type kDefaultSoilMoistureMeasurementLimitsAccuracyRange[] = {
     { .rangeMin = 0, .rangeMax = 100, .percentMax = MakeOptional(static_cast<chip::Percent100ths>(10)) }
 };
 
-static const Globals::Structs::MeasurementAccuracyStruct::Type kDefaultSoilMoistureMeasurementLimits = {
+const SoilMoistureMeasurementLimits::TypeInfo::Type kDefaultSoilMoistureMeasurementLimits = {
     .measurementType  = Globals::MeasurementTypeEnum::kSoilMoisture,
     .measured         = true,
     .minMeasuredValue = 0,
@@ -139,30 +142,29 @@ void SoilMeasurementTimerEventHandler(TimerHandle_t xTimer)
     fakeMeasurement.SetNonNull(Percent(rd_num));
 
     ChipLogProgress(NotSpecified, "Adjusting soil measurement value: %d", fakeMeasurement.Value());
-    gSoilMeasurementInstance->SetSoilMeasuredValue(fakeMeasurement);
+    gSoilMeasurementServer.Cluster().SetSoilMoistureMeasuredValue(fakeMeasurement);
 }
 
 void AppTask::InitSoilMeasurement(EndpointId endpointId)
 {
-    VerifyOrDie(!gSoilMeasurementInstance);
+    gSoilMeasurementServer.Create(endpointId, kDefaultSoilMoistureMeasurementLimits);
 
-    ChipLogProgress(NotSpecified, "Initialize Soil Measurement instance at endpoint %d", endpointId);
-    gSoilMeasurementInstance = new Instance(endpointId);
-    if (gSoilMeasurementInstance != nullptr)
+    CHIP_ERROR err = CodegenDataModelProvider::Instance().Registry().Register(gSoilMeasurementServer.Registration());
+    if (err != CHIP_NO_ERROR)
     {
-        gSoilMeasurementInstance->Init(kDefaultSoilMoistureMeasurementLimits);
+        ChipLogError(AppServer, "SoilMeasurement cluster error registration");
     }
 }
 
 void AppTask::ShutdownSoilMeasurement(EndpointId endpointId)
 {
-    if (gSoilMeasurementInstance != nullptr)
+    CHIP_ERROR err = CodegenDataModelProvider::Instance().Registry().Unregister(&gSoilMeasurementServer.Cluster());
+    if (err != CHIP_NO_ERROR)
     {
-        ChipLogProgress(NotSpecified, "Shutdown Soil Measurement instance at endpoint %d", endpointId);
-
-        delete gSoilMeasurementInstance;
-        gSoilMeasurementInstance = nullptr;
+        ChipLogError(AppServer, "SoilMeasurement unregister error");
     }
+
+    gSoilMeasurementServer.Destroy();
 }
 
 int AppTask::StartAppTask()

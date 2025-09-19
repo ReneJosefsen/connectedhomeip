@@ -32,9 +32,6 @@ public:
 
     // ===== Member functions that implement the DeviceAttestationCredentialsProvider
     CHIP_ERROR GetCertificationDeclaration(MutableByteSpan & outBuffer) override;
-
-    // ===== Member functions that implement the DeviceInstanceInfoProvider
-    CHIP_ERROR GetSoftwareVersionString(char * buf, size_t bufSize) override;
 };
 
 } // namespace DeviceLayer

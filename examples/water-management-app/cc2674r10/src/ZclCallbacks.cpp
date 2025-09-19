@@ -22,7 +22,7 @@
 
 #include "AppTask.h"
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/clusters/soil-measurement-server/soil-measurement-server.h>
+#include <app/clusters/soil-measurement-server/soil-measurement-cluster.h>
 
 using namespace chip;
 using namespace chip::app;
