@@ -24,6 +24,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
+#include "timers.h"
 
 #include <app/util/af-types.h>
 
@@ -76,8 +77,11 @@ private:
     static void ButtonRightEventHandler(Button_Handle handle, Button_EventMask events);
     static void TimerEventHandler(void * p_context);
     static void ChangeConfigutation(intptr_t arg);
-    static void ToogleValveState(intptr_t arg);
-    static void TooglePumpState(intptr_t arg);
+    static void ToggleValveState(intptr_t arg);
+    static void TogglePumpState(intptr_t arg);
+
+    static void SoilMeasurementTimerEventHandler(TimerHandle_t xTimer);
+    static void TakeSoilMeasurement(intptr_t arg);
 
     enum Function_t
     {

@@ -16,6 +16,7 @@ import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
 import("//build_overrides/openthread.gni")
 import("//build_overrides/ti_simplelink_sdk.gni")
+import("${chip_root}/src/lib/lib.gni")
 
 import("${build_root}/config/defaults.gni")
 
@@ -51,6 +52,10 @@ ti_sysconfig("sysconfig") {
     "ti_devices_config.h",
   ]
 
+  if (silk_logging_enabled) {
+    outputs += [ "ti_log_config.c" ]
+  }
+
   public_configs = [ ":sdk_cc13x4_26x4_dmm_config" ]
 
   cflags = [
@@ -78,6 +83,7 @@ ti_simplelink_executable("water_management_app") {
     ":sysconfig",
     "${chip_root}/examples/water-management-app/water-management-common",
     "${chip_root}/examples/platform/ti/cc13x4_26x4:ti-attestation-credentials",
+    "${chip_root}/src/app/clusters/network-commissioning:network-commissioning",
     "${chip_root}/src/lib",
     "${chip_root}/src/platform/logging:default",
     "${chip_root}/third_party/openthread:openthread",
