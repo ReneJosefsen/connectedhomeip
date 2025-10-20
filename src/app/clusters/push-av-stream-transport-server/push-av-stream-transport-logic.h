@@ -31,40 +31,7 @@ public:
             ChipLogError(Zcl, "Push AV Stream Transport : Trying to set delegate to null");
             return;
         }
-        mDelegate->SetPushAvStreamTransportServer(this);
     }
-
-    /**
-     * @brief API for application layer to notify when transport has started
-     *
-     * This should be called by the application layer when a transport begins streaming.
-     * It will generate the appropriate PushTransportBegin event.
-     *
-     * @param connectionID The connection ID of the transport that started
-     * @param triggerType The type of trigger that started the transport
-     * @param activationReason Optional reason for the activation
-     * @return Status::Success if event was generated successfully, failure otherwise
-     */
-    Protocols::InteractionModel::Status
-    NotifyTransportStarted(uint16_t connectionID, PushAvStreamTransport::TransportTriggerTypeEnum triggerType,
-                           Optional<PushAvStreamTransport::TriggerActivationReasonEnum> activationReason =
-                               Optional<PushAvStreamTransport::TriggerActivationReasonEnum>());
-
-    /**
-     * @brief API for application layer to notify when transport has stopped
-     *
-     * This should be called by the application layer when a transport stops streaming.
-     * It will generate the appropriate PushTransportEnd event.
-     *
-     * @param connectionID The connection ID of the transport that stopped
-     * @param triggerType The type of trigger that started the transport
-     * @param activationReason Optional reason for the deactivation
-     * @return Status::Success if event was generated successfully, failure otherwise
-     */
-    Protocols::InteractionModel::Status
-    NotifyTransportStopped(uint16_t connectionID, PushAvStreamTransport::TransportTriggerTypeEnum triggerType,
-                           Optional<PushAvStreamTransport::TriggerActivationReasonEnum> activationReason =
-                               Optional<PushAvStreamTransport::TriggerActivationReasonEnum>());
 
     void SetTLSClientManagementDelegate(TlsClientManagementDelegate * delegate)
     {
@@ -85,6 +52,15 @@ public:
             return;
         }
     }
+
+    Protocols::InteractionModel::Status
+    NotifyTransportStarted(uint16_t connectionID, PushAvStreamTransport::TransportTriggerTypeEnum triggerType,
+                           Optional<PushAvStreamTransport::TriggerActivationReasonEnum> activationReason =
+                               Optional<PushAvStreamTransport::TriggerActivationReasonEnum>());
+
+    Protocols::InteractionModel::Status NotifyTransportStopped(uint16_t connectionID,
+                                                               PushAvStreamTransport::TransportTriggerTypeEnum triggerType);
+
     enum class UpsertResultEnum : uint8_t
     {
         kInserted = 0x00,
@@ -144,9 +120,7 @@ public:
     Protocols::InteractionModel::Status
     GeneratePushTransportBeginEvent(const uint16_t connectionID, const PushAvStreamTransport::TransportTriggerTypeEnum triggerType,
                                     const Optional<PushAvStreamTransport::TriggerActivationReasonEnum> activationReason);
-    Protocols::InteractionModel::Status
-    GeneratePushTransportEndEvent(const uint16_t connectionID, const PushAvStreamTransport::TransportTriggerTypeEnum triggerType,
-                                  const Optional<PushAvStreamTransport::TriggerActivationReasonEnum> activationReason);
+    Protocols::InteractionModel::Status GeneratePushTransportEndEvent(const uint16_t connectionID);
 
 private:
     PushAvStreamTransportDelegate * mDelegate                            = nullptr;
@@ -180,13 +154,24 @@ private:
 
     void RemoveTimerAppState(const uint16_t connectionID);
 
+    Protocols::InteractionModel::Status CheckPrivacyModes(Globals::StreamUsageEnum streamUsage);
+
     /**
      * @brief Schedule deallocate with a given timeout
      *
-     * @param endpointId    endpoint where DoorLockServer is running
-     * @param timeoutSec    timeout in seconds
+     * @param connectionID    ID of the connection to deallocate
+     * @param timeoutSec      timeout in seconds
+     * @return               CHIP_ERROR code indicating the result of the operation
      */
     CHIP_ERROR ScheduleTransportDeallocate(uint16_t connectionID, uint32_t timeoutSec);
+
+    /**
+     * @brief Validates the provided URL.
+     *
+     * @param url The URL to validate
+     * @return true if URL is valid, false otherwise
+     */
+    bool ValidateUrl(const std::string & url);
 };
 
 } // namespace Clusters

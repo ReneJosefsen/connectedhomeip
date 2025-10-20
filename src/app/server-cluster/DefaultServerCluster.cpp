@@ -72,8 +72,6 @@ Span<const DataModel::AttributeEntry> DefaultServerCluster::GlobalAttributes()
     return { kGlobalAttributeEntries.data(), kGlobalAttributeEntries.size() };
 }
 
-DefaultServerCluster::DefaultServerCluster(const ConcreteClusterPath & path) : mPath(path) {}
-
 CHIP_ERROR DefaultServerCluster::Attributes(const ConcreteClusterPath & path, ReadOnlyBufferBuilder<AttributeEntry> & builder)
 {
 
@@ -136,7 +134,7 @@ CHIP_ERROR DefaultServerCluster::GeneratedCommands(const ConcreteClusterPath & p
 DataModel::ActionReturnStatus DefaultServerCluster::NotifyAttributeChangedIfSuccess(AttributeId attributeId,
                                                                                     DataModel::ActionReturnStatus status)
 {
-    if (status.IsSuccess())
+    if (status.IsSuccess() && !status.IsNoOpSuccess())
     {
         NotifyAttributeChanged(attributeId);
     }

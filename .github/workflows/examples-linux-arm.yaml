@@ -27,7 +27,11 @@ concurrency:
     cancel-in-progress: true
 
 env:
+    CCACHE_NOHASHDIR: 1
+    CCACHE_BASEDIR: ${{ github.workspace }}
+    CCACHE_PREFIX_CPP: ${{ github.workspace }}/scripts/helpers/ccache-prefix-cpp.sh
     CHIP_NO_LOG_TIMESTAMPS: true
+    CHIP_PW_COMMAND_LAUNCHER: ccache
 
 jobs:
     arm_crosscompile:
@@ -37,7 +41,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: ghcr.io/project-chip/chip-build-crosscompile:167
+            image: ghcr.io/project-chip/chip-build-crosscompile:168
 
         steps:
             - name: Checkout
@@ -67,3 +71,6 @@ jobs:
                         --target linux-arm64-camera-clang \
                         build \
                      "
+
+            - name: CCache statistics
+              run: ccache --show-stats
