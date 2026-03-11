@@ -22,7 +22,6 @@
 
 #include "AppTask.h"
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/clusters/soil-measurement-server/soil-measurement-cluster.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -35,17 +34,23 @@ static void IdentifyStartHandler(::Identify *);
 static void IdentifyStopHandler(::Identify *);
 
 /***** Variables *****/
-static const chip::EndpointId sValveEndpointId           = 1;
-static const chip::EndpointId sPumpEndpointId            = 2;
-static const chip::EndpointId sSoilMeasurementEndpointId = 3;
+static const chip::EndpointId sValveEndpointId      = 1;
+static const chip::EndpointId sPumpEndpointId       = 2;
+static const chip::EndpointId sSoilSensorEndpointId = 3;
+static const chip::EndpointId sThermostatEndpointId = 4;
+static const chip::EndpointId sSmokeCoEndpointId    = 5;
 
 /***** Identify configuration and functions *****/
 // This creates a static object of the Identify class and calls the constructor
 // which registers the object and its callbacks inside the identify server
 ::Identify stIdentifyValve = { sValveEndpointId, IdentifyStartHandler, IdentifyStopHandler, IdentifyTypeEnum::kVisibleIndicator };
 ::Identify stIdentifyPump  = { sPumpEndpointId, IdentifyStartHandler, IdentifyStopHandler, IdentifyTypeEnum::kVisibleIndicator };
-::Identify stIdentifySoilMeasurement = { sSoilMeasurementEndpointId, IdentifyStartHandler, IdentifyStopHandler,
-                                         IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifySoilSensor = { sSoilSensorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                    IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifyThermostat = { sThermostatEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                    IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifySmokeCO    = { sSmokeCoEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                    IdentifyTypeEnum::kVisibleIndicator };
 
 void IdentifyStartHandler(::Identify *)
 {
@@ -71,12 +76,22 @@ void emberAfSoilMeasurementClusterShutdownCallback(EndpointId endpointId)
     GetAppTask().ShutdownSoilMeasurement(endpointId);
 }
 
-void emberAfOnOffClusterInitCallback(EndpointId endpoint)
+void emberAfOnOffClusterInitCallback(EndpointId endpointId)
 {
     GetAppTask().InitOnOff();
 }
 
-void emberAfPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpoint)
+void emberAfPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitPumpConfigurationAndControl();
+}
+
+void emberAfSmokeCoAlarmClusterInitCallback(chip::EndpointId endpointId)
+{
+    GetAppTask().InitSmokeCoAlarm();
+}
+
+void emberAfThermostatClusterInitCallback(chip::EndpointId endpointId)
+{
+    GetAppTask().InitThermostat(endpointId);
 }

@@ -67,6 +67,8 @@ public:
 
     void InitOnOff(void);
     void InitPumpConfigurationAndControl(void);
+    void InitSmokeCoAlarm(void);
+    void InitThermostat(chip::EndpointId endpointId);
 
 private:
     friend AppTask & GetAppTask(void);
@@ -79,6 +81,7 @@ private:
     static void ChangeConfigutation(intptr_t arg);
     static void ToggleValveState(intptr_t arg);
     static void TogglePumpState(intptr_t arg);
+    static void ToggleSmokeCoState(intptr_t arg);
 
     static void SoilMeasurementTimerEventHandler(TimerHandle_t xTimer);
     static void TakeSoilMeasurement(intptr_t arg);

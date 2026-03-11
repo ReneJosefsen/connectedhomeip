@@ -67,7 +67,10 @@ extern "C" {
 #include <ti_drivers_config.h>
 
 #include "ValveControlDelegate.h"
-#include <app/clusters/soil-measurement-server/soil-measurement-cluster.h>
+#include "thermostat-delegate-impl.h"
+#include <app/clusters/smoke-co-alarm-server/smoke-co-alarm-server.h>
+#include <app/clusters/soil-measurement-server/SoilMeasurementCluster.h>
+#include <app/clusters/thermostat-server/thermostat-server.h>
 #include <app/clusters/valve-configuration-and-control-server/valve-configuration-and-control-server.h>
 
 #include <app/InteractionModelEngine.h>
@@ -124,6 +127,16 @@ const Clusters::SoilMeasurement::Attributes::SoilMoistureMeasurementLimits::Type
         kDefaultSoilMoistureMeasurementLimitsAccuracyRange)
 };
 
+static const uint8_t sSmokeCOEndpoint = 5;
+
+static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, SmokeCoAlarmServer::kPriorityOrderLength> sPriorityOrder = {
+    Clusters::SmokeCoAlarm::ExpressedStateEnum::kInoperative,       Clusters::SmokeCoAlarm::ExpressedStateEnum::kSmokeAlarm,
+    Clusters::SmokeCoAlarm::ExpressedStateEnum::kInterconnectSmoke, Clusters::SmokeCoAlarm::ExpressedStateEnum::kCOAlarm,
+    Clusters::SmokeCoAlarm::ExpressedStateEnum::kInterconnectCO,    Clusters::SmokeCoAlarm::ExpressedStateEnum::kHardwareFault,
+    Clusters::SmokeCoAlarm::ExpressedStateEnum::kTesting,           Clusters::SmokeCoAlarm::ExpressedStateEnum::kEndOfService,
+    Clusters::SmokeCoAlarm::ExpressedStateEnum::kBatteryAlert
+};
+
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
 static DefaultOTARequestorStorage sRequestorStorage;
@@ -146,7 +159,7 @@ void InitializeOTARequestor(void)
 
 void AppTask::SoilMeasurementTimerEventHandler(TimerHandle_t xTimer)
 {
-    DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
+    TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
 }
 
 void AppTask::InitSoilMeasurement(EndpointId endpointId)
@@ -235,7 +248,7 @@ int AppTask::Init()
             ;
     }
 
-    sThreadNetworkDriver.Init();
+    TEMPORARY_RETURN_IGNORED sThreadNetworkDriver.Init();
     ret = ThreadStackMgrImpl().StartThreadTask();
     if (ret != CHIP_NO_ERROR)
     {
@@ -281,10 +294,10 @@ int AppTask::Init()
 
     // Workaround to make the BLE stack set the proper device name on initialization
     uint16_t deviceDiscriminator = 0;
-    GetCommissionableDataProvider()->GetSetupDiscriminator(deviceDiscriminator);
+    TEMPORARY_RETURN_IGNORED GetCommissionableDataProvider() -> GetSetupDiscriminator(deviceDiscriminator);
     char deviceName[GAP_DEVICE_NAME_LEN + 1] = { 0 };
     snprintf(deviceName, GAP_DEVICE_NAME_LEN, "%s%04u", CHIP_DEVICE_CONFIG_BLE_DEVICE_NAME_PREFIX, deviceDiscriminator);
-    ConnectivityMgr().SetBLEDeviceName(deviceName);
+    TEMPORARY_RETURN_IGNORED ConnectivityMgr().SetBLEDeviceName(deviceName);
     ChipLogProgress(NotSpecified, "BLE: Set device name to %s", deviceName);
 #else
     SetDeviceAttestationCredentialsProvider(TI::GetTIDacProvider());
@@ -310,7 +323,7 @@ int AppTask::Init()
     sExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
     SetDeviceInfoProvider(&sExampleDeviceInfoProvider);
 
-    Server::GetInstance().Init(initParams);
+    TEMPORARY_RETURN_IGNORED Server::GetInstance().Init(initParams);
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -450,13 +463,13 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             // Disable BLE advertisements
             else // if (ConnectivityMgr().IsBLEAdvertisingEnabled())
             {
-                ConnectivityMgr().SetBLEAdvertisingEnabled(false);
+                TEMPORARY_RETURN_IGNORED ConnectivityMgr().SetBLEAdvertisingEnabled(false);
                 ChipLogProgress(NotSpecified, "Disabled BLE Advertisements");
             }
         }
         else if (AppEvent::kAppEventButtonType_DoubleClicked == aEvent->ButtonEvent.Type)
         {
-            DeviceLayer::PlatformMgr().ScheduleWork(ChangeConfigutation);
+            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ChangeConfigutation);
         }
         else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
@@ -468,15 +481,19 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_ButtonRight:
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
-            DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
+            // Force Soil Measurement
+            // TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
+
+            // Toogle Smoke CO unmounted state
+            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleSmokeCoState);
         }
         else if (AppEvent::kAppEventButtonType_DoubleClicked == aEvent->ButtonEvent.Type)
         {
-            DeviceLayer::PlatformMgr().ScheduleWork(ToggleValveState);
+            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleValveState);
         }
         else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
-            DeviceLayer::PlatformMgr().ScheduleWork(TogglePumpState);
+            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TogglePumpState);
         }
         break;
 
@@ -514,32 +531,38 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
 void AppTask::ChangeConfigutation(intptr_t arg)
 {
     // Change a F attribute to simulate a change in configuration of the device
-    uint8_t valveLevelStep = 0;
+    DataModel::Nullable<uint16_t> pumpMaxSpeed = DataModel::Nullable<uint16_t>();
     Protocols::InteractionModel::Status status =
-        Clusters::ValveConfigurationAndControl::Attributes::LevelStep::Get(EndpointId(sWaterValveEndpoint), &valveLevelStep);
+        Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Get(EndpointId(sPumpEndpoint), pumpMaxSpeed);
     VerifyOrDie(status == Protocols::InteractionModel::Status::Success);
 
-    if (valveLevelStep == 1)
+    if (pumpMaxSpeed.IsNull())
     {
-        // Change fixed LevelStep value to 10
-        ChipLogProgress(NotSpecified, "Set Valve LevelStep to 10");
-        valveLevelStep = 10;
+        // Change fixed MaxSpeed value to 2000
+        ChipLogProgress(NotSpecified, "Initially set Pump MaxSpeed to 2000");
+        pumpMaxSpeed.SetNonNull(2000);
+    }
+    if (pumpMaxSpeed.Value() == 1000)
+    {
+        // Change fixed MaxSpeed value to 2000
+        ChipLogProgress(NotSpecified, "Set Pump MaxSpeed to 2000");
+        pumpMaxSpeed.SetNonNull(2000);
     }
     else
     {
-        // Change fixed LevelStep value back to 1
-        ChipLogProgress(NotSpecified, "Set Valve LevelStep to 1");
-        valveLevelStep = 1;
+        // Change fixed MaxSpeed value back to 1000
+        ChipLogProgress(NotSpecified, "Set Pump MaxSpeed to 1000");
+        pumpMaxSpeed.SetNonNull(1000);
     }
 
-    status = Clusters::ValveConfigurationAndControl::Attributes::LevelStep::Set(EndpointId(sWaterValveEndpoint), valveLevelStep);
+    status = Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Set(EndpointId(sPumpEndpoint), pumpMaxSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
-        ChipLogError(NotSpecified, "Failed to set LevelStep value");
+        ChipLogError(NotSpecified, "Failed to set MaxSpeed value");
     }
     else
     {
-        // LevelStep in ValveConfigurationAndControl has been modified,so bump ConfigurationVersion
+        // MaxSpeed in PumpConfigurationAndControl has been modified,so bump ConfigurationVersion
         // by calling the getter function to obtain a ScopedConfigurationVersionUpdater
         ChipLogProgress(NotSpecified, "Bump ConfigurationVersion");
         DataModel::ProviderMetadataTree::ScopedConfigurationVersionUpdater configurationVersionTransaction =
@@ -552,27 +575,29 @@ void AppTask::ToggleValveState(intptr_t arg)
     DataModel::Nullable<Percent> level;
     DataModel::Nullable<uint32_t> duration = DataModel::Nullable<uint32_t>(10);
 
-    DataModel::Nullable<Clusters::ValveConfigurationAndControl::ValveStateEnum> attributeValue;
-    Clusters::ValveConfigurationAndControl::Attributes::CurrentState::Get(EndpointId(sWaterValveEndpoint), attributeValue);
+    Clusters::ValveConfigurationAndControlCluster * valveCluster =
+        Clusters::ValveConfigurationAndControl::FindClusterOnEndpoint(sWaterValveEndpoint);
+
+    DataModel::Nullable<Clusters::ValveConfigurationAndControl::ValveStateEnum> attributeValue = valveCluster->GetCurrentState();
 
     if (attributeValue.IsNull())
     {
         ChipLogProgress(NotSpecified, "Toggle valve state: Unknown -> Open");
 
         level.SetNonNull(Percent(100));
-        Clusters::ValveConfigurationAndControl::SetValveLevel(EndpointId(sWaterValveEndpoint), level, duration);
+        TEMPORARY_RETURN_IGNORED valveCluster->OpenValve(level, duration);
     }
     else if (attributeValue.Value() == Clusters::ValveConfigurationAndControl::ValveStateEnum::kClosed)
     {
         ChipLogProgress(NotSpecified, "Toggle valve state: Closed -> Open");
 
         level.SetNonNull(Percent(100));
-        Clusters::ValveConfigurationAndControl::SetValveLevel(EndpointId(sWaterValveEndpoint), level, duration);
+        TEMPORARY_RETURN_IGNORED valveCluster->OpenValve(level, duration);
     }
     else
     {
         ChipLogProgress(NotSpecified, "Toggle valve state: Open -> Closed");
-        Clusters::ValveConfigurationAndControl::CloseValve(EndpointId(sWaterValveEndpoint));
+        TEMPORARY_RETURN_IGNORED valveCluster->CloseValve();
     }
 }
 
@@ -606,7 +631,27 @@ void AppTask::TakeSoilMeasurement(intptr_t arg)
     fakeMeasurement.SetNonNull(Percent(rd_num));
 
     ChipLogProgress(NotSpecified, "Adjusting soil measurement value: %d", fakeMeasurement.Value());
-    gSoilMeasurementServer.Cluster().SetSoilMoistureMeasuredValue(fakeMeasurement);
+    TEMPORARY_RETURN_IGNORED gSoilMeasurementServer.Cluster().SetSoilMoistureMeasuredValue(fakeMeasurement);
+}
+
+void AppTask::ToggleSmokeCoState(intptr_t arg)
+{
+    auto & smokeCoServer = SmokeCoAlarmServer::Instance();
+
+    bool currentUnmountedState;
+    smokeCoServer.GetUnmountedState(sSmokeCOEndpoint, currentUnmountedState);
+
+    if (currentUnmountedState)
+    {
+        ChipLogProgress(NotSpecified, "Mounting SmokeCO Alarm");
+    }
+    else
+    {
+        ChipLogProgress(NotSpecified, "Unmounting SmokeCO Alarm");
+    }
+
+    smokeCoServer.SetUnmountedState(sSmokeCOEndpoint, !currentUnmountedState);
+    smokeCoServer.SetExpressedStateByPriority(sSmokeCOEndpoint, sPriorityOrder);
 }
 
 void AppTask::OpenValve(void)
@@ -726,4 +771,16 @@ void AppTask::InitPumpConfigurationAndControl()
     {
         ChipLogError(NotSpecified, "ERR: Updating MaxConstSpeed  %x", to_underlying(status));
     }
+}
+
+void AppTask::InitSmokeCoAlarm()
+{
+    SmokeCoAlarmServer::Instance().SetInoperativeWhenUnmounted(true);
+}
+
+void AppTask::InitThermostat(EndpointId endpointId)
+{
+    // Register the delegate for the Thermostat
+    auto & delegate = Clusters::Thermostat::ThermostatDelegate::GetInstance();
+    Clusters::Thermostat::SetDefaultDelegate(endpointId, &delegate);
 }
