@@ -391,6 +391,16 @@ CHIP_ERROR GenericThreadStackManagerImpl_OpenThread<ImplClass>::_AttachToThreadN
 
     // Reset the previously set callback since it will never be called in case incorrect dataset was supplied.
     mpConnectCallback = nullptr;
+
+#if defined(CONFIG_CHIP_OPENTHREAD_NETWORK_SWITCH_PATH) && CONFIG_CHIP_OPENTHREAD_NETWORK_SWITCH_PATH
+    if (callback == nullptr && dataset.IsCommissioned() && current_dataset.IsCommissioned() &&
+        !dataset.AsByteSpan().data_equal(current_dataset.AsByteSpan()) && Impl()->IsThreadEnabled())
+    {
+        ReturnErrorOnFailure(Impl()->SetThreadProvision(dataset.AsByteSpan()));
+        return CHIP_NO_ERROR;
+    }
+#endif
+
     ReturnErrorOnFailure(Impl()->SetThreadEnabled(false));
     ReturnErrorOnFailure(Impl()->SetThreadProvision(dataset.AsByteSpan()));
 
@@ -1368,7 +1378,8 @@ CHIP_ERROR GenericThreadStackManagerImpl_OpenThread<ImplClass>::_RemoveInvalidSr
     {
         if (service.IsUsed() && service.mIsInvalid)
         {
-            ChipLogProgress(DeviceLayer, "removing srp service: %s.%s", service.mService.mInstanceName, service.mService.mName);
+            ChipLogProgress(DeviceLayer, "removing invalid srp service: %s.%s", service.mService.mInstanceName,
+                            service.mService.mName);
             error = MapOpenThreadError(otSrpClientRemoveService(mOTInst, &service.mService));
             SuccessOrExit(error);
         }
