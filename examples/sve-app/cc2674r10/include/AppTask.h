@@ -44,7 +44,17 @@
 #define APP_ERROR_START_TIMER_FAILED CHIP_APPLICATION_ERROR(0x05)
 #define APP_ERROR_STOP_TIMER_FAILED CHIP_APPLICATION_ERROR(0x06)
 #define APP_ERROR_ALLOCATION_FAILED CHIP_APPLICATION_ERROR(0x07)
+
 struct Identify;
+
+static const chip::EndpointId sRootNodeEndpointId          = 0;
+static const chip::EndpointId sWaterValveEndpointId        = 1;
+static const chip::EndpointId sPumpEndpointId              = 2;
+static const chip::EndpointId sSoilSensorEndpointId        = 3;
+static const chip::EndpointId sThermostatEndpointId        = 4;
+static const chip::EndpointId sSmokeCoEndpointId           = 5;
+static const chip::EndpointId sOccupancySensorEndpointId   = 6;
+static const chip::EndpointId sWaterLeakDetectorEndpointId = 7;
 
 class AppTask
 {
@@ -56,6 +66,8 @@ public:
     static AppTask & GetAppTask() { return sAppTask; }
 
     void PostEvent(const AppEvent * event);
+    static void LeakDetectorTrigger(void);
+    static void LeakDetectorUntrigger(void);
     void OpenValve(void);
     void CloseValve(void);
 
@@ -82,6 +94,9 @@ private:
     static void ToggleValveState(intptr_t arg);
     static void TogglePumpState(intptr_t arg);
     static void ToggleSmokeCoState(intptr_t arg);
+    static void ToggleWaterLeakDetectorState(intptr_t arg);
+    static void ToggleWaterLeakSensorFault(intptr_t arg);
+    static void ToggleOccupancySensorState(intptr_t arg);
 
     static void SoilMeasurementTimerEventHandler(TimerHandle_t xTimer);
     static void TakeSoilMeasurement(intptr_t arg);

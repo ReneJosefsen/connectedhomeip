@@ -77,6 +77,7 @@ ti_simplelink_executable("sve_app") {
     "${project_dir}/src/ValveControlDelegate.cpp",
     "${project_dir}/src/CHIPDeviceManager.cpp",
     "${project_dir}/src/thermostat-delegate-impl.cpp",
+    "${project_dir}/src/TestEventTriggerHandler.cpp",
   ]
 
   deps = [

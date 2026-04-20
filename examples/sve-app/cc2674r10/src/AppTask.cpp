@@ -66,8 +66,18 @@ extern "C" {
 /* syscfg */
 #include <ti_drivers_config.h>
 
+#define CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER 1
+
+#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
+#include <app/TestEventTriggerDelegate.h>
+#include <app/clusters/boolean-state-configuration-server/BooleanStateConfigurationTestEventTriggerHandler.h>
+#endif
+
 #include "ValveControlDelegate.h"
 #include "thermostat-delegate-impl.h"
+#include <app/clusters/boolean-state-configuration-server/CodegenIntegration.h>
+#include <app/clusters/boolean-state-server/CodegenIntegration.h>
+#include <app/clusters/occupancy-sensor-server/CodegenIntegration.h>
 #include <app/clusters/smoke-co-alarm-server/smoke-co-alarm-server.h>
 #include <app/clusters/soil-measurement-server/SoilMeasurementCluster.h>
 #include <app/clusters/thermostat-server/thermostat-server.h>
@@ -105,10 +115,7 @@ static DeviceCallbacks DeviceEventCallbacks;
 
 static const uint32_t sIdentifyBlinkRateMs = 500;
 
-static const uint8_t sWaterValveEndpoint = 1;
 static Clusters::ValveConfigurationAndControl::ValveControlDelegate sValveDelegate;
-
-static const uint8_t sPumpEndpoint = 2;
 
 static LazyRegisteredServerCluster<Clusters::SoilMeasurementCluster> gSoilMeasurementServer;
 static TimerHandle_t sSoilMeasurementTimer = 0;
@@ -127,8 +134,6 @@ const Clusters::SoilMeasurement::Attributes::SoilMoistureMeasurementLimits::Type
         kDefaultSoilMoistureMeasurementLimitsAccuracyRange)
 };
 
-static const uint8_t sSmokeCOEndpoint = 5;
-
 static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, SmokeCoAlarmServer::kPriorityOrderLength> sPriorityOrder = {
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kInoperative,       Clusters::SmokeCoAlarm::ExpressedStateEnum::kSmokeAlarm,
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kInterconnectSmoke, Clusters::SmokeCoAlarm::ExpressedStateEnum::kCOAlarm,
@@ -136,6 +141,13 @@ static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, SmokeCoAlarmServer
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kTesting,           Clusters::SmokeCoAlarm::ExpressedStateEnum::kEndOfService,
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kBatteryAlert
 };
+
+static uint8_t sCurrentEndpoint   = 0;
+static const uint8_t sMaxEndpoint = sWaterLeakDetectorEndpointId;
+
+static uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+                                                                                          0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+                                                                                          0xcc, 0xdd, 0xee, 0xff };
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
@@ -310,6 +322,15 @@ int AppTask::Init()
     ChipLogProgress(NotSpecified, "Initialize Server");
     static CommonCaseDeviceServerInitParams initParams;
 
+    // TestEventTrigger
+#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
+    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
+    static BooleanStateConfigurationTestEventTriggerHandler sBooleanStateConfigurationTestEventTriggerHandler{};
+    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
+    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sBooleanStateConfigurationTestEventTriggerHandler) == CHIP_NO_ERROR);
+    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+#endif
+
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     initParams.dataModelProvider = CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
 
@@ -355,7 +376,7 @@ int AppTask::Init()
     }
 
     // Set ValveConfigurationAndControl delegate
-    Clusters::ValveConfigurationAndControl::SetDefaultDelegate(EndpointId(sWaterValveEndpoint), &sValveDelegate);
+    Clusters::ValveConfigurationAndControl::SetDefaultDelegate(EndpointId(sWaterValveEndpointId), &sValveDelegate);
 
     // Start timer to make soil measurement every 1 second
     sSoilMeasurementTimer = xTimerCreate("SoilMeasTmr",                   // Just a text name, not used by the RTOS kernel
@@ -481,19 +502,92 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_ButtonRight:
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
-            // Force Soil Measurement
-            // TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
-
-            // Toogle Smoke CO unmounted state
-            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleSmokeCoState);
+            if (sCurrentEndpoint == sRootNodeEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "No action on Root Node");
+            }
+            else if (sCurrentEndpoint == sWaterValveEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleValveState);
+            }
+            else if (sCurrentEndpoint == sPumpEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TogglePumpState);
+            }
+            else if (sCurrentEndpoint == sSoilSensorEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TakeSoilMeasurement);
+            }
+            else if (sCurrentEndpoint == sThermostatEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "No action on Thermostat");
+            }
+            else if (sCurrentEndpoint == sSmokeCoEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleSmokeCoState);
+            }
+            else if (sCurrentEndpoint == sOccupancySensorEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleOccupancySensorState);
+            }
+            else if (sCurrentEndpoint == sWaterLeakDetectorEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleWaterLeakDetectorState);
+            }
         }
         else if (AppEvent::kAppEventButtonType_DoubleClicked == aEvent->ButtonEvent.Type)
         {
-            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleValveState);
+            // Change the endpoint id to act on for single press
+            if (sCurrentEndpoint < sMaxEndpoint)
+            {
+                sCurrentEndpoint++;
+            }
+            else
+            {
+                sCurrentEndpoint = 0;
+            }
+
+            ChipLogProgress(NotSpecified, "Current endpoint is %d", sCurrentEndpoint);
+
+            if (sCurrentEndpoint == sRootNodeEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Root Node");
+            }
+            else if (sCurrentEndpoint == sWaterValveEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Water Valve");
+            }
+            else if (sCurrentEndpoint == sPumpEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Pump");
+            }
+            else if (sCurrentEndpoint == sSoilSensorEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Soil Sensor");
+            }
+            else if (sCurrentEndpoint == sThermostatEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Thermostat");
+            }
+            else if (sCurrentEndpoint == sSmokeCoEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Smoke CO Alarm");
+            }
+            else if (sCurrentEndpoint == sOccupancySensorEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Occupancy Sensor");
+            }
+            else if (sCurrentEndpoint == sWaterLeakDetectorEndpointId)
+            {
+                ChipLogProgress(NotSpecified, "Selected Device Type: Water Leak Detector");
+            }
         }
         else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
-            TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(TogglePumpState);
+            if (sCurrentEndpoint == sWaterLeakDetectorEndpointId)
+            {
+                TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(ToggleWaterLeakSensorFault);
+            }
         }
         break;
 
@@ -533,7 +627,7 @@ void AppTask::ChangeConfigutation(intptr_t arg)
     // Change a F attribute to simulate a change in configuration of the device
     DataModel::Nullable<uint16_t> pumpMaxSpeed = DataModel::Nullable<uint16_t>();
     Protocols::InteractionModel::Status status =
-        Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Get(EndpointId(sPumpEndpoint), pumpMaxSpeed);
+        Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Get(EndpointId(sPumpEndpointId), pumpMaxSpeed);
     VerifyOrDie(status == Protocols::InteractionModel::Status::Success);
 
     if (pumpMaxSpeed.IsNull())
@@ -555,7 +649,7 @@ void AppTask::ChangeConfigutation(intptr_t arg)
         pumpMaxSpeed.SetNonNull(1000);
     }
 
-    status = Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Set(EndpointId(sPumpEndpoint), pumpMaxSpeed);
+    status = Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Set(EndpointId(sPumpEndpointId), pumpMaxSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "Failed to set MaxSpeed value");
@@ -576,7 +670,7 @@ void AppTask::ToggleValveState(intptr_t arg)
     DataModel::Nullable<uint32_t> duration = DataModel::Nullable<uint32_t>(10);
 
     Clusters::ValveConfigurationAndControlCluster * valveCluster =
-        Clusters::ValveConfigurationAndControl::FindClusterOnEndpoint(sWaterValveEndpoint);
+        Clusters::ValveConfigurationAndControl::FindClusterOnEndpoint(sWaterValveEndpointId);
 
     DataModel::Nullable<Clusters::ValveConfigurationAndControl::ValveStateEnum> attributeValue = valveCluster->GetCurrentState();
 
@@ -604,10 +698,10 @@ void AppTask::ToggleValveState(intptr_t arg)
 void AppTask::TogglePumpState(intptr_t arg)
 {
     bool onOffState;
-    Clusters::OnOff::Attributes::OnOff::Get(EndpointId(sPumpEndpoint), &onOffState);
+    Clusters::OnOff::Attributes::OnOff::Get(EndpointId(sPumpEndpointId), &onOffState);
 
     BitMask<Clusters::PumpConfigurationAndControl::PumpStatusBitmap> pumpStatus;
-    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Get(EndpointId(sPumpEndpoint), &pumpStatus);
+    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Get(EndpointId(sPumpEndpointId), &pumpStatus);
 
     if (!onOffState)
     {
@@ -620,8 +714,8 @@ void AppTask::TogglePumpState(intptr_t arg)
         pumpStatus.Clear(Clusters::PumpConfigurationAndControl::PumpStatusBitmap::kRunning);
     }
 
-    Clusters::OnOff::Attributes::OnOff::Set(EndpointId(sPumpEndpoint), !onOffState);
-    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Set(EndpointId(sPumpEndpoint), pumpStatus);
+    Clusters::OnOff::Attributes::OnOff::Set(EndpointId(sPumpEndpointId), !onOffState);
+    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Set(EndpointId(sPumpEndpointId), pumpStatus);
 }
 
 void AppTask::TakeSoilMeasurement(intptr_t arg)
@@ -639,7 +733,7 @@ void AppTask::ToggleSmokeCoState(intptr_t arg)
     auto & smokeCoServer = SmokeCoAlarmServer::Instance();
 
     bool currentUnmountedState;
-    smokeCoServer.GetUnmountedState(sSmokeCOEndpoint, currentUnmountedState);
+    smokeCoServer.GetUnmountedState(sSmokeCoEndpointId, currentUnmountedState);
 
     if (currentUnmountedState)
     {
@@ -650,8 +744,8 @@ void AppTask::ToggleSmokeCoState(intptr_t arg)
         ChipLogProgress(NotSpecified, "Unmounting SmokeCO Alarm");
     }
 
-    smokeCoServer.SetUnmountedState(sSmokeCOEndpoint, !currentUnmountedState);
-    smokeCoServer.SetExpressedStateByPriority(sSmokeCOEndpoint, sPriorityOrder);
+    smokeCoServer.SetUnmountedState(sSmokeCoEndpointId, !currentUnmountedState);
+    smokeCoServer.SetExpressedStateByPriority(sSmokeCoEndpointId, sPriorityOrder);
 }
 
 void AppTask::OpenValve(void)
@@ -685,7 +779,7 @@ void AppTask::InitOnOff()
     ChipLogProgress(NotSpecified, "Init On/Off");
 
     // Write false as pump always boots in stopped mode
-    status = Clusters::OnOff::Attributes::OnOff::Set(EndpointId(sPumpEndpoint), false);
+    status = Clusters::OnOff::Attributes::OnOff::Set(EndpointId(sPumpEndpointId), false);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Init On/Off state  %x", to_underlying(status));
@@ -700,9 +794,9 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // Write false as pump always boots in stopped mode
     BitMask<Clusters::PumpConfigurationAndControl::PumpStatusBitmap> pumpStatus;
-    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Get(EndpointId(sPumpEndpoint), &pumpStatus);
+    Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Get(EndpointId(sPumpEndpointId), &pumpStatus);
     pumpStatus.Clear(Clusters::PumpConfigurationAndControl::PumpStatusBitmap::kRunning);
-    status = Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Set(EndpointId(sPumpEndpoint), pumpStatus);
+    status = Clusters::PumpConfigurationAndControl::Attributes::PumpStatus::Set(EndpointId(sPumpEndpointId), pumpStatus);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Pumpstatus error  %x", to_underlying(status));
@@ -710,7 +804,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // Set operation mode to ConstantSpeed
     status = Clusters::PumpConfigurationAndControl::Attributes::OperationMode::Set(
-        EndpointId(sPumpEndpoint), Clusters::PumpConfigurationAndControl::OperationModeEnum::kNormal);
+        EndpointId(sPumpEndpointId), Clusters::PumpConfigurationAndControl::OperationModeEnum::kNormal);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: OperationMode error  %x", to_underlying(status));
@@ -718,7 +812,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // set effective control mode to ConstantSpeed
     status = Clusters::PumpConfigurationAndControl::Attributes::EffectiveControlMode::Set(
-        EndpointId(sPumpEndpoint), Clusters::PumpConfigurationAndControl::ControlModeEnum::kConstantSpeed);
+        EndpointId(sPumpEndpointId), Clusters::PumpConfigurationAndControl::ControlModeEnum::kConstantSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: EffectiveControlMode error  %x", to_underlying(status));
@@ -726,7 +820,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // set effective operation mode to Normal
     status = Clusters::PumpConfigurationAndControl::Attributes::EffectiveOperationMode::Set(
-        EndpointId(sPumpEndpoint), Clusters::PumpConfigurationAndControl::OperationModeEnum::kNormal);
+        EndpointId(sPumpEndpointId), Clusters::PumpConfigurationAndControl::OperationModeEnum::kNormal);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: EffectiveOperationMode error  %x", to_underlying(status));
@@ -734,7 +828,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // 2000.0 kPa as MaxPressure
     int16_t maxPressure = 20000;
-    status = Clusters::PumpConfigurationAndControl::Attributes::MaxPressure::Set(EndpointId(sPumpEndpoint), maxPressure);
+    status = Clusters::PumpConfigurationAndControl::Attributes::MaxPressure::Set(EndpointId(sPumpEndpointId), maxPressure);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Updating MaxPressure  %x", to_underlying(status));
@@ -742,7 +836,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // 2000 RPM as MaxSpeed
     uint16_t maxSpeed = 2000;
-    status            = Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Set(EndpointId(sPumpEndpoint), maxSpeed);
+    status            = Clusters::PumpConfigurationAndControl::Attributes::MaxSpeed::Set(EndpointId(sPumpEndpointId), maxSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Updating MaxSpeed  %x", to_underlying(status));
@@ -750,7 +844,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // 200.0 m3/h as MaxFlow
     uint16_t maxFlow = 2000;
-    status           = Clusters::PumpConfigurationAndControl::Attributes::MaxFlow::Set(EndpointId(sPumpEndpoint), maxFlow);
+    status           = Clusters::PumpConfigurationAndControl::Attributes::MaxFlow::Set(EndpointId(sPumpEndpointId), maxFlow);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Updating MaxFlow  %x", to_underlying(status));
@@ -758,7 +852,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // 200 RPM as MinConstSpeed
     uint16_t minConstSpeed = 200;
-    status = Clusters::PumpConfigurationAndControl::Attributes::MinConstSpeed::Set(EndpointId(sPumpEndpoint), minConstSpeed);
+    status = Clusters::PumpConfigurationAndControl::Attributes::MinConstSpeed::Set(EndpointId(sPumpEndpointId), minConstSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Updating MinConstSpeed  %x", to_underlying(status));
@@ -766,7 +860,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
     // 2000 RPM as MaxConstSpeed
     uint16_t maxConstSpeed = 2000;
-    status = Clusters::PumpConfigurationAndControl::Attributes::MaxConstSpeed::Set(EndpointId(sPumpEndpoint), maxConstSpeed);
+    status = Clusters::PumpConfigurationAndControl::Attributes::MaxConstSpeed::Set(EndpointId(sPumpEndpointId), maxConstSpeed);
     if (status != Protocols::InteractionModel::Status::Success)
     {
         ChipLogError(NotSpecified, "ERR: Updating MaxConstSpeed  %x", to_underlying(status));
@@ -783,4 +877,79 @@ void AppTask::InitThermostat(EndpointId endpointId)
     // Register the delegate for the Thermostat
     auto & delegate = Clusters::Thermostat::ThermostatDelegate::GetInstance();
     Clusters::Thermostat::SetDefaultDelegate(endpointId, &delegate);
+}
+
+void AppTask::ToggleOccupancySensorState(intptr_t arg)
+{
+    Clusters::OccupancySensingCluster * OccupancyCluster =
+        Clusters::OccupancySensing::FindClusterOnEndpoint(sOccupancySensorEndpointId);
+    VerifyOrReturn(OccupancyCluster != nullptr);
+    bool attributeValue = OccupancyCluster->IsOccupied();
+    ChipLogProgress(NotSpecified, "Toggle OccupancySensor state: %d -> %d", attributeValue, !attributeValue);
+    OccupancyCluster->SetOccupancy(!attributeValue);
+}
+void AppTask::ToggleWaterLeakDetectorState(intptr_t arg)
+{
+    auto booleanState = Clusters::BooleanState::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
+    VerifyOrReturn(booleanState != nullptr);
+    bool attributeValue = booleanState->GetStateValue();
+    ChipLogProgress(NotSpecified, "Toggle WaterLeakDetector state: %d -> %d", attributeValue, !attributeValue);
+
+    if ((!attributeValue) == true)
+    {
+        LeakDetectorTrigger();
+    }
+    else
+    {
+        LeakDetectorUntrigger();
+    }
+}
+
+void AppTask::LeakDetectorTrigger(void)
+{
+    auto booleanStateConfigCluster = Clusters::BooleanStateConfiguration::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
+    BitMask<Clusters::BooleanStateConfiguration::AlarmModeBitmap> alarmsEnabled = booleanStateConfigCluster->GetAlarmsEnabled();
+
+    if (alarmsEnabled.Has(Clusters::BooleanStateConfiguration::AlarmModeBitmap::kVisual))
+    {
+        LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
+    }
+    else
+    {
+        ChipLogProgress(NotSpecified, "Visual alarming is disabled, LED not turned on");
+    }
+
+    auto booleanStateCluster = Clusters::BooleanState::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
+    VerifyOrReturn(booleanStateCluster != nullptr);
+    booleanStateCluster->SetStateValue(true);
+    TEMPORARY_RETURN_IGNORED Clusters::BooleanStateConfiguration::SetAllEnabledAlarmsActive(sWaterLeakDetectorEndpointId);
+}
+
+void AppTask::LeakDetectorUntrigger(void)
+{
+    LED_setOff(sAppRedHandle);
+
+    auto booleanStateCluster = Clusters::BooleanState::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
+    VerifyOrReturn(booleanStateCluster != nullptr);
+    booleanStateCluster->SetStateValue(false);
+    TEMPORARY_RETURN_IGNORED Clusters::BooleanStateConfiguration::ClearAllAlarms(sWaterLeakDetectorEndpointId);
+}
+
+void AppTask::ToggleWaterLeakSensorFault(intptr_t arg)
+{
+    auto booleanStateConfigCluster = Clusters::BooleanStateConfiguration::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
+    VerifyOrReturn(booleanStateConfigCluster != nullptr);
+    BitMask<Clusters::BooleanStateConfiguration::SensorFaultBitmap> sensorFaults = booleanStateConfigCluster->GetSensorFault();
+    if (sensorFaults.Has(Clusters::BooleanStateConfiguration::SensorFaultBitmap::kGeneralFault))
+    {
+        ChipLogProgress(NotSpecified, "Clearing sensor fault");
+        sensorFaults.Clear(Clusters::BooleanStateConfiguration::SensorFaultBitmap::kGeneralFault);
+        booleanStateConfigCluster->GenerateSensorFault(sensorFaults);
+    }
+    else
+    {
+        ChipLogProgress(NotSpecified, "Setting sensor fault");
+        sensorFaults.Set(Clusters::BooleanStateConfiguration::SensorFaultBitmap::kGeneralFault);
+        booleanStateConfigCluster->GenerateSensorFault(sensorFaults);
+    }
 }

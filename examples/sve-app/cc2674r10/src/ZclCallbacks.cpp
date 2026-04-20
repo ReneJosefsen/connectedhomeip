@@ -33,24 +33,22 @@ using namespace chip::app::Clusters::SoilMeasurement;
 static void IdentifyStartHandler(::Identify *);
 static void IdentifyStopHandler(::Identify *);
 
-/***** Variables *****/
-static const chip::EndpointId sValveEndpointId      = 1;
-static const chip::EndpointId sPumpEndpointId       = 2;
-static const chip::EndpointId sSoilSensorEndpointId = 3;
-static const chip::EndpointId sThermostatEndpointId = 4;
-static const chip::EndpointId sSmokeCoEndpointId    = 5;
-
 /***** Identify configuration and functions *****/
 // This creates a static object of the Identify class and calls the constructor
 // which registers the object and its callbacks inside the identify server
-::Identify stIdentifyValve = { sValveEndpointId, IdentifyStartHandler, IdentifyStopHandler, IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifyValve = { sWaterValveEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                               IdentifyTypeEnum::kVisibleIndicator };
 ::Identify stIdentifyPump  = { sPumpEndpointId, IdentifyStartHandler, IdentifyStopHandler, IdentifyTypeEnum::kVisibleIndicator };
-::Identify stIdentifySoilSensor = { sSoilSensorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
-                                    IdentifyTypeEnum::kVisibleIndicator };
-::Identify stIdentifyThermostat = { sThermostatEndpointId, IdentifyStartHandler, IdentifyStopHandler,
-                                    IdentifyTypeEnum::kVisibleIndicator };
-::Identify stIdentifySmokeCO    = { sSmokeCoEndpointId, IdentifyStartHandler, IdentifyStopHandler,
-                                    IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifySoilSensor        = { sSoilSensorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                           IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifyThermostat        = { sThermostatEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                           IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifySmokeCO           = { sSmokeCoEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                           IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifyOccupancySensor   = { sOccupancySensorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                           IdentifyTypeEnum::kVisibleIndicator };
+::Identify stIdentifyWaterLeakDetector = { sWaterLeakDetectorEndpointId, IdentifyStartHandler, IdentifyStopHandler,
+                                           IdentifyTypeEnum::kVisibleIndicator };
 
 void IdentifyStartHandler(::Identify *)
 {
