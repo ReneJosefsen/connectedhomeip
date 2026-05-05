@@ -77,6 +77,8 @@ public:
     void InitSoilMeasurement(chip::EndpointId endpointId);
     void ShutdownSoilMeasurement(chip::EndpointId endpointId);
 
+    void InitOccupancySensing(chip::EndpointId endpointId);
+
     void InitOnOff(void);
     void InitPumpConfigurationAndControl(void);
     void InitSmokeCoAlarm(void);

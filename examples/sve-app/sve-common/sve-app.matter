@@ -749,22 +749,6 @@ cluster BasicInformation = 40 {
   command MfgSpecificPing(): DefaultSuccess = 0;
 }
 
-/** Nodes should be expected to be deployed to any and all regions of the world. These global regions
-      may have differing common languages, units of measurements, and numerical formatting
-      standards. As such, Nodes that visually or audibly convey information need a mechanism by which
-      they can be configured to use a user’s preferred language, units, etc */
-cluster LocalizationConfiguration = 43 {
-  revision 1;
-
-  attribute access(write: manage) char_string<35> activeLocale = 0;
-  readonly attribute char_string supportedLocales[] = 1;
-  readonly attribute command_id generatedCommandList[] = 65528;
-  readonly attribute command_id acceptedCommandList[] = 65529;
-  readonly attribute attrib_id attributeList[] = 65531;
-  readonly attribute bitmap32 featureMap = 65532;
-  readonly attribute int16u clusterRevision = 65533;
-}
-
 /** This cluster is used to describe the configuration and capabilities of a physical power source that provides power to the Node. */
 cluster PowerSource = 47 {
   revision 3;
@@ -2692,79 +2676,6 @@ cluster Thermostat = 513 {
   command access(invoke: manage) AtomicRequest(AtomicRequestRequest): AtomicResponse = 254;
 }
 
-/** The server cluster provides an interface to occupancy sensing functionality based on one or more sensing modalities, including configuration and provision of notifications of occupancy status. */
-cluster OccupancySensing = 1030 {
-  revision 7;
-
-  enum OccupancySensorTypeEnum : enum8 {
-    kPIR = 0 [spec_name = "PIR"];
-    kUltrasonic = 1;
-    kPIRAndUltrasonic = 2;
-    kPhysicalContact = 3;
-  }
-
-  bitmap Feature : bitmap32 {
-    kOther = 0x1;
-    kPassiveInfrared = 0x2;
-    kUltrasonic = 0x4;
-    kPhysicalContact = 0x8;
-    kActiveInfrared = 0x10;
-    kRadar = 0x20;
-    kRFSensing = 0x40;
-    kVision = 0x80;
-    kPrediction = 0x100;
-    kOccupancyEvent = 0x200;
-  }
-
-  bitmap OccupancyBitmap : bitmap8 {
-    kOccupied = 0x1;
-  }
-
-  bitmap OccupancySensorTypeBitmap : bitmap8 {
-    kPIR = 0x1 [spec_name = "PIR"];
-    kUltrasonic = 0x2;
-    kPhysicalContact = 0x4;
-  }
-
-  struct HoldTimeLimitsStruct {
-    int16u holdTimeMin = 0;
-    int16u holdTimeMax = 1;
-    int16u holdTimeDefault = 2;
-  }
-
-  struct PredictedOccupancyStruct {
-    epoch_s startTimestamp = 0;
-    epoch_s endTimestamp = 1;
-    OccupancyBitmap occupancy = 2;
-    percent confidence = 3;
-  }
-
-  info event OccupancyChanged = 0 {
-    OccupancyBitmap occupancy = 0;
-  }
-
-  readonly attribute OccupancyBitmap occupancy = 0;
-  readonly attribute OccupancySensorTypeEnum occupancySensorType = 1;
-  readonly attribute OccupancySensorTypeBitmap occupancySensorTypeBitmap = 2;
-  attribute access(write: manage) optional int16u holdTime = 3;
-  readonly attribute optional HoldTimeLimitsStruct holdTimeLimits = 4;
-  provisional readonly attribute optional PredictedOccupancyStruct predictedOccupancy[] = 5;
-  attribute access(write: manage) optional int16u PIROccupiedToUnoccupiedDelay = 16;
-  attribute access(write: manage) optional int16u PIRUnoccupiedToOccupiedDelay = 17;
-  attribute access(write: manage) optional int8u PIRUnoccupiedToOccupiedThreshold = 18;
-  attribute access(write: manage) optional int16u ultrasonicOccupiedToUnoccupiedDelay = 32;
-  attribute access(write: manage) optional int16u ultrasonicUnoccupiedToOccupiedDelay = 33;
-  attribute access(write: manage) optional int8u ultrasonicUnoccupiedToOccupiedThreshold = 34;
-  attribute access(write: manage) optional int16u physicalContactOccupiedToUnoccupiedDelay = 48;
-  attribute access(write: manage) optional int16u physicalContactUnoccupiedToOccupiedDelay = 49;
-  attribute access(write: manage) optional int8u physicalContactUnoccupiedToOccupiedThreshold = 50;
-  readonly attribute command_id generatedCommandList[] = 65528;
-  readonly attribute command_id acceptedCommandList[] = 65529;
-  readonly attribute attrib_id attributeList[] = 65531;
-  readonly attribute bitmap32 featureMap = 65532;
-  readonly attribute int16u clusterRevision = 65533;
-}
-
 /** This cluster provides an interface to soil measurement functionality, including configuration and provision of notifications of soil measurements. */
 provisional cluster SoilMeasurement = 1072 {
   revision 1;
@@ -2828,16 +2739,6 @@ endpoint 0 {
     callback attribute acceptedCommandList;
     callback attribute attributeList;
     callback attribute featureMap;
-    callback attribute clusterRevision;
-  }
-
-  server cluster LocalizationConfiguration {
-    ram      attribute activeLocale;
-    callback attribute supportedLocales;
-    callback attribute generatedCommandList;
-    callback attribute acceptedCommandList;
-    callback attribute attributeList;
-    ram      attribute featureMap default = 0;
     callback attribute clusterRevision;
   }
 
@@ -3053,7 +2954,7 @@ endpoint 2 {
     callback attribute acceptedCommandList;
     callback attribute attributeList;
     ram      attribute featureMap default = 0;
-    ram      attribute clusterRevision default = 7;
+    ram      attribute clusterRevision default = 6;
 
     handle command Off;
     handle command On;
@@ -3258,17 +3159,6 @@ endpoint 6 {
     callback attribute acceptedCommandList;
     callback attribute attributeList;
     callback attribute featureMap;
-    callback attribute clusterRevision;
-  }
-
-  server cluster OccupancySensing {
-    ram      attribute occupancy default = 0;
-    ram      attribute occupancySensorType default = 0;
-    ram      attribute occupancySensorTypeBitmap default = 1;
-    callback attribute generatedCommandList;
-    callback attribute acceptedCommandList;
-    callback attribute attributeList;
-    ram      attribute featureMap default = 514;
     callback attribute clusterRevision;
   }
 }

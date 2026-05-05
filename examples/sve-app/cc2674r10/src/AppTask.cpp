@@ -77,7 +77,7 @@ extern "C" {
 #include "thermostat-delegate-impl.h"
 #include <app/clusters/boolean-state-configuration-server/CodegenIntegration.h>
 #include <app/clusters/boolean-state-server/CodegenIntegration.h>
-#include <app/clusters/occupancy-sensor-server/CodegenIntegration.h>
+#include <app/clusters/occupancy-sensor-server/OccupancySensingCluster.h>
 #include <app/clusters/smoke-co-alarm-server/smoke-co-alarm-server.h>
 #include <app/clusters/soil-measurement-server/SoilMeasurementCluster.h>
 #include <app/clusters/thermostat-server/thermostat-server.h>
@@ -142,6 +142,8 @@ static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, SmokeCoAlarmServer
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kBatteryAlert
 };
 
+static LazyRegisteredServerCluster<Clusters::OccupancySensingCluster> gOccupancySensingServer;
+
 static uint8_t sCurrentEndpoint   = 0;
 static const uint8_t sMaxEndpoint = sWaterLeakDetectorEndpointId;
 
@@ -194,6 +196,23 @@ void AppTask::ShutdownSoilMeasurement(EndpointId endpointId)
     }
 
     gSoilMeasurementServer.Destroy();
+}
+
+void AppTask::InitOccupancySensing(EndpointId endpointId)
+{
+    ChipLogProgress(AppServer, "OccupancySensing cluster init - %d", endpointId);
+
+    Clusters::OccupancySensingCluster::Config config(endpointId);
+    config.WithFeatures(
+        BitFlags(Clusters::OccupancySensing::Feature::kPassiveInfrared, Clusters::OccupancySensing::Feature::kOccupancyEvent));
+
+    gOccupancySensingServer.Create(config);
+
+    CHIP_ERROR err = CodegenDataModelProvider::Instance().Registry().Register(gOccupancySensingServer.Registration());
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "OccupancySensing cluster error registration %" CHIP_ERROR_FORMAT, err.Format());
+    }
 }
 
 int AppTask::StartAppTask()
@@ -345,6 +364,9 @@ int AppTask::Init()
     SetDeviceInfoProvider(&sExampleDeviceInfoProvider);
 
     TEMPORARY_RETURN_IGNORED Server::GetInstance().Init(initParams);
+
+    // Init Occupancy Sensing cluster
+    sAppTask.InitOccupancySensing(sOccupancySensorEndpointId);
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -881,13 +903,11 @@ void AppTask::InitThermostat(EndpointId endpointId)
 
 void AppTask::ToggleOccupancySensorState(intptr_t arg)
 {
-    Clusters::OccupancySensingCluster * OccupancyCluster =
-        Clusters::OccupancySensing::FindClusterOnEndpoint(sOccupancySensorEndpointId);
-    VerifyOrReturn(OccupancyCluster != nullptr);
-    bool attributeValue = OccupancyCluster->IsOccupied();
+    bool attributeValue = gOccupancySensingServer.Cluster().IsOccupied();
     ChipLogProgress(NotSpecified, "Toggle OccupancySensor state: %d -> %d", attributeValue, !attributeValue);
-    OccupancyCluster->SetOccupancy(!attributeValue);
+    gOccupancySensingServer.Cluster().SetOccupancy(!attributeValue);
 }
+
 void AppTask::ToggleWaterLeakDetectorState(intptr_t arg)
 {
     auto booleanState = Clusters::BooleanState::FindClusterOnEndpoint(sWaterLeakDetectorEndpointId);
