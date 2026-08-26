@@ -274,8 +274,7 @@ JNI_METHOD(jstring, getConnectionStateNative)
 
     if (NULL == env)
     {
-        LogErrorOnFailure(
-            chip::JniReferences::GetInstance().CharToStringUTF(CharSpan::fromCharString("JNIEnv interface is NULL"), jstr_obj));
+        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF("JNIEnv interface is NULL"_span, jstr_obj));
         return static_cast<jstring>(jstr_obj);
     }
 
@@ -284,21 +283,21 @@ JNI_METHOD(jstring, getConnectionStateNative)
 
     CastingPlayer * castingPlayer = support::convertCastingPlayerFromJavaToCpp(thiz);
     jstring result                = nullptr;
-    LogErrorOnFailure(JniReferences::GetInstance().CharToStringUTF(
-        chip::CharSpan("Cast Player is nullptr", strlen("Cast Player is nullptr")), reinterpret_cast<jobject &>(result)));
+    LogErrorOnFailure(
+        JniReferences::GetInstance().CharToStringUTF("Cast Player is nullptr"_span, reinterpret_cast<jobject &>(result)));
     VerifyOrReturnValue(castingPlayer != nullptr, result);
 
     matter::casting::core::ConnectionState state = castingPlayer->GetConnectionState();
     switch (state)
     {
     case matter::casting::core::ConnectionState::CASTING_PLAYER_NOT_CONNECTED:
-        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF(CharSpan::fromCharString("NOT_CONNECTED"), jstr_obj));
+        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF("NOT_CONNECTED"_span, jstr_obj));
         break;
     case matter::casting::core::ConnectionState::CASTING_PLAYER_CONNECTING:
-        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF(CharSpan::fromCharString("CONNECTING"), jstr_obj));
+        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF("CONNECTING"_span, jstr_obj));
         break;
     case matter::casting::core::ConnectionState::CASTING_PLAYER_CONNECTED:
-        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF(CharSpan::fromCharString("CONNECTED"), jstr_obj));
+        LogErrorOnFailure(chip::JniReferences::GetInstance().CharToStringUTF("CONNECTED"_span, jstr_obj));
         break;
     default:
         snprintf(error_str, sizeof(error_str), "Unsupported Connection State: %d", state);

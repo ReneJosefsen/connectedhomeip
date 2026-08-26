@@ -26,7 +26,10 @@
 
 #pragma once
 
-#include <app/util/attribute-storage.h>
+#include <cstddef>
+#include <cstdint>
+
+#include <app-common/zap-generated/cluster-objects.h>
 
 namespace chip {
 namespace app {
@@ -42,6 +45,8 @@ struct PresetStructWithOwnedMembers : protected Structs::PresetStruct::Type
 public:
     PresetStructWithOwnedMembers() = default;
     PresetStructWithOwnedMembers(const Structs::PresetStruct::Type & other);
+    // Copy construction deleted: a defaulted copy ctor would shallow-copy the inherited spans into the source's buffers.
+    PresetStructWithOwnedMembers(const PresetStructWithOwnedMembers & other) = delete;
     PresetStructWithOwnedMembers & operator=(const Structs::PresetStruct::Type & other);
     PresetStructWithOwnedMembers & operator=(const PresetStructWithOwnedMembers & other);
 

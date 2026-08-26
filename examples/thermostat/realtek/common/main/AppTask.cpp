@@ -30,6 +30,7 @@
 #include <app/TestEventTriggerDelegate.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/clusters/thermostat-server/CodegenIntegration.h>
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -39,6 +40,7 @@
 #include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
+#include <thermostat-delegate-impl.h>
 
 #include "matter_ble.h"
 #include <os_mem.h>
@@ -199,6 +201,7 @@ CHIP_ERROR AppTask::StartAppTask()
 void AppTask::AppTaskMain(void * pvParameter)
 {
     uint8_t event;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
 #if defined(FEATURE_TRUSTZONE_ENABLE) && (FEATURE_TRUSTZONE_ENABLE == 1)
     os_alloc_secure_ctx(1024);
@@ -210,7 +213,12 @@ void AppTask::AppTaskMain(void * pvParameter)
     gap_start_bt_stack(app_evt_queue_handle, app_io_queue_handle, MAX_NUMBER_OF_GAP_MESSAGE);
     matter_ble_queue_init(app_evt_queue_handle, app_io_queue_handle);
 
-    sAppTask.Init();
+    err = sAppTask.Init();
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(NotSpecified, "sAppTask.Init() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return;
+    }
 
     while (true)
     {
@@ -223,10 +231,6 @@ void AppTask::AppTaskMain(void * pvParameter)
                 {
                     switch (io_msg.type)
                     {
-                    case IO_MSG_TYPE_QDECODE:
-                        matter_ble_handle_io_msg(&io_msg);
-                        break;
-
                     case IO_MSG_TYPE_GPIO:
                         ButtonHandler(&io_msg);
                         break;
@@ -236,6 +240,7 @@ void AppTask::AppTaskMain(void * pvParameter)
                         break;
 
                     default:
+                        matter_ble_handle_io_msg(&io_msg);
                         break;
                     }
                 }
@@ -254,6 +259,8 @@ void AppTask::AppTaskMain(void * pvParameter)
 
 void AppTask::InitServer(intptr_t arg)
 {
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
     // Init ZCL Data Model and start server
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
@@ -275,10 +282,26 @@ void AppTask::InitServer(intptr_t arg)
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
 
-    chip::Server::GetInstance().Init(initParams);
+    err = chip::Server::GetInstance().Init(initParams);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(NotSpecified, "Server::GetInstance().Init() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return;
+    }
+
+    auto status = chip::app::Clusters::Thermostat::SetDefaultDelegate(
+        Thermostat_ENDPOINT_ID, &chip::app::Clusters::Thermostat::ThermostatDelegate::GetInstance());
+    if (status != chip::Protocols::InteractionModel::Status::Success)
+    {
+        ChipLogError(NotSpecified, "SetDefaultDelegate failed: 0x%02x", chip::to_underlying(status));
+    }
 
     static RealtekObserver sRealtekObserver;
-    chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&sRealtekObserver);
+    err = chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&sRealtekObserver);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(NotSpecified, "AddFabricDelegate failed: %" CHIP_ERROR_FORMAT, err.Format());
+    }
 
     ConfigurationMgr().LogDeviceConfig();
     PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
@@ -313,7 +336,10 @@ CHIP_ERROR AppTask::Init()
     }
 
     // Init ZCL Data Model and start server
-    PlatformMgr().ScheduleWork(InitServer, 0);
+    // ScheduleWork is asynchronous, failure means work couldn't be queued.
+    // Since this is init time, if it fails the system won't work anyway,
+    // so the return value can be safely ignored.
+    RETURN_SAFELY_IGNORED(PlatformMgr().ScheduleWork(InitServer, 0));
 
 #if CONFIG_ENABLE_CHIP_SHELL
     chip::Shell::Engine::Root().Init();

@@ -98,6 +98,23 @@ public:
 
     FabricTable & GetFabricTable() { return mfabricTable; }
 
+    /**
+     * @brief Adds an additional test fabric to an already-initialized FabricTable.
+     *        Must be called after SetUpTestFabric().
+     *
+     * @param fabricIndexOut Desired FabricIndex for the new fabric; updated on success.
+     * @return CHIP_ERROR
+     */
+    CHIP_ERROR AddAdditionalTestFabric(FabricIndex & fabricIndexOut)
+    {
+        ReturnErrorOnFailure(mfabricTable.SetFabricIndexForNextAddition(fabricIndexOut));
+        ReturnErrorOnFailure(SetUpCertificates());
+        CHIP_ERROR err = mfabricTable.AddNewFabricForTestIgnoringCollisions(
+            mRootCertSpan, ByteSpan(), mNocSpan, ByteSpan(mSerializedOpKey.Bytes(), mSerializedOpKey.Length()), &fabricIndexOut);
+        ReturnErrorOnFailure(err);
+        return mfabricTable.CommitPendingFabricData();
+    }
+
 private:
     CHIP_ERROR SetUpCertificates()
     {
@@ -126,7 +143,7 @@ private:
 
         const char * rootName = "My Test Root CA";
         ReturnErrorOnFailure(rootRequestParams.IssuerDN.AddAttribute(
-            chip::ASN1::kOID_AttributeType_CommonName, CharSpan(rootName, strlen(rootName)), true /* isPrintableString */
+            chip::ASN1::kOID_AttributeType_CommonName, CharSpan::fromCharString(rootName), true /* isPrintableString */
             ));
         ReturnErrorOnFailure(rootRequestParams.IssuerDN.AddAttribute(chip::ASN1::kOID_AttributeType_MatterRCACId, kTestRcacId));
         rootRequestParams.SubjectDN = rootRequestParams.IssuerDN;

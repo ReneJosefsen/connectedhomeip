@@ -23,8 +23,8 @@ source_set("chip-all-clusters-common") {
   sources = [
     "${chip_root}/examples/all-clusters-app/all-clusters-common/src/binding-handler.cpp",
     "${chip_root}/examples/all-clusters-app/all-clusters-common/src/bridged-actions-stub.cpp",
-    "${chip_root}/examples/all-clusters-app/all-clusters-common/src/smco-stub.cpp",
     "${chip_root}/examples/all-clusters-app/all-clusters-common/src/static-supported-modes-manager.cpp",
+    "${chip_root}/examples/thermostat/thermostat-common/src/thermostat-delegate-impl.cpp",
     "AppOptions.cpp",
     "include/tv-callbacks.cpp",
     "include/tv-callbacks.h",
@@ -37,8 +37,10 @@ source_set("chip-all-clusters-common") {
     "${chip_root}/src/lib",
   ]
 
-  include_dirs =
-      [ "${chip_root}/examples/all-clusters-app/all-clusters-common/include" ]
+  include_dirs = [
+    "${chip_root}/examples/all-clusters-app/all-clusters-common/include",
+    "${chip_root}/examples/thermostat/thermostat-common/include",
+  ]
 
   cflags = [ "-Wconversion" ]
 
@@ -83,7 +85,7 @@ executable("chip-all-clusters-minimal-app") {
 
 if (chip_device_platform == "darwin") {
   action("codesign") {
-    script = "entitlements/codesign.py"
+    script = "${chip_root}/examples/common/darwin/entitlements/codesign.py"
     public_deps = [ ":chip-all-clusters-minimal-app" ]
 
     args = [
