@@ -124,6 +124,26 @@ CHIP_ERROR ConfigurationManagerImpl::StoreTotalOperationalHours(uint32_t totalOp
     return WriteConfigValue(CC13XX_26XXConfig::kConfigKey_TotalOperationalHours, totalOperationalHours);
 }
 
+CHIP_ERROR ConfigurationManagerImpl::GetConfigurationVersion(uint32_t & configurationVersion)
+{
+    CHIP_ERROR ret;
+
+    ret = ReadConfigValue(CC13XX_26XXConfig::kConfigKey_ConfigurationVersion, configurationVersion);
+
+    if (CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND == ret || CHIP_NO_ERROR == ret)
+    {
+        configurationVersion = 0;
+        ret                  = WriteConfigValue(CC13XX_26XXConfig::kConfigKey_ConfigurationVersion, configurationVersion);
+    }
+
+    return ret;
+}
+
+CHIP_ERROR ConfigurationManagerImpl::StoreConfigurationVersion(uint32_t configurationVersion)
+{
+    return WriteConfigValue(CC13XX_26XXConfig::kConfigKey_ConfigurationVersion, configurationVersion);
+}
+
 CHIP_ERROR ConfigurationManagerImpl::ReadPersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t & value)
 {
     CC13XX_26XXConfig::Key configKey{ { CC13XX_26XXConfig::kCC13XX_26XXMatter_SysID, key } };

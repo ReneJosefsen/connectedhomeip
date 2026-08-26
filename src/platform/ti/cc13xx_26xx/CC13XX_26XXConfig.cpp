@@ -93,6 +93,10 @@ const CC13XX_26XXConfig::Key CC13XX_26XXConfig::kConfigKey_TotalOperationalHours
     { .systemID = kCC13XX_26XXMatter_SysID, .itemID = kCC13XX_26XXMatter_ItemID_ChipCounters, .subID = 0x000f }
 };
 
+const CC13XX_26XXConfig::Key CC13XX_26XXConfig::kConfigKey_ConfigurationVersion = {
+    { .systemID = kCC13XX_26XXMatter_SysID, .itemID = kCC13XX_26XXMatter_ItemID_ChipCounters, .subID = 0x0011 }
+};
+
 // Keys stored in the Chip-config namespace
 const CC13XX_26XXConfig::Key CC13XX_26XXConfig::kConfigKey_ServiceConfig = {
     { .systemID = kCC13XX_26XXMatter_SysID, .itemID = kCC13XX_26XXMatter_ItemID_ChipConfig, .subID = 0x0012 }

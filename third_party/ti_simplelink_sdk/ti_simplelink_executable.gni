@@ -294,6 +294,7 @@ template("ti_simplelink_executable") {
           "${ti_simplelink_sdk_root}/source/ti/common/flash/no_rtos/extFlash/bsp_spi_cc13x4_cc26x4.c",
           "${ti_simplelink_sdk_root}/source/ti/common/flash/no_rtos/extFlash/ext_flash.c",
           "${ti_simplelink_sdk_root}/source/ti/common/mcuboot/boot_seed/boot_seed_cc13x4_cc26x4.c",
+          "${ti_simplelink_sdk_root}/kernel/nortos/startup/startup_cc13x4_cc26x4_gcc.c"
         ]
 
         include_dirs = [
@@ -327,7 +328,7 @@ template("ti_simplelink_executable") {
               rebase_path(ti_simplelink_sdk_root + "/source", root_build_dir),
           "-L" + rebase_path(ti_simplelink_sdk_root + "/kernel/nortos",
                              root_build_dir),
-          rebase_path(
+          "-L" + rebase_path(
               "${target_gen_dir}/${simplelink_target_name}_mcuboot.syscfg/ti_utils_build_linker.cmd.genlibs",
               root_build_dir),
           "-T" + rebase_path(ldscript, root_build_dir),

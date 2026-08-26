@@ -81,6 +81,7 @@ public:
     static const Key kConfigKey_BootCount;
     static const Key kConfigKey_TotalOperationalHours;
     static const Key kConfigKey_LifeTimeCounter;
+    static const Key kConfigKey_ConfigurationVersion;
 
     static CHIP_ERROR Init(void);
 
