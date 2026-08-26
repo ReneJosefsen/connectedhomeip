@@ -20,7 +20,6 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/EventLogging.h>
-#include <app/InteractionModelEngine.h>
 #include <app/clusters/basic-information/CodegenIntegration.h>
 #include <app/clusters/boolean-state-configuration-server/CodegenIntegration.h>
 #include <app/clusters/boolean-state-server/CodegenIntegration.h>
@@ -364,50 +363,6 @@ void HandleSimulateSwitchIdle(Json::Value & jsonValue)
     LogErrorOnFailure(switchCluster->SetCurrentPosition(0));
 }
 
-/**
- * Named pipe handler for simulating a configuration change
- * by changing the LevelStep value in the ValveConfigurationAndControl cluster
- * and incrementing the ConfigurationVersion
- *
- * Usage example:
- *   echo '{"Name":"SimulateConfigurationChange"}' > /tmp/chip_all_clusters_fifo_53713
- */
-
-void HandleSimulateConfigurationChange(void)
-{
-    EndpointId endpoint = 1;
-
-    // Change a F attribute to simulate a change in configuration of the device
-    uint8_t valveLevelStep = 0;
-    // Protocols::InteractionModel::Status status =
-    //     ValveConfigurationAndControl::Attributes::LevelStep::Get(endpoint, &valveLevelStep);
-    // VerifyOrDie(status == Protocols::InteractionModel::Status::Success);
-
-    // if (valveLevelStep == 1)
-    // {
-    //     // Change fixed LevelStep value to 10
-    //     valveLevelStep = 10;
-    // }
-    // else
-    // {
-    //     // Change fixed LevelStep value back to 1
-    //     valveLevelStep = 1;
-    // }
-
-    // status = ValveConfigurationAndControl::Attributes::LevelStep::Set(endpoint, valveLevelStep);
-    // if (status != Protocols::InteractionModel::Status::Success)
-    // {
-    //     ChipLogError(NotSpecified, "Failed to set LevelStep value");
-    // }
-    // else
-    // {
-    //     // LevelStep in ValveConfigurationAndControl has been modified,so bump ConfigurationVersion
-    //     // by calling the getter function to obtain a ScopedConfigurationVersionUpdater
-    //     DataModel::ProviderMetadataTree::ScopedConfigurationVersionUpdater configurationVersionTransaction =
-    //         InteractionModelEngine::GetInstance()->GetDataModelProvider()->GetNodeDataModelConfigurationVersionUpdater();
-    // }
-}
-
 } // namespace
 
 AllClustersAppCommandHandler * AllClustersAppCommandHandler::FromJSON(const char * json)
@@ -591,9 +546,17 @@ void AllClustersAppCommandHandler::HandleCommand(intptr_t context)
     {
         SetRefrigeratorDoorStatusHandler(self->mJsonValue);
     }
-    else if (name == "SimulateConfigurationChange")
+    else if (name == "SimulateConfigurationVersionChange")
     {
-        HandleSimulateConfigurationChange();
+        Clusters::BasicInformationCluster * cluster = Clusters::BasicInformation::GetClusterInstance();
+        if (cluster == nullptr)
+        {
+            ChipLogError(NotSpecified, "No basic information cluster available. Invalid state.");
+        }
+        else
+        {
+            LogErrorOnFailure(cluster->IncreaseConfigurationVersion());
+        }
     }
     else if (name == "SetSimulatedSoilMoisture")
     {
