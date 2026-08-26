@@ -84,6 +84,8 @@ public:
     void SetValveFault(BitMask<ValveConfigurationAndControl::ValveFaultBitmap> fault);
     void UpdateAutoCloseTime(uint64_t epochTime);
 
+    DataModel::Nullable<Clusters::ValveConfigurationAndControl::ValveStateEnum> GetCurrentState() { return mCurrentState; }
+
 private:
     DataModel::ActionReturnStatus WriteImpl(const DataModel::WriteAttributeRequest & request, AttributeValueDecoder & decoder);
     std::optional<DataModel::ActionReturnStatus> HandleOpenCommand(const DataModel::InvokeRequest & request,

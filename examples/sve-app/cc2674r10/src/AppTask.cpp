@@ -75,15 +75,16 @@ extern "C" {
 
 #include "ValveControlDelegate.h"
 #include "thermostat-delegate-impl.h"
+#include <app/clusters/basic-information/CodegenIntegration.h>
 #include <app/clusters/boolean-state-configuration-server/CodegenIntegration.h>
 #include <app/clusters/boolean-state-server/CodegenIntegration.h>
 #include <app/clusters/occupancy-sensor-server/OccupancySensingCluster.h>
 #include <app/clusters/smoke-co-alarm-server/smoke-co-alarm-server.h>
 #include <app/clusters/soil-measurement-server/SoilMeasurementCluster.h>
-#include <app/clusters/thermostat-server/thermostat-server.h>
+#include <app/clusters/thermostat-server/CodegenIntegration.h>
+#include <app/clusters/thermostat-server/ThermostatCluster.h>
 #include <app/clusters/valve-configuration-and-control-server/valve-configuration-and-control-server.h>
 
-#include <app/InteractionModelEngine.h>
 #include <app/data-model-provider/MetadataTypes.h>
 
 #define APP_TASK_STACK_SIZE (4096)
@@ -134,7 +135,7 @@ const Clusters::SoilMeasurement::Attributes::SoilMoistureMeasurementLimits::Type
         kDefaultSoilMoistureMeasurementLimitsAccuracyRange)
 };
 
-static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, SmokeCoAlarmServer::kPriorityOrderLength> sPriorityOrder = {
+static std::array<Clusters::SmokeCoAlarm::ExpressedStateEnum, Clusters::SmokeCoAlarmServer::kPriorityOrderLength> sPriorityOrder = {
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kInoperative,       Clusters::SmokeCoAlarm::ExpressedStateEnum::kSmokeAlarm,
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kInterconnectSmoke, Clusters::SmokeCoAlarm::ExpressedStateEnum::kCOAlarm,
     Clusters::SmokeCoAlarm::ExpressedStateEnum::kInterconnectCO,    Clusters::SmokeCoAlarm::ExpressedStateEnum::kHardwareFault,
@@ -679,10 +680,15 @@ void AppTask::ChangeConfigutation(intptr_t arg)
     else
     {
         // MaxSpeed in PumpConfigurationAndControl has been modified,so bump ConfigurationVersion
-        // by calling the getter function to obtain a ScopedConfigurationVersionUpdater
-        ChipLogProgress(NotSpecified, "Bump ConfigurationVersion");
-        DataModel::ProviderMetadataTree::ScopedConfigurationVersionUpdater configurationVersionTransaction =
-            InteractionModelEngine::GetInstance()->GetDataModelProvider()->GetNodeDataModelConfigurationVersionUpdater();
+        Clusters::BasicInformationCluster * cluster = Clusters::BasicInformation::GetClusterInstance();
+        if (cluster == nullptr)
+        {
+            ChipLogError(NotSpecified, "No basic information cluster available. Invalid state.");
+        }
+        else
+        {
+            LogErrorOnFailure(cluster->IncreaseConfigurationVersion());
+        }
     }
 }
 
@@ -752,7 +758,7 @@ void AppTask::TakeSoilMeasurement(intptr_t arg)
 
 void AppTask::ToggleSmokeCoState(intptr_t arg)
 {
-    auto & smokeCoServer = SmokeCoAlarmServer::Instance();
+    auto & smokeCoServer = Clusters::SmokeCoAlarmServer::Instance();
 
     bool currentUnmountedState;
     smokeCoServer.GetUnmountedState(sSmokeCoEndpointId, currentUnmountedState);
@@ -891,7 +897,7 @@ void AppTask::InitPumpConfigurationAndControl()
 
 void AppTask::InitSmokeCoAlarm()
 {
-    SmokeCoAlarmServer::Instance().SetInoperativeWhenUnmounted(true);
+    Clusters::SmokeCoAlarmServer::Instance().SetInoperativeWhenUnmounted(true);
 }
 
 void AppTask::InitThermostat(EndpointId endpointId)

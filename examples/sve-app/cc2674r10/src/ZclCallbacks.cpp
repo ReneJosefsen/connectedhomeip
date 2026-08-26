@@ -64,32 +64,32 @@ void IdentifyStopHandler(::Identify *)
     GetAppTask().PostEvent(&event);
 }
 
-void emberAfSoilMeasurementClusterInitCallback(EndpointId endpointId)
+void MatterSoilMeasurementClusterInitCallback(EndpointId endpointId)
 {
     GetAppTask().InitSoilMeasurement(endpointId);
 }
 
-void emberAfSoilMeasurementClusterShutdownCallback(EndpointId endpointId)
+void MatterSoilMeasurementClusterShutdownCallback(EndpointId endpointId)
 {
     GetAppTask().ShutdownSoilMeasurement(endpointId);
 }
 
-void emberAfOnOffClusterInitCallback(EndpointId endpointId)
+void MatterOnOffClusterInitCallback(EndpointId endpointId)
 {
     GetAppTask().InitOnOff();
 }
 
-void emberAfPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpointId)
+void MatterPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitPumpConfigurationAndControl();
 }
 
-void emberAfSmokeCoAlarmClusterInitCallback(chip::EndpointId endpointId)
+void MatterSmokeCoAlarmClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitSmokeCoAlarm();
 }
 
-void emberAfThermostatClusterInitCallback(chip::EndpointId endpointId)
+void EmberAfThermostatClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitThermostat(endpointId);
 }
