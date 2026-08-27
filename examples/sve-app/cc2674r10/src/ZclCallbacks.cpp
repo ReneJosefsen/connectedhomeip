@@ -74,22 +74,17 @@ void MatterSoilMeasurementClusterShutdownCallback(EndpointId endpointId)
     GetAppTask().ShutdownSoilMeasurement(endpointId);
 }
 
-void EmberAfOnOffClusterInitCallback(EndpointId endpointId)
+void MatterOnOffClusterInitCallback(EndpointId endpointId)
 {
     GetAppTask().InitOnOff();
 }
 
-void EmberAfPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpointId)
+void MatterPumpConfigurationAndControlClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitPumpConfigurationAndControl();
 }
 
-void EmberAfSmokeCoAlarmClusterInitCallback(chip::EndpointId endpointId)
+void MatterSmokeCoAlarmClusterInitCallback(chip::EndpointId endpointId)
 {
     GetAppTask().InitSmokeCoAlarm();
-}
-
-void EmberAfThermostatClusterInitCallback(chip::EndpointId endpointId)
-{
-    GetAppTask().InitThermostat(endpointId);
 }

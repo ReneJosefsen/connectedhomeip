@@ -401,6 +401,10 @@ int AppTask::Init()
     // Set ValveConfigurationAndControl delegate
     Clusters::ValveConfigurationAndControl::SetDefaultDelegate(EndpointId(sWaterValveEndpointId), &sValveDelegate);
 
+    // Set Thermostat delegate
+    auto & delegate = Clusters::Thermostat::ThermostatDelegate::GetInstance();
+    Clusters::Thermostat::SetDefaultDelegate(EndpointId(sThermostatEndpointId), &delegate);
+
     // Start timer to make soil measurement every 1 second
     sSoilMeasurementTimer = xTimerCreate("SoilMeasTmr",                   // Just a text name, not used by the RTOS kernel
                                          30 * 1000,                       // timer period (mS)
@@ -897,14 +901,21 @@ void AppTask::InitPumpConfigurationAndControl()
 
 void AppTask::InitSmokeCoAlarm()
 {
-    Clusters::SmokeCoAlarmServer::Instance().SetInoperativeWhenUnmounted(true);
-}
+    Clusters::SmokeCoAlarmCluster::Config config;
+    config.featureMap.Set(Clusters::SmokeCoAlarm::Feature::kSmokeAlarm);
+    config.featureMap.Set(Clusters::SmokeCoAlarm::Feature::kCoAlarm);
 
-void AppTask::InitThermostat(EndpointId endpointId)
-{
-    // Register the delegate for the Thermostat
-    auto & delegate = Clusters::Thermostat::ThermostatDelegate::GetInstance();
-    Clusters::Thermostat::SetDefaultDelegate(endpointId, &delegate);
+    config.optionalAttribs =
+        Clusters::SmokeCoAlarmCluster::OptionalAttributeSet(Clusters::SmokeCoAlarmCluster::OptionalAttributeSet::All());
+
+    CHIP_ERROR ret = Clusters::SmokeCoAlarmServer::Instance().Init(sSmokeCoEndpointId, config);
+    if (ret != CHIP_NO_ERROR)
+    {
+        ChipLogError(NotSpecified, "SmokeCoAlarmServer::Init() failed: %" CHIP_ERROR_FORMAT, ret.Format());
+        return;
+    }
+
+    Clusters::SmokeCoAlarmServer::Instance().SetInoperativeWhenUnmounted(true);
 }
 
 void AppTask::ToggleOccupancySensorState(intptr_t arg)

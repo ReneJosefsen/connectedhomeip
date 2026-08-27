@@ -82,7 +82,6 @@ public:
     void InitOnOff(void);
     void InitPumpConfigurationAndControl(void);
     void InitSmokeCoAlarm(void);
-    void InitThermostat(chip::EndpointId endpointId);
 
 private:
     friend AppTask & GetAppTask(void);
